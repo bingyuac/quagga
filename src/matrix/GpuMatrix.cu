@@ -14,9 +14,9 @@ GpuMatrix::GpuMatrix(float *device_data, int nrows, int ncols) : data(device_dat
 }
 
 
-GpuMatrix::GpuMatrix(const float *host_data, int nrows, int ncols) : nrows(nrows), ncols(ncols), allocated(true) {
+GpuMatrix::GpuMatrix(const float *host_data, int nrows, int ncols, GpuMatrixContext *context) : nrows(nrows), ncols(ncols), allocated(true) {
 	init();
-	cublasSetVector(nelems, sizeof(float), host_data, 1, data, 1);
+	cublasSetVectorAsync(nelems, sizeof(float), host_data, 1, data, 1, context->get_cuda_stream());
 }
 
 
@@ -29,7 +29,7 @@ GpuMatrix::~GpuMatrix(void) {
 
 GpuMatrix* GpuMatrix::dot(const GpuMatrix *other, GpuMatrixContext *context) {
 	GpuMatrix *out = new GpuMatrix(nrows, other->ncols);
-	GpuMatrix::dot(other, 0.0f, out, context);
+	this->dot(other, out, context);
 	return out;
 }
 

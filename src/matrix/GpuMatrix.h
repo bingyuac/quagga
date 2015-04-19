@@ -10,7 +10,7 @@ class GpuMatrix {
 	public :
 		GpuMatrix(int nrows, int ncols);
 		GpuMatrix(float *device_data, int nrows, int ncols);
-		GpuMatrix(const float *host_data, int nrows, int ncols);
+		GpuMatrix(const float *host_data, int nrows, int ncols, GpuMatrixContext *context);
 		~GpuMatrix(void);
 
 		GpuMatrix* dot(const GpuMatrix *other, GpuMatrixContext *context);
