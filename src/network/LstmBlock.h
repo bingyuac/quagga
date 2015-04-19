@@ -2,8 +2,8 @@
 #define LSTMBLOCK_H_
 
 
-#include "matrix/GpuMatrix.h"
-#include "matrix/GpuMatrixContext.h"
+#include "../matrix/GpuMatrix.h"
+#include "../matrix/GpuMatrixContext.h"
 
 
 class LstmBlock {
@@ -12,6 +12,7 @@ class LstmBlock {
 				  GpuMatrix *Wi, GpuMatrix *Ri, GpuMatrix *pi,
 				  GpuMatrix *Wf, GpuMatrix *Rf, GpuMatrix *pf,
 				  GpuMatrix *Wo, GpuMatrix *Ro, GpuMatrix *po,
+				  GpuMatrix *c_t, GpuMatrix *h_t,
 				  GpuMatrix *dL_dpre_z_t, GpuMatrix *dL_dpre_i_t, GpuMatrix *dL_dpre_f_t, GpuMatrix *dL_dpre_o_t,
 				  GpuMatrixContext *z_context, GpuMatrixContext *i_context, GpuMatrixContext *f_context, GpuMatrixContext *c_context, GpuMatrixContext *o_context);
 		~LstmBlock(void);

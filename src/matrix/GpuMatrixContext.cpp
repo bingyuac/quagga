@@ -1,13 +1,23 @@
-#include "matrix/GpuMatrixContext.h"
+#include "GpuMatrixContext.h"
+#include <stdio.h>
+//TODO
 
 
 GpuMatrixContext::GpuMatrixContext(void) {
-	cudaStreamCreate(&cuda_stream);
+	int n = cudaStreamCreate(&cuda_stream);
+	printf("cudaStreamCreate %d\n", n);
 }
 
 
 GpuMatrixContext::~GpuMatrixContext(void) {
-	cudaStreamDestroy(cuda_stream);
+	int n = cudaStreamDestroy(cuda_stream);
+	printf("cudaStreamDestroy %d\n", n);
+}
+
+
+void GpuMatrixContext::createCublasHandle(void) {
+	int n = cublasCreate(&GpuMatrixContext::cublas_handle);
+	printf("createCublasHandle %d\n", n);
 }
 
 
@@ -17,7 +27,8 @@ void GpuMatrixContext::destroyCublasHandle(void) {
 
 
 cublasHandle_t GpuMatrixContext::get_cublas_handle() {
-	cublasSetStream(cublas_handle, cuda_stream);
+	int n = cublasSetStream(cublas_handle, cuda_stream);
+	printf("get_cublas_handle %d\n", n);
 	return cublas_handle;
 }
 
@@ -28,8 +39,9 @@ cudaStream_t GpuMatrixContext::get_cuda_stream() {
 
 
 void GpuMatrixContext::synchronize(void) {
-	cudaStreamSynchronize(cuda_stream);
+	int n = cudaStreamSynchronize(cuda_stream);
+	printf("cudaStreamSynchronize %d\n", n);
 }
 
 
-cublasCreate(GpuMatrixContext::cublas_handle);
+cublasHandle_t GpuMatrixContext::cublas_handle;

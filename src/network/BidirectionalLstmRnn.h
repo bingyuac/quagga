@@ -1,12 +1,9 @@
 #ifndef BIDIRECTIONALLSTMRNN_H_
 #define BIDIRECTIONALLSTMRNN_H_
 
-
-#include "GpuMatrix.h"
+#include "../matrix/MatrixGenerator.h"
+#include "../matrix/GpuMatrix.h"
 #include "LstmBlock.h"
-
-
-const int kMaxSentenceLen = 500;
 
 
 class BidirectionalLstmRnn {
@@ -17,6 +14,7 @@ class BidirectionalLstmRnn {
 		void backwardPropagation(GpuMatrix *sentence, int sentence_grammatical);
 
 	private:
+		static const int kMaxSentenceLen = 500;
 		GpuMatrix *zero_vector;
 
 		// Parameters
@@ -39,11 +37,13 @@ class BidirectionalLstmRnn {
 		GpuMatrix *pre_f_f, *pre_f_b;
 		GpuMatrix *c_f, *c_b;
 		GpuMatrix *pre_o_f, *pre_o_b;
+		GpuMatrix *h_f, *h_b;
 		GpuMatrix **pre_z_f_columns, **pre_z_b_columns;
 		GpuMatrix **pre_i_f_columns, **pre_i_b_columns;
 		GpuMatrix **pre_f_f_columns, **pre_f_b_columns;
 		GpuMatrix **c_f_columns, **c_b_columns;
 		GpuMatrix **pre_o_f_columns, **pre_o_b_columns;
+		GpuMatrix **h_f_columns, **h_b_columns;
 
 		// logistic regression gradients wrt forward and backward features
 		GpuMatrix *dL_dh_f, *dL_dh_b;
@@ -59,8 +59,8 @@ class BidirectionalLstmRnn {
 		GpuMatrix **dL_dpre_o_f_columns, **dL_dpre_o_b_columns;
 
 		// LSTM blocks
-		LstmBlock *forward_lstm_block[kMaxSentenceLen];
-		LstmBlock *backward_lstm_block[kMaxSentenceLen];
+		LstmBlock *forward_lstm_block[BidirectionalLstmRnn::kMaxSentenceLen];
+		LstmBlock *backward_lstm_block[BidirectionalLstmRnn::kMaxSentenceLen];
 
 		// parameters gradients
 		GpuMatrix *dL_dWz_f, *dL_dWz_b;
@@ -75,10 +75,7 @@ class BidirectionalLstmRnn {
 		GpuMatrix *dL_dRo_f, *dL_dRo_b;
 		GpuMatrix *dL_dpo_f, *dL_dpo_b;
 		GpuMatrix *dL_dw_hy_f, *dL_dw_hy_b;
-		GpuMatrix *dL_dx_z_f, *dL_dx_z_b;
-		GpuMatrix *dL_dx_i_f, *dL_dx_i_b;
-		GpuMatrix *dL_dx_f_f, *dL_dx_f_b;
-		GpuMatrix *dL_dx_o_f, *dL_dx;
+		GpuMatrix *dL_dx_f, *dL_dx;
 
 		// computation contexts
 		GpuMatrixContext *z_f_context, *z_b_context;

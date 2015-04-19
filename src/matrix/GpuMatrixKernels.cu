@@ -1,12 +1,13 @@
 #include "GpuMatrixKernels.cuh"
 #include <stdio.h>
 
+namespace kernels {
 
-__global__  void sliceColumnsKernel(int nrows,
-									int ncols,
-									const int* __restrict__ embedding_column_indxs,
-									const float* __restrict__ embedding_matrix,
-									float* __restrict__ dense_matrix) {
+__global__  void sliceColumns(int nrows,
+							  int ncols,
+							  const int* __restrict__ embedding_column_indxs,
+							  const float* __restrict__ embedding_matrix,
+							  float* __restrict__ dense_matrix) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * ncols;
@@ -23,12 +24,12 @@ __global__  void sliceColumnsKernel(int nrows,
 }
 
 
-__global__  void slicedInplaceAddKernel(int nrows,
-										int ncols,
-										float alpha,
-										const float* __restrict__ dense_matrix,
-										const int* __restrict__ embedding_column_indxs,
-										float* __restrict__ embedding_matrix) {
+__global__  void slicedInplaceAdd(int nrows,
+							      int ncols,
+							      float alpha,
+							      const float* __restrict__ dense_matrix,
+							      const int* __restrict__ embedding_column_indxs,
+							      float* __restrict__ embedding_matrix) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * ncols;
@@ -46,10 +47,10 @@ __global__  void slicedInplaceAddKernel(int nrows,
 
 
 __global__  void hadamardProduct(int nelems,
-							   const float* __restrict__ A,
-							   const float* __restrict__ B,
-							   float alpha,
-							   float* __restrict__ C) {
+							     const float* __restrict__ A,
+							     const float* __restrict__ B,
+							     float alpha,
+							     float* __restrict__ C) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -60,10 +61,10 @@ __global__  void hadamardProduct(int nelems,
 
 
 __global__  void hadamardProduct(int nelems,
-							   const float* __restrict__ A,
-							   const float* __restrict__ B,
-							   const float* __restrict__ C,
-							   float* __restrict__ D) {
+							     const float* __restrict__ A,
+							     const float* __restrict__ B,
+							     const float* __restrict__ C,
+							     float* __restrict__ D) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -94,7 +95,7 @@ __global__ void tanh(int nelems,
 
 	for (int i = start_i; i < nelems; i += nthreads) {
 		tanh_data[i] = tanhf(data[i]);
-		derivative[i] = 1.0 - tanh_data[i] * tanh_data[i];
+		derivative[i] = 1.0f - tanh_data[i] * tanh_data[i];
 	}
 }
 
@@ -125,7 +126,7 @@ __global__ void sigmoid(int nelems,
 }
 
 
-__global__ void addHdot(int nelems,
+__global__ void sumHprod(int nelems,
 						const float* __restrict__ A,
 						const float* __restrict__ B,
 						const float* __restrict__ C,
@@ -140,7 +141,7 @@ __global__ void addHdot(int nelems,
 }
 
 
-__global__ void addHdot(int nelems,
+__global__ void sumHprod(int nelems,
 						const float* __restrict__ A,
 						const float* __restrict__ B,
 						const float* __restrict__ C,
@@ -156,7 +157,7 @@ __global__ void addHdot(int nelems,
 }
 
 
-__global__ void addHdot(int nelems,
+__global__ void sumHprod(int nelems,
 						const float* __restrict__ A,
 						const float* __restrict__ B,
 						const float* __restrict__ C,
@@ -178,7 +179,7 @@ __global__ void addHdot(int nelems,
 }
 
 
-__global__ void add(int nelems,
+__global__ void sum(int nelems,
 						const float* __restrict__ A,
 						const float* __restrict__ B,
 						const float* __restrict__ C,
@@ -190,4 +191,18 @@ __global__ void add(int nelems,
 	for (int i = start_i; i < nelems; i += nthreads) {
 		E[i] = A[i] + B[i] + C[i] + D[i];
 	}
+}
+
+
+__global__ void scale(int nelems,
+					  const float* __restrict__ data,
+					  float alpha,
+					  float* __restrict__ out_data) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out_data[i] = alpha * data[i];
+	}
+}
 }

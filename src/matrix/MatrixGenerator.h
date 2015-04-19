@@ -6,7 +6,10 @@
 
 class MatrixGenerator {
 	public:
-		void get_matrix(void);
+		MatrixGenerator(int nrows, int ncols);
+		GpuMatrix* get_matrix(void);
+		int nrows;
+		int ncols;
 };
 
 

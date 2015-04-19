@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cublas_v2.h>
-#include "matrix/GpuMatrix.h"
+#include "../src/matrix/GpuMatrix.h"
+#include "../src/matrix/GpuMatrixContext.h"
 
 
 bool areSame(float a, float b) {
@@ -102,19 +103,14 @@ void testAdd(void) {
 
 	float *h_A = GpuMatrix::flatten(matrixAStartRows, nrows, ncols);
 	float *h_B = GpuMatrix::flatten(matrixBStartRows, nrows, ncols);
+	GpuMatrix *A = new GpuMatrix(h_A, nrows, ncols);
+	GpuMatrix *B = new GpuMatrix(h_B, nrows, ncols);
 
-	cudaStream_t stream;
-	cudaStreamCreate(&stream);
-	cublasHandle_t cublasHandle;
-	cublasCreate(&cublasHandle);
-	cublasSetStream(cublasHandle, stream);
-
-	GpuMatrix *A = new GpuMatrix(h_A, nrows, ncols, stream);
-	GpuMatrix *B = new GpuMatrix(h_B, nrows, ncols, stream);
-
-	A->add(B, cublasHandle);
-	float *flattenMatrix = A->toHost(stream);
-	cudaStreamSynchronize(stream);
+	GpuMatrixContext *context = new GpuMatrixContext();
+	A->add(B, context);
+	float *flattenMatrix = A->toHost(context);
+	context->synchronize();
+	GpuMatrix::print(flattenMatrix, A->nrows, A->ncols);
 	float **matrix = GpuMatrix::reshape(flattenMatrix, nrows, ncols);
 	bool testPassed = true;
 	for (int i = 0; i < nrows; i++) {
@@ -134,8 +130,7 @@ void testAdd(void) {
 
 	delete[] h_A;
 	delete[] h_B;
-	cudaStreamDestroy(stream);
-	cublasDestroy(cublasHandle);
+	delete context;
 	cudaDeviceReset();
 	delete A;
 	delete B;
@@ -179,15 +174,12 @@ void testSlicedAdd(void){
 
 	float *h_A = GpuMatrix::flatten(matrixAStartRows, nrows, aNcols);
 	float *h_B = GpuMatrix::flatten(matrixBStartRows, nrows, bNcols);
-
-	cudaStream_t stream;
-	cudaStreamCreate(&stream);
-
-	GpuMatrix *A = new GpuMatrix(h_A, nrows, aNcols, stream);
-	GpuMatrix *B = new GpuMatrix(h_B, nrows, bNcols, stream);
-	A->slicedAdd(B, columnIndxs, stream);
-	float *flattenMatrix = A->toHost(stream);
-	cudaStreamSynchronize(stream);
+	GpuMatrix *A = new GpuMatrix(h_A, nrows, aNcols);
+	GpuMatrix *B = new GpuMatrix(h_B, nrows, bNcols);
+	GpuMatrixContext *context = new GpuMatrixContext();
+	A->slicedAdd(B, columnIndxs, context);
+	float *flattenMatrix = A->toHost(context);
+	context->synchronize();
 	float **matrix = GpuMatrix::reshape(flattenMatrix, nrows, aNcols);
 	bool testPassed = true;
 	for (int i = 0; i < nrows; i++) {
@@ -207,7 +199,7 @@ void testSlicedAdd(void){
 
 	delete[] h_A;
 	delete[] h_B;
-	cudaStreamDestroy(stream);
+	delete context;
 	cudaDeviceReset();
 	delete A;
 	delete B;
@@ -251,17 +243,12 @@ void testDotColumnVector(void) {
 	float *h_A = GpuMatrix::flatten(matrixAStartRows, aNrows, aNcols);
 	float *h_B = GpuMatrix::flatten(matrixBStartRows, bNrows, bNcols);
 
-	cudaStream_t stream;
-	cudaStreamCreate(&stream);
-	cublasHandle_t cublasHandle;
-	cublasCreate(&cublasHandle);
-	cublasSetStream(cublasHandle, stream);
-
-	GpuMatrix *A = new GpuMatrix(h_A, aNrows, aNcols, stream);
-	GpuMatrix *B = new GpuMatrix(h_B, bNrows, bNcols, stream);
-	GpuMatrix *out = A->dot(B, cublasHandle);
-	float *flattenMatrix = out->toHost(stream);
-	cudaStreamSynchronize(stream);
+	GpuMatrix *A = new GpuMatrix(h_A, aNrows, aNcols);
+	GpuMatrix *B = new GpuMatrix(h_B, bNrows, bNcols);
+	GpuMatrixContext *context = new GpuMatrixContext();
+	GpuMatrix *out = A->dot(B, context);
+	float *flattenMatrix = out->toHost(context);
+	context->synchronize();
 	float **matrix = GpuMatrix::reshape(flattenMatrix, out->nrows, out->ncols);
 	bool testPassed = true;
 	for (int i = 0; i < out->nrows; i++) {
@@ -281,8 +268,7 @@ void testDotColumnVector(void) {
 
 	delete[] h_A;
 	delete[] h_B;
-	cudaStreamDestroy(stream);
-	cublasDestroy(cublasHandle);
+	delete context;
 	cudaDeviceReset();
 	delete A;
 	delete B;
@@ -327,18 +313,13 @@ void testDotMatrix(void) {
 	float *h_A = GpuMatrix::flatten(matrixAStartRows, aNrows, aNcols);
 	float *h_B = GpuMatrix::flatten(matrixBStartRows, bNrows, bNcols);
 
-	cudaStream_t stream;
-	cudaStreamCreate(&stream);
-	cublasHandle_t cublasHandle;
-	cublasCreate(&cublasHandle);
-	cublasSetStream(cublasHandle, stream);
 
-	GpuMatrix *A = new GpuMatrix(h_A, aNrows, aNcols, stream);
-	GpuMatrix *B = new GpuMatrix(h_B, bNrows, bNcols, stream);
-	cudaStreamSynchronize(stream);
-	GpuMatrix *out = A->dot(B, cublasHandle);
-	float *flattenMatrix = out->toHost(stream);
-	cudaStreamSynchronize(stream);
+	GpuMatrix *A = new GpuMatrix(h_A, aNrows, aNcols);
+	GpuMatrix *B = new GpuMatrix(h_B, bNrows, bNcols);
+	GpuMatrixContext *context = new GpuMatrixContext();
+	GpuMatrix *out = A->dot(B, context);
+	float *flattenMatrix = out->toHost(context);
+	context->synchronize();
 	float **matrix = GpuMatrix::reshape(flattenMatrix, out->nrows, out->ncols);
 	bool testPassed = true;
 	for (int i = 0; i < out->nrows; i++) {
@@ -358,8 +339,7 @@ void testDotMatrix(void) {
 
 	delete[] h_A;
 	delete[] h_B;
-	cudaStreamDestroy(stream);
-	cublasDestroy(cublasHandle);
+	delete context;
 	cudaDeviceReset();
 	delete A;
 	delete B;
@@ -396,13 +376,11 @@ void testSliceColumns(void) {
 	};
 
 	float *h_A = GpuMatrix::flatten(matrixAStartRows, nrows, aNcols);
-	cudaStream_t stream;
-	cudaStreamCreate(&stream);
-
-	GpuMatrix *A = new GpuMatrix(h_A, nrows, aNcols, stream);
-	GpuMatrix *B = A->sliceColumns(columnIndxs, bNcols, stream);
-	float *flattenMatrix = B->toHost(stream);
-	cudaStreamSynchronize(stream);
+	GpuMatrix *A = new GpuMatrix(h_A, nrows, aNcols);
+	GpuMatrixContext *context = new GpuMatrixContext();
+	GpuMatrix *B = A->sliceColumns(columnIndxs, bNcols, context);
+	float *flattenMatrix = B->toHost(context);
+	context->synchronize();
 	float **matrix = GpuMatrix::reshape(flattenMatrix, nrows, bNcols);
 	bool testPassed = true;
 	for (int i = 0; i < nrows; i++) {
@@ -421,7 +399,7 @@ void testSliceColumns(void) {
 	}
 
 	delete[] h_A;
-	cudaStreamDestroy(stream);
+	delete context;
 	cudaDeviceReset();
 	delete A;
 	delete B;
@@ -430,10 +408,11 @@ void testSliceColumns(void) {
 		delete[] matrix[i];
 	}
 	delete[] matrix;
-}}
+}
 
 
 int main(void) {
+	GpuMatrixContext::createCublasHandle();
 	testFlatten();
 	testReshape();
 	testAdd();
@@ -441,13 +420,6 @@ int main(void) {
 	testDotColumnVector();
 	testDotMatrix();
 	testSliceColumns();
-
-	std::list<int*> sentences;
-	int *k;
-	sentences.push_front();
-
-//	std::slist
-
-
+	GpuMatrixContext::destroyCublasHandle();
 	return EXIT_SUCCESS;
 }
