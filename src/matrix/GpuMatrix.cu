@@ -44,7 +44,7 @@ void GpuMatrix::dot(const GpuMatrix *other, float beta, GpuMatrix *out, GpuMatri
 	if (other->ncols == 1) {
 		cublasSgemv(context->get_cublas_handle(), CUBLAS_OP_N, nrows, ncols, &one, data, nrows, other->data, 1, &beta, out->data, 1);
 	} else {
-		cublasSgemm(context->get_cublas_handle(), CUBLAS_OP_N, CUBLAS_OP_N, nrows, other->ncols, ncols, &one, data, nrows, other->data, other->nrows, &beta, out->data, out->nrows);
+		cublasSgemm(context->get_cublas_handle(), CUBLAS_OP_N, CUBLAS_OP_N, out->nrows, out->ncols, ncols, &one, data, nrows, other->data, other->nrows, &beta, out->data, out->nrows);
 	}
 }
 
