@@ -12,9 +12,8 @@ class GpuMatrix(object):
         self.nelems = nrows * ncols
         self.nbytes = self.nelems * ctypes.sizeof(ctypes.c_float)
         self.is_owner = is_owner
-        self.released = False
         if is_owner:
-            atexit.register(lambda: None if self.released else cudart.cuda_free(self.data))
+            atexit.register(cudart.cuda_free, self.data)
 
     def __getitem__(self, key):
         void_p = ctypes.cast(self.data, ctypes.c_voidp).value + self.nrows * key[1] * ctypes.sizeof(ctypes.c_float)
@@ -22,11 +21,9 @@ class GpuMatrix(object):
         return GpuMatrix.from_device_array(data, self.nrows, 1)
 
     def __del__(self):
-        print 'del {}'.format(self)
         if self.is_owner:
-            print 'del released {}'.format(self)
             cudart.cuda_free(self.data)
-            self.released = True
+            atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
 
     @classmethod
     def from_npa(cls, a):

@@ -1,6 +1,6 @@
 import atexit
-from cuda import cudart
-from cuda import cublas
+from functools import partial
+from cuda import cudart, cublas
 from collections import defaultdict
 
 
@@ -20,7 +20,12 @@ class GpuMatrixContext(object):
             cublas.cublas_create(GpuMatrixContext._cublas_handle)
         self.cuda_stream = cudart.cuda_stream_t()
         cudart.cuda_stream_create(self.cuda_stream)
-        atexit.register(self.__destroy_cuda_stream)
+        atexit.register(cudart.cuda_stream_destroy, self.cuda_stream)
+
+    def __del__(self):
+        print 'destroy cuda stream {}'.format(self)
+        cudart.cuda_stream_destroy(self.cuda_stream)
+        atexit._exithandlers.remove((cudart.cuda_stream_destroy, (self.cuda_stream, ), {}))
 
     @property
     def cublas_handle(self):
@@ -41,9 +46,6 @@ class GpuMatrixContext(object):
             event = GpuMatrixContext._events[self, context]
             cudart.cuda_event_record(event, self.cuda_stream)
             cudart.cuda_stream_wait_event(context.cuda_stream, event)
-
-    def __destroy_cuda_stream(self):
-        cudart.cuda_stream_destroy(self.cuda_stream)
 
     @staticmethod
     @atexit.register

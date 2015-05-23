@@ -91,7 +91,6 @@ class TestGpuMatrix(TestCase):
             tanh_matrix_gpu = GpuMatrix.empty_like(a_gpu)
             derivative_matrix_gpu = GpuMatrix.empty_like(a_gpu)
 
-
             a_cpu.tanh(self.cpu_context, tanh_matrix_cpu)
             a_gpu.tanh(self.gpu_context, tanh_matrix_gpu)
             self.cpu_context.synchronize()
