@@ -23,11 +23,11 @@ class CpuMatrix(object):
 
     @classmethod
     def empty(cls, nrows, ncols):
-        return cls.from_npa(np.empty((nrows, ncols)))
+        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols))))
 
     @classmethod
     def empty_like(cls, other):
-        return cls.from_npa(np.empty_like(other.npa))
+        return cls.from_npa(np.nan_to_num(np.empty_like(other.npa)))
 
     def to_host(self):
         return self.npa

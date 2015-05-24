@@ -5,7 +5,8 @@ from network import MatrixClass
 class LstmBlock(object):
     def __init__(self, p_type, Wz, Rz, Wi, Ri, pi, Wf, Rf, pf, Wo, Ro, po,
                  c, h, dL_dpre_z, dL_dpre_i, dL_dpre_f, dL_dpre_o,
-                 z_context, i_context, f_context, c_context, o_context):
+                 z_context, i_context, f_context, c_context, o_context,
+                 prev_cell=None, next_cell=None):
         self.p_type = p_type
         self.Wz = Wz
         self.Rz = Rz
@@ -44,8 +45,8 @@ class LstmBlock(object):
         self.f_context = f_context
         self.c_context = c_context
         self.o_context = o_context
-        self.prev_cell = None
-        self.next_cell = None
+        self.prev_cell = prev_cell
+        self.next_cell = next_cell
         self.back_prop = None
 
     @property
@@ -156,3 +157,9 @@ class MarginalLstmBlock(object):
         zero_vector = MatrixClass[p_type].from_npa(np.zeros((n, 1)))
         self.c = zero_vector
         self.h = zero_vector
+        self.dL_dpre_z = None
+        self.dL_dpre_i = None
+        self.dL_dpre_f = None
+        self.dL_dpre_o = None
+        self.dL_dc = None
+        self.f = None
