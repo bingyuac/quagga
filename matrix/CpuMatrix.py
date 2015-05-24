@@ -9,7 +9,8 @@ class CpuMatrix(object):
         self.nelems = nrows * ncols
 
     def __getitem__(self, key):
-        key = key + (np.newaxis, )
+        if type(key[1]) == int:
+            key = key + (np.newaxis, )
         return CpuMatrix.from_npa(self.npa[key])
 
     @classmethod
@@ -30,6 +31,9 @@ class CpuMatrix(object):
 
     def to_host(self):
         return self.npa
+
+    def to_list(self):
+        return [self[:, i] for i in xrange(self.ncols)]
 
     def scale(self, context, alpha, out=None):
         if out:
@@ -97,6 +101,9 @@ class CpuMatrix(object):
             out.npa.data = (a.npa * b.npa * c.npa + d.npa * e.npa).data
         else:
             out.npa.data = (a.npa * b.npa + c.npa * d.npa).data
+
+    def assign_dot(self, context, a, b, matrix_operation='N', alpha=1.0):
+        self.add_dot(context, a, b, matrix_operation, alpha, 0.0)
 
     def add_dot(self, context, a, b, matrix_operation='N', alpha=1.0, beta=1.0):
         """

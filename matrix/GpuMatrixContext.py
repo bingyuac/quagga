@@ -1,5 +1,4 @@
 import atexit
-from functools import partial
 from cuda import cudart, cublas
 from collections import defaultdict
 
@@ -23,7 +22,6 @@ class GpuMatrixContext(object):
         atexit.register(cudart.cuda_stream_destroy, self.cuda_stream)
 
     def __del__(self):
-        print 'destroy cuda stream {}'.format(self)
         cudart.cuda_stream_destroy(self.cuda_stream)
         atexit._exithandlers.remove((cudart.cuda_stream_destroy, (self.cuda_stream, ), {}))
 

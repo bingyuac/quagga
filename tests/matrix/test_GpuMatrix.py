@@ -30,26 +30,17 @@ class TestGpuMatrix(TestCase):
             r.append(np.allclose(a, a_gpu.to_host()))
         self.assertEqual(sum(r), self.N)
 
-    def test_from_device_array(self):
-        r = []
-        for i in xrange(self.N):
-            a = TestGpuMatrix.get_random_array()
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_device_array(a_gpu.data, a_gpu.nrows, a_gpu.ncols)
-            r.append(np.allclose(a, a_gpu.to_host()) and
-                     np.allclose(a, b_gpu.to_host()))
-        self.assertEqual(sum(r), self.N)
-
     def test_getitem(self):
         r = []
         for i in xrange(self.N):
             a = TestGpuMatrix.get_random_array()
             j = self.rng.randint(a.shape[1])
+            s = slice(None, j, None) if self.rng.randint(2) else j
 
             a_cpu = CpuMatrix.from_npa(a)
             a_gpu = GpuMatrix.from_npa(a)
-            a_cpu_column = a_cpu[:, j]
-            a_gpu_column = a_gpu[:, j]
+            a_cpu_column = a_cpu[:, s]
+            a_gpu_column = a_gpu[:, s]
             r.append(np.allclose(a_cpu_column.to_host(),
                                  a_gpu_column.to_host()))
         self.assertEqual(sum(r), self.N)
@@ -327,6 +318,46 @@ class TestGpuMatrix(TestCase):
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-5))
 
         self.assertEqual(sum(r), self.N * 3)
+
+    def test_assign_dot(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestGpuMatrix.get_random_array()
+            a_v = TestGpuMatrix.get_random_array((a.shape[0], 1))
+            m = self.rng.randint(low=1, high=7000, size=1)[0]
+            matrix_operation = self.rng.choice(['T', 'N'], 1)[0]
+            if matrix_operation == 'N':
+                b = TestGpuMatrix.get_random_array((a.shape[0], m))
+            else:
+                b = TestGpuMatrix.get_random_array((m, a.shape[0]))
+            c = TestGpuMatrix.get_random_array((m, a.shape[1]))
+            c_v = TestGpuMatrix.get_random_array((m, 1))
+            alpha = 2 * self.rng.rand(1)[0] - 1
+
+            a_cpu = CpuMatrix.from_npa(a)
+            a_v_cpu = CpuMatrix.from_npa(a_v)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            c_v_cpu = CpuMatrix.from_npa(c_v)
+            a_gpu = GpuMatrix.from_npa(a)
+            a_v_gpu = GpuMatrix.from_npa(a_v)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+            c_v_gpu = GpuMatrix.from_npa(c_v)
+
+            a_cpu.assign_dot(self.cpu_context, b_cpu, c_cpu, matrix_operation, alpha)
+            a_gpu.assign_dot(self.gpu_context, b_gpu, c_gpu, matrix_operation, alpha)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-3))
+
+            a_v_cpu.assign_dot(self.cpu_context, b_cpu, c_v_cpu, matrix_operation, alpha)
+            a_v_gpu.assign_dot(self.gpu_context, b_gpu, c_v_gpu, matrix_operation, alpha)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))
+
+        self.assertEqual(sum(r), self.N * 2)
 
     def test_add_dot(self):
         r = []

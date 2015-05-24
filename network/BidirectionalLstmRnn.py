@@ -1,124 +1,160 @@
-from network import LstmBlock
+import ctypes
+import numpy as np
+from itertools import izip
+from network import LstmBlock, MarginalLstmBlock
 from network import MatrixClass, MatrixContextClass
 
 
 class BidirectionalLstmRnn(object):
     def __init__(self, p_type, max_sentence_len,
                  W_init, R_init, p_init, logistic_init):
-        #          c, h, dL_dpre_z, dL_dpre_i, dL_dpre_f, dL_dpre_o,
-        #          z_context, i_context, f_context, c_context, o_context
         self.p_type = p_type
 
-        Matrix = MatrixClass[self.p_type]
-        self.Wz_f = Matrix.from_npa(W_init())
-        self.Rz_f = Matrix.from_npa(R_init())
-        self.Wi_f = Matrix.from_npa(W_init())
-        self.Ri_f = Matrix.from_npa(R_init())
-        self.pi_f = Matrix.from_npa(p_init())
-        self.Wf_f = Matrix.from_npa(W_init())
-        self.Rf_f = Matrix.from_npa(R_init())
-        self.pf_f = Matrix.from_npa(p_init())
-        self.Wo_f = Matrix.from_npa(W_init())
-        self.Ro_f = Matrix.from_npa(R_init())
-        self.po_f = Matrix.from_npa(p_init())
-        self.w_hy_f = Matrix.from_npa(logistic_init())
+        Matrix = MatrixClass[p_type]
+        self.W = {}
+        self.R = {}
+        self.p = {}
+        self.w_hy = {}
+        self.pre = {}
+        self.pre_columns = {}
+        self.c = {}
+        self.h = {}
+        for d in ['forward', 'backward']:
+            for gate in ['z', 'i', 'f', 'o']:
+                self.W[gate, d] = Matrix.from_npa(W_init())
+                self.R[gate, d] = Matrix.from_npa(R_init())
+                self.p[gate, d] = Matrix.from_npa(p_init())
+                self.pre[gate, d] = Matrix.empty(p_init.nrows, max_sentence_len)
+                self.pre_columns[gate, d] = self.pre[gate, d].to_list()
+            self.w_hy[d] = Matrix.from_npa(logistic_init())
+            self.c[d] = Matrix.empty(p_init.nrows, max_sentence_len)
+            self.h[d] = Matrix.empty(p_init.nrows, max_sentence_len)
 
-        self.Wz_b = Matrix.from_npa(W_init())
-        self.Rz_b = Matrix.from_npa(R_init())
-        self.Wi_b = Matrix.from_npa(W_init())
-        self.Ri_b = Matrix.from_npa(R_init())
-        self.pi_b = Matrix.from_npa(p_init())
-        self.Wf_b = Matrix.from_npa(W_init())
-        self.Rf_b = Matrix.from_npa(R_init())
-        self.pf_b = Matrix.from_npa(p_init())
-        self.Wo_b = Matrix.from_npa(W_init())
-        self.Ro_b = Matrix.from_npa(R_init())
-        self.po_b = Matrix.from_npa(p_init())
-        self.w_hy_b = Matrix.from_npa(logistic_init())
-
-        self.pre_z_f = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.pre_i_f = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.pre_f_f = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.c_f = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.pre_o_f = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.h_f = Matrix.empty(p_init.nrows, max_sentence_len)
-
-        self.pre_z_b = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.pre_i_b = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.pre_f_b = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.c_b = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.pre_o_b = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.h_b = Matrix.empty(p_init.nrows, max_sentence_len)
-
-        self.dL_dh_f = Matrix.empty_like(p_init)
-        self.dL_dh_b = Matrix.empty_like(p_init)
-
-        self.dL_dpre_z_f = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.dL_dpre_i_f = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.dL_dpre_f_f = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.dL_dpre_o_f = Matrix.empty(p_init.nrows, max_sentence_len)
-
-        self.dL_dpre_z_b = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.dL_dpre_i_b = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.dL_dpre_f_b = Matrix.empty(p_init.nrows, max_sentence_len)
-        self.dL_dpre_o_b = Matrix.empty(p_init.nrows, max_sentence_len)
-
-        self.dL_dWz_f = Matrix.empty_like(W_init)
-        self.dL_dRz_f = Matrix.empty_like(R_init)
-        self.dL_dWi_f = Matrix.empty_like(W_init)
-        self.dL_dRi_f = Matrix.empty_like(R_init)
-        self.dL_dpi_f = Matrix.empty_like(p_init)
-        self.dL_dWf_f = Matrix.empty_like(W_init)
-        self.dL_dRf_f = Matrix.empty_like(R_init)
-        self.dL_dpf_f = Matrix.empty_like(p_init)
-        self.dL_dWo_f = Matrix.empty_like(W_init)
-        self.dL_dRo_f = Matrix.empty_like(R_init)
-        self.dL_dpo_f = Matrix.empty_like(p_init)
-        self.dL_dw_hy_f = Matrix.empty_like(logistic_init)
-        self.dL_dx_f = Matrix.empty(p_init.nrows, max_sentence_len)
-
-        self.dL_dWz_b = Matrix.empty_like(W_init)
-        self.dL_dRz_b = Matrix.empty_like(R_init)
-        self.dL_dWi_b = Matrix.empty_like(W_init)
-        self.dL_dRi_b = Matrix.empty_like(R_init)
-        self.dL_dpi_b = Matrix.empty_like(p_init)
-        self.dL_dWf_b = Matrix.empty_like(W_init)
-        self.dL_dRf_b = Matrix.empty_like(R_init)
-        self.dL_dpf_b = Matrix.empty_like(p_init)
-        self.dL_dWo_b = Matrix.empty_like(W_init)
-        self.dL_dRo_b = Matrix.empty_like(R_init)
-        self.dL_dpo_b = Matrix.empty_like(p_init)
-        self.dL_dw_hy_b = Matrix.empty_like(logistic_init)
-        self.dL_dx_b = Matrix.empty(p_init.nrows, max_sentence_len)
+        self.dL_dW = {}
+        self.dL_dR = {}
+        self.dL_dp = {}
+        self.dL_dw_hy = {}
+        self.dL_dx = {}
+        self.dL_dh = {}
+        self.dL_dpre = {}
+        for d in ['forward', 'backward']:
+            self.dL_dw_hy[d] = Matrix.empty_like(logistic_init)
+            self.dL_dx[d] = Matrix.empty(p_init.nrows, max_sentence_len)
+            self.dL_dh[d] = Matrix.empty_like(p_init)
+            for gate in ['z', 'i', 'f', 'o']:
+                self.dL_dW[gate, d] = Matrix.empty_like(W_init)
+                self.dL_dR[gate, d] = Matrix.empty_like(R_init)
+                if gate != 'z':
+                    self.dL_dp[gate, d] = Matrix.empty_like(p_init)
+                self.dL_dpre[gate, d] = Matrix.empty(p_init.nrows, max_sentence_len)
 
         Context = MatrixContextClass[self.p_type]
-        self.z_f_context = Context()
-        self.i_f_context = Context()
-        self.f_f_context = Context()
-        self.c_f_context = Context()
-        self.o_f_context = Context()
+        self.context = {}
+        for d in ['forward', 'backward']:
+            for gate in ['z', 'i', 'f', 'c', 'o']:
+                self.context[gate, d] = Context()
 
-        self.z_b_context = Context()
-        self.i_b_context = Context()
-        self.f_b_context = Context()
-        self.c_b_context = Context()
-        self.o_b_context = Context()
+        self.lstm_blocks = {'forward': [],
+                            'backward': []}
+        for d in self.lstm_blocks:
+            for n in xrange(max_sentence_len):
+                cell = LstmBlock(p_type,
+                                 self.W['z', d], self.R['z', d],
+                                 self.W['i', d], self.R['i', d], self.p['i', d],
+                                 self.W['f', d], self.R['f', d], self.p['f', d],
+                                 self.W['o', d], self.R['o', d], self.p['o', d],
+                                 self.c[d][:, n], self.h[d][:, n],
+                                 self.dL_dpre['z', d][:, n],
+                                 self.dL_dpre['i', d][:, n],
+                                 self.dL_dpre['f', d][:, n],
+                                 self.dL_dpre['o', d][:, n],
+                                 self.context['z', d],
+                                 self.context['i', d],
+                                 self.context['f', d],
+                                 self.context['c', d],
+                                 self.context['o', d])
+                if n == 0:
+                    cell.prev_cell = MarginalLstmBlock(p_type, p_init.nrows)
+                else:
+                    cell.prev_cell = self.lstm_blocks[d][-1]
+                    self.lstm_blocks[d][-1].next_cell = cell
+                self.lstm_blocks[d].append(cell)
 
-        self.forward_lstm_blocks = []
-        self.backward_lstm_blocks = []
-        for n in xrange(max_sentence_len):
-            cell = LstmBlock(p_type, self.Wz_f, self.Rz_f,
-                                     self.Wi_f, self.Ri_f, self.pi_f,
-                                     self.Wf_f, self.Rf_f, self.pf_f,
-                                     self.Wo_f, self.Ro_f, self.po_f,
-                                     self.c_f[:, n], self.h_f[:, n],
-                                     self.dL_dpre_z_f[:, n],
-                                     self.dL_dpre_i_f[:, n],
-                                     self.dL_dpre_f_f[:, n],
-                                     self.dL_dpre_o_f[:, n],
-                                     self.z_f_context,
-                                     self.i_f_context,
-                                     self.f_f_context,
-                                     self.c_f_context,
-                                     self.o_f_context, prev_cell=None, next_cell=None)
-            self.forward_lstm_blocks.append(cell)
+    def set_training_mode(self):
+        for d in ['forward', 'backward']:
+            for cell in self.lstm_blocks[d]:
+                cell.back_prop = True
+
+    def set_testing_mode(self):
+        for d in ['forward', 'backward']:
+            for cell in self.lstm_blocks[d]:
+                cell.back_prop = False
+
+    def forward_propagation(self, input_sequence):
+        n = input_sequence.ncols
+        pre = {}
+        for d in ['forward', 'backward']:
+            for gate in ['z', 'i', 'f', 'o']:
+                pre[gate, d] = self.pre[gate, d][:, :n]
+                pre[gate, d].assign_dot(self.context[gate, d], self.W[gate, d], input_sequence)
+
+        for i in xrange(n):
+            for d, t in izip(['forward', 'backward'], [i, n-1-i]):
+                pre_z = self.pre_columns['z', d][t]
+                pre_i = self.pre_columns['i', d][t]
+                pre_f = self.pre_columns['f', d][t]
+                pre_o = self.pre_columns['o', d][t]
+                cell = self.lstm_blocks[d][i]
+                cell.forward_propagation(pre_z, pre_i, pre_f, pre_o)
+
+        pre_exp = 0.0
+        for d in ['forward', 'backward']:
+            pre_exp += self.lstm_blocks[d][n-1].h.vdot(self.context['o', d], self.w_hy[d]).value
+        return ctypes.c_float(1.0 / (1.0 + np.exp(-pre_exp)))
+
+    def backward_propagation(self, input_sequence, sequence_grammaticality):
+        predicted_sequence_grammaticality = self.forward_propagation(input_sequence)
+        error = sequence_grammaticality - predicted_sequence_grammaticality
+
+        n = input_sequence.ncols
+        for i in reversed(xrange(n)):
+            if i == n - 1:
+                for d in ['forward', 'backward']:
+                    # dL/dh = h * error
+                    self.lstm_blocks[d][n].h.scale(self.context['o', d], error, self.dL_dh[d])
+                    self.lstm_blocks[d][n].backward_propagation(self.dL_dh[d])
+            else:
+                for d in ['forward', 'backward']:
+                    self.lstm_blocks[d][n].backward_propagation()
+
+        # dL/dx = Wz_f.T * dL/dpre_z_f + Wi_f.T * dL/dpre_i_f + Wf_f.T * dL/dpre_f_f + Wo_f.T * dL/dpre_o_f +
+        #         Wz_b.T * dL/dpre_z_b + Wi_b.T * dL/dpre_i_b + Wf_b.T * dL/dpre_f_b + Wo_b.T * dL/dpre_o_b
+        dL_dpre = {}
+        dL_dx = {}
+        for d in ['forward', 'backward']:
+            dL_dx[d] = self.dL_dx[d][:, :n]
+            context = self.context['z', d]
+            for gate in ['z', 'i', 'f', 'o']:
+                dL_dpre[gate, d] = self.dL_dpre[gate, d][:, :n]
+                if gate == 'z':
+                    dL_dx[d].assign_dot(context, self.W[gate, d], dL_dpre[gate, d], 'T')
+                else:
+                    dL_dx[d].add_dot(context, self.W[gate, d], dL_dpre[gate, d], 'T')
+
+        # TODO edit these comments when you end debugging
+        # dL_dW@ = dL_dpre_@ * x
+        # dL_dR@ = dL_dpre_@ * h
+        # dL_dp@ = dL_dpre_@ * c
+        for d in ['forward', 'backward']:
+            for gate in ['z', 'i', 'f', 'o']:
+                self.dL_dW[gate, d].assign_dot(self.context[gate, d], input_sequence, dL_dpre[gate, d], 'T')
+                self.dL_dR[gate, d].assign_dot(self.context[gate, d], self.h[:, :n], dL_dpre[gate, d], 'T')
+                if gate != 'z':
+                    self.dL_dp[gate, d].assign_dot(self.context[gate, d], self.c[:, :n], dL_dpre[gate, d], 'T')
+
+        conts = [v for k, v in self.context.iteritems() if k != ('o', 'backward')]
+        cont_o_b = self.context['o', 'backward']
+        cont_o_b.depend_on(conts)
+        self.dL_dx['forward'].add(cont_o_b, self.dL_dx['backward'])
+
+        return self.dL_dW, self.dL_dR, self.dL_dp, self.dL_dw_hy, self.dL_dx['forward']

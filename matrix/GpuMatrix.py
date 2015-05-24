@@ -16,9 +16,14 @@ class GpuMatrix(object):
             atexit.register(cudart.cuda_free, self.data)
 
     def __getitem__(self, key):
-        void_p = ctypes.cast(self.data, ctypes.c_voidp).value + self.nrows * key[1] * ctypes.sizeof(ctypes.c_float)
-        data = ctypes.cast(void_p, ctypes.POINTER(ctypes.c_float))
-        return GpuMatrix.from_device_array(data, self.nrows, 1)
+        if type(key[1]) == int:
+            void_p = ctypes.cast(self.data, ctypes.c_voidp).value + self.nrows * key[1] * ctypes.sizeof(ctypes.c_float)
+            data = ctypes.cast(void_p, ctypes.POINTER(ctypes.c_float))
+            return GpuMatrix(data, self.nrows, 1, False)
+        elif key[1].start is None and key[1].step is None:
+            return GpuMatrix(self.data, self.nrows, key[1].stop, False)
+        else:
+            raise ValueError('This slice: {} is unsupported!'.format(key))
 
     def __del__(self):
         if self.is_owner:
@@ -52,10 +57,6 @@ class GpuMatrix(object):
         data = cudart.cuda_malloc(nbytes, ctypes.c_float)
         return cls(data, other.nrows, other.ncols, True)
 
-    @classmethod
-    def from_device_array(cls, data, nrows, ncols):
-        return cls(data, nrows, ncols, False)
-
     def to_host(self):
         c_float_p = ctypes.POINTER(ctypes.c_float)
         host_array = (c_float_p * self.nelems)()
@@ -66,6 +67,9 @@ class GpuMatrix(object):
                           dtype=np.float32,
                           buffer=host_array,
                           order='F')
+
+    def to_list(self):
+        return [self[:, i] for i in xrange(self.ncols)]
 
     def scale(self, context, alpha, out=None):
         if type(alpha) != ctypes.c_float:
@@ -97,7 +101,7 @@ class GpuMatrix(object):
 
     def add(self, context, a, b=None, c=None):
         if not b and not c:
-            self.add_scaled(context, 1.0, a)
+            self.add_scaled(context, ctypes.c_float(1.0), a)
         else:
             gpu_matrix_kernels.sum(context.cuda_stream, self.nelems, a.data, b.data, c.data, self.data, self.data)
 
@@ -141,6 +145,9 @@ class GpuMatrix(object):
             gpu_matrix_kernels.sum_hprod_5(context.cuda_stream, out.nelems, a.data, b.data, c.data, d.data, e.data, out.data)
         else:
             gpu_matrix_kernels.sum_hprod_4(context.cuda_stream, out.nelems, a.data, b.data, c.data, d.data, out.data)
+
+    def assign_dot(self, context, a, b, matrix_operation='N', alpha=ctypes.c_float(1.0)):
+        self.add_dot(context, a, b, matrix_operation, alpha, ctypes.c_float(0.0))
 
     def add_dot(self, context, a, b, matrix_operation='N', alpha=ctypes.c_float(1.0), beta=ctypes.c_float(1.0)):
         """

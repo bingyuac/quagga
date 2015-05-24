@@ -1,10 +1,11 @@
+import numpy as np
 from network import MatrixClass
 
 
 class LstmBlock(object):
     def __init__(self, p_type, Wz, Rz, Wi, Ri, pi, Wf, Rf, pf, Wo, Ro, po,
                  c, h, dL_dpre_z, dL_dpre_i, dL_dpre_f, dL_dpre_o,
-                 z_context, i_context, f_context, c_context, o_context, prev_cell=None, next_cell=None):
+                 z_context, i_context, f_context, c_context, o_context):
         self.p_type = p_type
         self.Wz = Wz
         self.Rz = Rz
@@ -43,8 +44,8 @@ class LstmBlock(object):
         self.f_context = f_context
         self.c_context = c_context
         self.o_context = o_context
-        self.prev_cell = prev_cell
-        self.next_cell = next_cell
+        self.prev_cell = None
+        self.next_cell = None
         self.back_prop = None
 
     @property
@@ -119,10 +120,10 @@ class LstmBlock(object):
             #            Ri.T * dL/dpre_i[t+1] +
             #            Rf.T * dL/dpre_f[t+1] +
             #            Ro.T * dL/dpre_o[t+1]
-            self.dL_dhz.add_dot(self.z_context, self.Rz, self.next_cell.dL_dpre_z, matrix_operation='T', beta=0.0)
-            self.dL_dhi.add_dot(self.i_context, self.Ri, self.next_cell.dL_dpre_i, matrix_operation='T', beta=0.0)
-            self.dL_dhf.add_dot(self.f_context, self.Rf, self.next_cell.dL_dpre_f, matrix_operation='T', beta=0.0)
-            self.dL_dh.add_dot(self.o_context, self.Ro, self.next_cell.dL_dpre_o, matrix_operation='T', beta=0.0)
+            self.dL_dhz.assign_dot(self.z_context, self.Rz, self.next_cell.dL_dpre_z, matrix_operation='T')
+            self.dL_dhi.assign_dot(self.i_context, self.Ri, self.next_cell.dL_dpre_i, matrix_operation='T')
+            self.dL_dhf.assign_dot(self.f_context, self.Rf, self.next_cell.dL_dpre_f, matrix_operation='T')
+            self.dL_dh.assign_dot(self.o_context, self.Ro, self.next_cell.dL_dpre_o, matrix_operation='T')
             self.o_context.depend_on(self.z_context, self.i_context, self.f_context)
             self.dL_dh.add(self.o_context, self.dL_dhz, self.dL_dhi, self.dL_dhf)
 
@@ -148,3 +149,10 @@ class LstmBlock(object):
         MatrixClass[self.p_type].hprod(self.f_context, self.dL_dpre_f, self.dL_dc, self.prev_cell.c, self.df_dpre_f)
         MatrixClass[self.p_type].hprod(self.i_context, self.dL_dpre_i, self.dL_dc, self.z, self.di_dpre_i)
         MatrixClass[self.p_type].hprod(self.z_context, self.dL_dpre_z, self.dL_dc, self.i, self.dz_dpre_z)
+
+
+class MarginalLstmBlock(object):
+    def __init__(self, p_type, n):
+        zero_vector = MatrixClass[p_type].from_npa(np.zeros(n, 1))
+        self.c = zero_vector
+        self.h = zero_vector
