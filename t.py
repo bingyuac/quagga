@@ -1,11 +1,10 @@
 import numpy as np
-from network import LstmBlock
+from network import LstmBlock, MarginalLstmBlock
 from network import MatrixClass, MatrixContextClass
 
 
 if __name__ == '__main__':
     pt = 'gpu'
-    LstmBlock.p_type = pt
     n = 1024
     rng = np.random.RandomState(seed=42)
     a = (4 * rng.rand(n, n) - 2).astype(dtype=np.float32)
@@ -41,18 +40,18 @@ if __name__ == '__main__':
     dL_dpre_f_t = MatrixClass[pt].from_npa(b)
     dL_dpre_o_t = MatrixClass[pt].from_npa(b)
 
-    lstm_block = LstmBlock(Wz, Rz, Wi, Ri, pi, Wf, Rf, pf, Wo, Ro, po, c_t, h_t,
+    lstm_block = LstmBlock(pt, Wz, Rz, Wi, Ri, pi, Wf, Rf, pf, Wo, Ro, po, c_t, h_t,
                            dL_dpre_z_t, dL_dpre_i_t, dL_dpre_f_t, dL_dpre_o_t,
                            z_context, i_context, f_context, c_context, o_context)
+    lstm_block.set_testing_mode()
+    lstm_block.prev_cell = MarginalLstmBlock(pt, n)
+    lstm_block.prev_cell.c = MatrixClass[pt].from_npa(c)
+    lstm_block.prev_cell.h = MatrixClass[pt].from_npa(c)
 
     pre_z_t = MatrixClass[pt].from_npa(c)
     pre_i_t = MatrixClass[pt].from_npa(c)
     pre_f_t = MatrixClass[pt].from_npa(c)
     pre_o_t = MatrixClass[pt].from_npa(c)
-    h_tm1 = MatrixClass[pt].from_npa(c)
-    c_tm1 = MatrixClass[pt].from_npa(c)
 
-    lstm_block.back_prop = True
-    #
     for i in xrange(50):
-        lstm_block.forward_propagation(pre_z_t, pre_i_t, pre_f_t, pre_o_t, h_tm1, c_tm1)
+        lstm_block.forward_propagation(pre_z_t, pre_i_t, pre_f_t, pre_o_t)

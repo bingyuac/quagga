@@ -102,7 +102,7 @@ class LstmBlock(object):
 
         # o[t] = sigmoid(Wo * x[t] + Ro * h[t-1] + po .* c[t])
         # h[t] = o[t] .* tanh(c[t])
-        pre_o.add_dot(self.o_context, self.Ro, self.prev_cell.h_t)
+        pre_o.add_dot(self.o_context, self.Ro, self.prev_cell.h)
         self.o_context.depend_on(self.c_context)
         pre_o.add_hprod(self.o_context, self.po, self.c)
         pre_o.sigmoid(self.o_context, self.o, self.do_dpre_o)
@@ -153,6 +153,6 @@ class LstmBlock(object):
 
 class MarginalLstmBlock(object):
     def __init__(self, p_type, n):
-        zero_vector = MatrixClass[p_type].from_npa(np.zeros(n, 1))
+        zero_vector = MatrixClass[p_type].from_npa(np.zeros((n, 1)))
         self.c = zero_vector
         self.h = zero_vector
