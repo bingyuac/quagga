@@ -1,3 +1,4 @@
+import ctypes
 import numpy as np
 
 
@@ -17,6 +18,8 @@ class CpuMatrix(object):
     def from_npa(cls, a):
         if a.ndim != 2:
             raise ValueError('CpuMatrix works only with 2-d numpy arrays!')
+        if not np.isfortran(a):
+            a = np.asfortranarray(a, dtype=np.float32)
         elif a.dtype != np.float32:
             a = a.astype(dtype=np.float32)
         return cls(a, a.shape[0], a.shape[1])
@@ -27,7 +30,9 @@ class CpuMatrix(object):
 
     @classmethod
     def empty_like(cls, other):
-        return cls.from_npa(np.nan_to_num(np.empty_like(other.npa)))
+        if hasattr(other, 'npa'):
+            return cls.from_npa(np.nan_to_num(np.empty_like(other.npa)))
+        return cls.empty(other.nrows, other.ncols)
 
     def to_host(self):
         return self.npa
@@ -113,4 +118,4 @@ class CpuMatrix(object):
         self.npa += alpha * np.dot(a.npa if matrix_operation == 'N' else a.npa.T, b.npa)
 
     def vdot(self, context, a):
-        return np.vdot(self.npa, a.npa)
+        return ctypes.c_float(np.vdot(self.npa, a.npa))

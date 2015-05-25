@@ -6,9 +6,10 @@ from network import MatrixClass, MatrixContextClass
 
 
 class BidirectionalLstmRnn(object):
-    def __init__(self, p_type, max_sentence_len,
+    def __init__(self, p_type, max_input_sequence_len,
                  W_init, R_init, p_init, logistic_init):
         self.p_type = p_type
+        self.max_input_sequence_len = max_input_sequence_len
 
         Matrix = MatrixClass[p_type]
         self.W = {}
@@ -24,11 +25,11 @@ class BidirectionalLstmRnn(object):
                 self.W[gate, d] = Matrix.from_npa(W_init())
                 self.R[gate, d] = Matrix.from_npa(R_init())
                 self.p[gate, d] = Matrix.from_npa(p_init())
-                self.pre[gate, d] = Matrix.empty(p_init.nrows, max_sentence_len)
+                self.pre[gate, d] = Matrix.empty(p_init.nrows, max_input_sequence_len)
                 self.pre_columns[gate, d] = self.pre[gate, d].to_list()
             self.w_hy[d] = Matrix.from_npa(logistic_init())
-            self.c[d] = Matrix.empty(p_init.nrows, max_sentence_len)
-            self.h[d] = Matrix.empty(p_init.nrows, max_sentence_len)
+            self.c[d] = Matrix.empty(p_init.nrows, max_input_sequence_len)
+            self.h[d] = Matrix.empty(p_init.nrows, max_input_sequence_len)
 
         self.dL_dW = {}
         self.dL_dR = {}
@@ -39,14 +40,14 @@ class BidirectionalLstmRnn(object):
         self.dL_dpre = {}
         for d in ['forward', 'backward']:
             self.dL_dw_hy[d] = Matrix.empty_like(logistic_init)
-            self.dL_dx[d] = Matrix.empty(p_init.nrows, max_sentence_len)
+            self.dL_dx[d] = Matrix.empty(p_init.nrows, max_input_sequence_len)
             self.dL_dh[d] = Matrix.empty_like(p_init)
             for gate in ['z', 'i', 'f', 'o']:
                 self.dL_dW[gate, d] = Matrix.empty_like(W_init)
                 self.dL_dR[gate, d] = Matrix.empty_like(R_init)
                 if gate != 'z':
                     self.dL_dp[gate, d] = Matrix.empty_like(p_init)
-                self.dL_dpre[gate, d] = Matrix.empty(p_init.nrows, max_sentence_len)
+                self.dL_dpre[gate, d] = Matrix.empty(p_init.nrows, max_input_sequence_len)
 
         Context = MatrixContextClass[self.p_type]
         self.context = {}
@@ -57,7 +58,7 @@ class BidirectionalLstmRnn(object):
         self.lstm_blocks = {'forward': [],
                             'backward': []}
         for d in self.lstm_blocks:
-            for n in xrange(max_sentence_len):
+            for n in xrange(max_input_sequence_len):
                 cell = LstmBlock(p_type,
                                  self.W['z', d], self.R['z', d],
                                  self.W['i', d], self.R['i', d], self.p['i', d],
@@ -92,6 +93,10 @@ class BidirectionalLstmRnn(object):
 
     def forward_propagation(self, input_sequence):
         n = input_sequence.ncols
+        if n > self.max_input_sequence_len:
+            raise ValueError('Sequence has length: {} that is to long. '
+                             'The maximum is: {}'.
+                             format(n, self.max_input_sequence_len))
         pre = {}
         for d in ['forward', 'backward']:
             for gate in ['z', 'i', 'f', 'o']:
