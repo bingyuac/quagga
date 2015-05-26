@@ -27,8 +27,11 @@ class GpuMatrix(object):
 
     def __del__(self):
         if self.is_owner:
-            cudart.cuda_free(self.data)
-            atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
+            try:
+                atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
+                cudart.cuda_free(self.data)
+            except ValueError:
+                pass
 
     @classmethod
     def from_npa(cls, a):

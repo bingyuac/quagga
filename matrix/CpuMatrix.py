@@ -15,9 +15,7 @@ class CpuMatrix(object):
             # https://github.com/numpy/numpy/issues/5918
             # should be just:
             # key += (np.newaxis, )
-            # return CpuMatrix.from_npa(self.npa[key])
-            sub_npa = np.reshape(self.npa[key], (self.nrows, 1), order='F')
-            return CpuMatrix.from_npa(sub_npa)
+            key = (key[0], slice(key[1], key[1] + 1, None))
         return CpuMatrix.from_npa(self.npa[key])
 
     @classmethod

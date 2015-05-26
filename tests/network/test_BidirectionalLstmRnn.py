@@ -12,14 +12,14 @@ class TestBidirectionalLstmRnn(TestCase):
         cls.N = 1
         cls.M = 50
 
-    @classmethod
-    def get_random_array(cls, shape=None):
-        if shape:
-            a = 4 * cls.rng.rand(*shape) - 2
-        else:
-            nrows, ncols = cls.rng.random_integers(7000, size=2)
-            a = 4 * cls.rng.rand(nrows, ncols) - 2
-        return a.astype(dtype=np.float32)
+    # @classmethod
+    # def get_random_array(cls, shape=None):
+    #     if shape:
+    #         a = 4 * cls.rng.rand(*shape) - 2
+    #     else:
+    #         nrows, ncols = cls.rng.random_integers(7000, size=2)
+    #         a = 4 * cls.rng.rand(nrows, ncols) - 2
+    #     return a.astype(dtype=np.float32)
 
     def test_forward_propagation(self):
         r = []
@@ -43,8 +43,7 @@ class TestBidirectionalLstmRnn(TestCase):
                     prediction[p_type].append(lstm_rnn.forward_propagation(input_sequence))
                 initializers.rng.set_state(random_state)
             for j in xrange(self.M):
-                r.append(np.allclose(prediction['cpu'][j], prediction['gpu'][j], atol=1e-4))
-            print prediction
+                r.append(np.allclose(prediction['cpu'][j], prediction['gpu'][j]))
         self.assertEqual(sum(r), self.N * self.M)
 
     def test_backward_propagation(self):
