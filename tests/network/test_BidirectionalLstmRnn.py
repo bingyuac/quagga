@@ -10,7 +10,7 @@ class TestBidirectionalLstmRnn(TestCase):
         cls.rng = np.random.RandomState(seed=42)
         cls.context = {}
         cls.N = 1
-        cls.M = 10
+        cls.M = 50
 
     @classmethod
     def get_random_array(cls, shape=None):
@@ -25,7 +25,7 @@ class TestBidirectionalLstmRnn(TestCase):
         r = []
         max_input_sequence_len = 50
         for i in xrange(self.N):
-            nrows, ncols = self.rng.random_integers(500, size=2)
+            nrows, ncols = self.rng.random_integers(7000, size=2)
             print nrows, ncols
             W_init = initializers.Orthogonal(nrows, ncols)
             R_init = initializers.Orthogonal(nrows, nrows)
