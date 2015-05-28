@@ -70,7 +70,8 @@ class CpuMatrix(object):
         if not b and not c:
             self.add_scaled(context, 1.0, a)
         else:
-            self.npa += a.npa + b.npa + c.npa
+            for m in [a, b, c]:
+                self.npa += m.npa
 
     def sliced_add(self, context, a, column_indxs, alpha=1.0):
         """
@@ -89,13 +90,14 @@ class CpuMatrix(object):
     @staticmethod
     def hprod(context, out, a, b, c=None):
         """
-        out = a .* b .* c  or
         out = a .* b
+        out = a .* b .* c  or
         """
         if not c:
-            out.npa.data = (a.npa * b.npa).data
+            np.multiply(a.npa, b.npa, out.npa)
         else:
-            out.npa.data = (a.npa * b.npa * c.npa).data
+            np.multiply(a.npa, b.npa, out.npa)
+            out.npa *= c.npa
 
     @staticmethod
     def sum_hprod(context, out, a, b, c, d, e=None, f=None, g=None, h=None, i=None, j=None, k=None):
@@ -104,12 +106,18 @@ class CpuMatrix(object):
         out = a .* b .* c + d .* e                              or
         out = a .* b .* c + d .* e + f .* g + h .* i + j .* k
         """
+        np.multiply(a.npa, b.npa, out.npa)
         if k is not None:
-            out.npa.data = (a.npa * b.npa * c.npa + d.npa * e.npa + f.npa * g.npa + h.npa * i.npa + j.npa * k.npa).data
+            out.npa *= c.npa
+            out.npa += d.npa * e.npa
+            out.npa += f.npa * g.npa
+            out.npa += h.npa * i.npa
+            out.npa += j.npa * k.npa
         elif e is not None:
-            out.npa.data = (a.npa * b.npa * c.npa + d.npa * e.npa).data
+            out.npa *= c.npa
+            out.npa += d.npa * e.npa
         else:
-            out.npa.data = (a.npa * b.npa + c.npa * d.npa).data
+            out.npa += c.npa * d.npa
 
     def assign_dot(self, context, a, b, matrix_operation='N', alpha=1.0):
         self.add_dot(context, a, b, matrix_operation, alpha, 0.0)

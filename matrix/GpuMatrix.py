@@ -127,8 +127,8 @@ class GpuMatrix(object):
     @staticmethod
     def hprod(context, out, a, b, c=None):
         """
-        out = a .* b .* c  or
         out = a .* b
+        out = a .* b .* c  or
         """
         if not c:
             gpu_matrix_kernels.hadamard_product_2(context.cuda_stream, a.nelems, a.data, b.data, out.data)

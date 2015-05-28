@@ -413,6 +413,6 @@ class TestGpuMatrix(TestCase):
             b_gpu = GpuMatrix.from_npa(b)
 
             r.append(np.allclose(a_cpu.vdot(self.cpu_context, b_cpu),
-                                 a_gpu.vdot(self.gpu_context, b_gpu), atol=1e-5))
+                                 a_gpu.vdot(self.gpu_context, b_gpu), atol=1e-4))
 
         self.assertEqual(sum(r), self.N)
