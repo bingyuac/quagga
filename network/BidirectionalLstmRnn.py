@@ -115,7 +115,7 @@ class BidirectionalLstmRnn(object):
         pre_exp = 0.0
         for d in ['forward', 'backward']:
             pre_exp += self.lstm_blocks[d][n-1].h.vdot(self.context['o', d], self.w_hy[d]).value
-        return ctypes.c_float(1.0 / (1.0 + np.exp(-pre_exp)))
+        return 1.0 / (1.0 + np.exp(-pre_exp))
 
     def backward_propagation(self, input_sequence, sequence_grammaticality):
         predicted_sequence_grammaticality = self.forward_propagation(input_sequence)

@@ -22,8 +22,11 @@ class GpuMatrixContext(object):
         atexit.register(cudart.cuda_stream_destroy, self.cuda_stream)
 
     def __del__(self):
-        cudart.cuda_stream_destroy(self.cuda_stream)
-        atexit._exithandlers.remove((cudart.cuda_stream_destroy, (self.cuda_stream, ), {}))
+        try:
+            atexit._exithandlers.remove((cudart.cuda_stream_destroy, (self.cuda_stream, ), {}))
+            cudart.cuda_stream_destroy(self.cuda_stream)
+        except ValueError:
+            pass
 
     @property
     def cublas_handle(self):

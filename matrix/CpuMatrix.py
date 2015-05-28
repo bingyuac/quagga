@@ -30,7 +30,7 @@ class CpuMatrix(object):
 
     @classmethod
     def empty(cls, nrows, ncols):
-        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols))))
+        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np.float32)))
 
     @classmethod
     def empty_like(cls, other):
