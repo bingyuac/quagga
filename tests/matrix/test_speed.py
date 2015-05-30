@@ -192,12 +192,12 @@ def test_hprod():
                 d = MatrixClass[pt].empty_like(a)
 
                 t = time.clock()
-                MatrixClass[pt].hprod(context[pt], d, a, b)
+                MatrixClass[pt].assign_hprod(context[pt], d, a, b)
                 context[pt].synchronize()
                 hprod_2_time[pt].append(time.clock() - t)
 
                 t = time.clock()
-                MatrixClass[pt].hprod(context[pt], d, a, b, c)
+                MatrixClass[pt].assign_hprod(context[pt], d, a, b, c)
                 context[pt].synchronize()
                 hprod_3_time[pt].append(time.clock() - t)
 

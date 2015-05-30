@@ -164,3 +164,15 @@ gpu_matrix_kernels._sumHprod11.argtypes = [cudart.cuda_stream_t,
 def sum_hprod_11(stream, nelems, a, b, c, d, e, f, g, h, i, j, k, l):
     status = gpu_matrix_kernels._sumHprod11(stream, nelems, a, b, c, d, e, f, g, h, i, j, k, l)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._hprodSum.restype = cudart.cuda_error_t
+gpu_matrix_kernels._hprodSum.argtypes = [cudart.cuda_stream_t,
+                                         ctypes.c_int,
+                                         ctypes.c_int,
+                                         ctypes.POINTER(ctypes.c_float),
+                                         ctypes.POINTER(ctypes.c_float),
+                                         ctypes.POINTER(ctypes.c_float)]
+def hprod_sum(stream, nrows, ncols, a, b, c):
+    status = gpu_matrix_kernels._hprodSum(stream, nrows, ncols, a, b, c)
+    cudart.check_cuda_status(status)

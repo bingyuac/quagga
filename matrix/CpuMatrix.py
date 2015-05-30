@@ -87,37 +87,41 @@ class CpuMatrix(object):
         self.npa *= alpha
         self.npa += a.npa * b.npa
 
-    @staticmethod
-    def hprod(context, out, a, b, c=None):
+    def assign_hprod(self, context, a, b, c=None):
         """
-        out = a .* b
-        out = a .* b .* c  or
+        self = a .* b
+        self = a .* b .* c  or
         """
         if not c:
-            np.multiply(a.npa, b.npa, out.npa)
+            np.multiply(a.npa, b.npa, self.npa)
         else:
-            np.multiply(a.npa, b.npa, out.npa)
-            out.npa *= c.npa
+            np.multiply(a.npa, b.npa, self.npa)
+            self.npa *= c.npa
 
-    @staticmethod
-    def sum_hprod(context, out, a, b, c, d, e=None, f=None, g=None, h=None, i=None, j=None, k=None):
+    def assign_sum_hprod(self, context, a, b, c, d, e=None, f=None, g=None, h=None, i=None, j=None, k=None):
         """
-        out = a .* b + c .* d                                   or
-        out = a .* b .* c + d .* e                              or
-        out = a .* b .* c + d .* e + f .* g + h .* i + j .* k
+        self = a .* b + c .* d                                   or
+        self = a .* b .* c + d .* e                              or
+        self = a .* b .* c + d .* e + f .* g + h .* i + j .* k
         """
-        np.multiply(a.npa, b.npa, out.npa)
+        np.multiply(a.npa, b.npa, self.npa)
         if k is not None:
-            out.npa *= c.npa
-            out.npa += d.npa * e.npa
-            out.npa += f.npa * g.npa
-            out.npa += h.npa * i.npa
-            out.npa += j.npa * k.npa
+            self.npa *= c.npa
+            self.npa += d.npa * e.npa
+            self.npa += f.npa * g.npa
+            self.npa += h.npa * i.npa
+            self.npa += j.npa * k.npa
         elif e is not None:
-            out.npa *= c.npa
-            out.npa += d.npa * e.npa
+            self.npa *= c.npa
+            self.npa += d.npa * e.npa
         else:
-            out.npa += c.npa * d.npa
+            self.npa += c.npa * d.npa
+
+    def assign_hprod_sum(self, context, a, b):
+        """
+        self = sum(a .* b, axis=1)
+        """
+        np.sum(a.npa * b.npa, axis=1, out=self.npa, keepdims=True)
 
     def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
         self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=0.0)

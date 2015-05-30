@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cuda_runtime.h>
-#include <stdio.h>
 
 
 #define MAX_NUM_THREADS_PER_BLOCK 512
@@ -29,6 +28,29 @@ __global__  void sliceColumns(int nrows,
 
 
 // ============================================================================
+__global__ void fill(int nelems, float val, float* __restrict__ A) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		A[i] = val;
+	}
+}
+
+__global__ void hprodSum(int nelems,
+						 int nrows,
+						 const float* __restrict__ A,
+						 const float* __restrict__ B,
+						 float* __restrict__ C) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		atomicAdd(C + i % nrows, A[i] * B[i]);
+	}
+}
+
+
 __global__ void sumHprod(int nelems,
 						 const float* __restrict__ A,
 						 const float* __restrict__ B,
@@ -226,6 +248,21 @@ __global__ void scale(int nelems,
 
 
 extern "C" {
+	cudaError_t _hprodSum(cudaStream_t stream,
+                          int nrows,
+                          int ncols,
+						  const float* __restrict__ a,
+						  const float* __restrict__ b,
+						  float* __restrict__ c) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+		fill<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, 0.0, c);
+		int nelems = nrows * ncols;
+		num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        hprodSum<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, nrows, a, b, c);
+        return cudaGetLastError();
+	}
+
+
     cudaError_t _sumHprod4(cudaStream_t stream,
                            int nelems,
 						   const float* __restrict__ a,

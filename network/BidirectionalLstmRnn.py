@@ -1,4 +1,3 @@
-import ctypes
 import numpy as np
 from itertools import izip
 from network import LstmBlock, MarginalLstmBlock
@@ -148,14 +147,16 @@ class BidirectionalLstmRnn(object):
 
         # TODO edit these comments when you end debugging
         # dL_dW@ = dL_dpre_@ * x.T
-        # dL_dR@ = dL_dpre_@ * h
+        # dL_dR@ = dL_dpre_@[:, 1:] * h[:, :n-1].T
         # dL_dp@ = dL_dpre_@ * c
         for d in ['forward', 'backward']:
             for gate in ['z', 'i', 'f', 'o']:
-                self.dL_dW[gate, d].assign_dot(self.context[gate, d], input_sequence, dL_dpre[gate, d], 'N', 'T')
-                self.dL_dR[gate, d].assign_dot(self.context[gate, d], self.h[:, :n], dL_dpre[gate, d], 'T')
-                if gate != 'z':
-                    self.dL_dp[gate, d].assign_dot(self.context[gate, d], self.c[:, :n], dL_dpre[gate, d], 'T')
+                self.dL_dW[gate, d].assign_dot(self.context[gate, d], dL_dpre[gate, d], input_sequence, 'N', 'T')
+                self.dL_dR[gate, d].assign_dot(self.context[gate, d], dL_dpre[gate, d][:, 1:], self.h[d][:, :n-1], 'T')
+
+            self.dL_dp[gate, d].assign_dot(self.context[gate, d], self.c[d][:, :n], dL_dpre[gate, d], 'T')
+            self.dL_dp[gate, d].assign_dot(self.context[gate, d], self.c[d][:, :n], dL_dpre[gate, d], 'T')
+            self.dL_dp[gate, d].assign_dot(self.context[gate, d], self.c[d][:, :n], dL_dpre[gate, d], 'T')
 
         conts = [v for k, v in self.context.iteritems() if k != ('o', 'backward')]
         cont_o_b = self.context['o', 'backward']

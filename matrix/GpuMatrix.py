@@ -17,13 +17,18 @@ class GpuMatrix(object):
 
     def __getitem__(self, key):
         if type(key[1]) == int:
-            void_p = ctypes.cast(self.data, ctypes.c_voidp).value + self.nrows * key[1] * ctypes.sizeof(ctypes.c_float)
-            data = ctypes.cast(void_p, ctypes.POINTER(ctypes.c_float))
+            data = self._get_pointer_to_column(key[1])
             return GpuMatrix(data, self.nrows, 1, False)
-        elif key[1].start is None and key[1].step is None:
-            return GpuMatrix(self.data, self.nrows, key[1].stop, False)
+        if type(key[1]) == slice:
+            if key[1].start is None and type(key[1].stop) == int and key[1].step is None:
+                return GpuMatrix(self.data, self.nrows, key[1].stop, False)
+            elif type(key[1].start) == int and key[1].stop is None and key[1].step is None:
+                data = self._get_pointer_to_column(key[1].start)
+                return GpuMatrix(data, self.nrows, self.ncols-key[1].start, False)
+            else:
+                raise ValueError('This slice: {} is unsupported!'.format(key))
         else:
-            raise ValueError('This slice: {} is unsupported!'.format(key))
+            raise IndexError('Only integers and slices are supported!')
 
     def __del__(self):
         if self.is_owner:
@@ -32,6 +37,10 @@ class GpuMatrix(object):
                 cudart.cuda_free(self.data)
             except ValueError:
                 pass
+
+    def _get_pointer_to_column(self, k):
+        void_p = ctypes.cast(self.data, ctypes.c_voidp).value + self.nrows * k * ctypes.sizeof(ctypes.c_float)
+        return ctypes.cast(void_p, ctypes.POINTER(ctypes.c_float))
 
     @classmethod
     def from_npa(cls, a):
@@ -124,30 +133,34 @@ class GpuMatrix(object):
             alpha = ctypes.c_float(alpha)
         gpu_matrix_kernels.add_hadamard_product(context.cuda_stream, self.nelems, a.data, b.data, alpha, self.data)
 
-    @staticmethod
-    def hprod(context, out, a, b, c=None):
+    def assign_hprod(self, context, a, b, c=None):
         """
-        out = a .* b
-        out = a .* b .* c  or
+        self = a .* b
+        self = a .* b .* c  or
         """
         if not c:
-            gpu_matrix_kernels.hadamard_product_2(context.cuda_stream, a.nelems, a.data, b.data, out.data)
+            gpu_matrix_kernels.hadamard_product_2(context.cuda_stream, a.nelems, a.data, b.data, self.data)
         else:
-            gpu_matrix_kernels.hadamard_product_3(context.cuda_stream, a.nelems, a.data, b.data, c.data, out.data)
+            gpu_matrix_kernels.hadamard_product_3(context.cuda_stream, a.nelems, a.data, b.data, c.data, self.data)
 
-    @staticmethod
-    def sum_hprod(context, out, a, b, c, d, e=None, f=None, g=None, h=None, i=None, j=None, k=None):
+    def assign_sum_hprod(self, context, a, b, c, d, e=None, f=None, g=None, h=None, i=None, j=None, k=None):
         """
-        out = a .* b + c .* d                                   or
-        out = a .* b .* c + d .* e                              or
-        out = a .* b .* c + d .* e + f .* g + h .* i + j .* k
+        self = a .* b + c .* d                                   or
+        self = a .* b .* c + d .* e                              or
+        self = a .* b .* c + d .* e + f .* g + h .* i + j .* k
         """
         if k is not None:
-            gpu_matrix_kernels.sum_hprod_11(context.cuda_stream, out.nelems, a.data, b.data, c.data, d.data, e.data, f.data, g.data, h.data, i.data, j.data, k.data, out.data)
+            gpu_matrix_kernels.sum_hprod_11(context.cuda_stream, self.nelems, a.data, b.data, c.data, d.data, e.data, f.data, g.data, h.data, i.data, j.data, k.data, self.data)
         elif e is not None:
-            gpu_matrix_kernels.sum_hprod_5(context.cuda_stream, out.nelems, a.data, b.data, c.data, d.data, e.data, out.data)
+            gpu_matrix_kernels.sum_hprod_5(context.cuda_stream, self.nelems, a.data, b.data, c.data, d.data, e.data, self.data)
         else:
-            gpu_matrix_kernels.sum_hprod_4(context.cuda_stream, out.nelems, a.data, b.data, c.data, d.data, out.data)
+            gpu_matrix_kernels.sum_hprod_4(context.cuda_stream, self.nelems, a.data, b.data, c.data, d.data, self.data)
+
+    def assign_hprod_sum(self, context, a, b):
+        """
+        self = sum(a .* b, axis=1)
+        """
+        gpu_matrix_kernels.hprod_sum(context.cuda_stream, a.nrows, a.ncols, a.data, b.data, self.data)
 
     def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
         self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=ctypes.c_float(0.0))
