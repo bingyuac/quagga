@@ -324,15 +324,19 @@ class TestGpuMatrix(TestCase):
         for i in xrange(self.N):
             a = TestGpuMatrix.get_random_array()
             a_v = TestGpuMatrix.get_random_array((a.shape[0], 1))
-            m = self.rng.randint(low=1, high=7000, size=1)[0]
-            matrix_operation = self.rng.choice(['T', 'N'], 1)[0]
-            if matrix_operation == 'N':
+            m = self.rng.randint(low=1, high=2000, size=1)[0]
+            mat_op_b = self.rng.choice(['T', 'N'], 1)[0]
+            mat_op_c = self.rng.choice(['T', 'N'], 1)[0]
+            if mat_op_b == 'N':
                 b = TestGpuMatrix.get_random_array((a.shape[0], m))
             else:
                 b = TestGpuMatrix.get_random_array((m, a.shape[0]))
-            c = TestGpuMatrix.get_random_array((m, a.shape[1]))
-            c_v = TestGpuMatrix.get_random_array((m, 1))
-            alpha = 2 * self.rng.rand(1)[0] - 1
+            if mat_op_c == 'N':
+                c = TestGpuMatrix.get_random_array((m, a.shape[1]))
+                c_v = TestGpuMatrix.get_random_array((m, 1))
+            else:
+                c = TestGpuMatrix.get_random_array((a.shape[1], m))
+                c_v = TestGpuMatrix.get_random_array((1, m))
 
             a_cpu = CpuMatrix.from_npa(a)
             a_v_cpu = CpuMatrix.from_npa(a_v)
@@ -345,14 +349,14 @@ class TestGpuMatrix(TestCase):
             c_gpu = GpuMatrix.from_npa(c)
             c_v_gpu = GpuMatrix.from_npa(c_v)
 
-            a_cpu.assign_dot(self.cpu_context, b_cpu, c_cpu, matrix_operation, alpha)
-            a_gpu.assign_dot(self.gpu_context, b_gpu, c_gpu, matrix_operation, alpha)
+            a_cpu.assign_dot(self.cpu_context, b_cpu, c_cpu, mat_op_b, mat_op_c)
+            a_gpu.assign_dot(self.gpu_context, b_gpu, c_gpu, mat_op_b, mat_op_c)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-3))
 
-            a_v_cpu.assign_dot(self.cpu_context, b_cpu, c_v_cpu, matrix_operation, alpha)
-            a_v_gpu.assign_dot(self.gpu_context, b_gpu, c_v_gpu, matrix_operation, alpha)
+            a_v_cpu.assign_dot(self.cpu_context, b_cpu, c_v_cpu, mat_op_b, mat_op_c)
+            a_v_gpu.assign_dot(self.gpu_context, b_gpu, c_v_gpu, mat_op_b, mat_op_c)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))
@@ -364,14 +368,19 @@ class TestGpuMatrix(TestCase):
         for i in xrange(self.N):
             a = TestGpuMatrix.get_random_array()
             a_v = TestGpuMatrix.get_random_array((a.shape[0], 1))
-            m = self.rng.randint(low=1, high=7000, size=1)[0]
-            matrix_operation = self.rng.choice(['T', 'N'], 1)[0]
-            if matrix_operation == 'N':
+            m = self.rng.randint(low=1, high=2000, size=1)[0]
+            mat_op_b = self.rng.choice(['T', 'N'], 1)[0]
+            mat_op_c = self.rng.choice(['T', 'N'], 1)[0]
+            if mat_op_b == 'N':
                 b = TestGpuMatrix.get_random_array((a.shape[0], m))
             else:
                 b = TestGpuMatrix.get_random_array((m, a.shape[0]))
-            c = TestGpuMatrix.get_random_array((m, a.shape[1]))
-            c_v = TestGpuMatrix.get_random_array((m, 1))
+            if mat_op_c == 'N':
+                c = TestGpuMatrix.get_random_array((m, a.shape[1]))
+                c_v = TestGpuMatrix.get_random_array((m, 1))
+            else:
+                c = TestGpuMatrix.get_random_array((a.shape[1], m))
+                c_v = TestGpuMatrix.get_random_array((1, m))
             alpha = 2 * self.rng.rand(1)[0] - 1
             beta = 2 * self.rng.rand(1)[0] - 1
 
@@ -386,14 +395,14 @@ class TestGpuMatrix(TestCase):
             c_gpu = GpuMatrix.from_npa(c)
             c_v_gpu = GpuMatrix.from_npa(c_v)
 
-            a_cpu.add_dot(self.cpu_context, b_cpu, c_cpu, matrix_operation, alpha, beta)
-            a_gpu.add_dot(self.gpu_context, b_gpu, c_gpu, matrix_operation, alpha, beta)
+            a_cpu.add_dot(self.cpu_context, b_cpu, c_cpu, mat_op_b, mat_op_c, alpha, beta)
+            a_gpu.add_dot(self.gpu_context, b_gpu, c_gpu, mat_op_b, mat_op_c, alpha, beta)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-3))
 
-            a_v_cpu.add_dot(self.cpu_context, b_cpu, c_v_cpu, matrix_operation, alpha, beta)
-            a_v_gpu.add_dot(self.gpu_context, b_gpu, c_v_gpu, matrix_operation, alpha, beta)
+            a_v_cpu.add_dot(self.cpu_context, b_cpu, c_v_cpu, mat_op_b, mat_op_c, alpha, beta)
+            a_v_gpu.add_dot(self.gpu_context, b_gpu, c_v_gpu, mat_op_b, mat_op_c, alpha, beta)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))

@@ -149,10 +149,10 @@ class GpuMatrix(object):
         else:
             gpu_matrix_kernels.sum_hprod_4(context.cuda_stream, out.nelems, a.data, b.data, c.data, d.data, out.data)
 
-    def assign_dot(self, context, a, b, matrix_operation='N', alpha=ctypes.c_float(1.0)):
-        self.add_dot(context, a, b, matrix_operation, alpha, ctypes.c_float(0.0))
+    def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
+        self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=ctypes.c_float(0.0))
 
-    def add_dot(self, context, a, b, matrix_operation='N', alpha=ctypes.c_float(1.0), beta=ctypes.c_float(1.0)):
+    def add_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N', alpha=ctypes.c_float(1.0), beta=ctypes.c_float(1.0)):
         """
         self = alpha * op(a) * b + beta * self
         """
@@ -161,10 +161,11 @@ class GpuMatrix(object):
         if type(beta) != ctypes.c_float:
             beta = ctypes.c_float(beta)
 
-        if self.ncols == 1:
-            cublas.cublas_s_gemv(context.cublas_handle, matrix_operation, a.nrows, a.ncols, alpha, a.data, a.nrows, b.data, 1, beta, self.data, 1)
+        if self.ncols == 1 and matrix_operation_b == 'N':
+            cublas.cublas_s_gemv(context.cublas_handle, matrix_operation_a, a.nrows, a.ncols, alpha, a.data, a.nrows, b.data, 1, beta, self.data, 1)
         else:
-            cublas.cublas_s_gemm(context.cublas_handle, matrix_operation, 'N', self.nrows, self.ncols, b.nrows, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
+            k = b.nrows if matrix_operation_b == 'N' else b.ncols
+            cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
 
     def vdot(self, context, a):
         result = ctypes.c_float()

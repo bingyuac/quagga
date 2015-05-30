@@ -40,7 +40,7 @@ class BidirectionalLstmRnn(object):
         self.dL_dpre = {}
         for d in ['forward', 'backward']:
             self.dL_dw_hy[d] = Matrix.empty_like(logistic_init)
-            self.dL_dx[d] = Matrix.empty(p_init.nrows, max_input_sequence_len)
+            self.dL_dx[d] = Matrix.empty(W_init.ncols, max_input_sequence_len)
             self.dL_dh[d] = Matrix.empty_like(p_init)
             for gate in ['z', 'i', 'f', 'o']:
                 self.dL_dW[gate, d] = Matrix.empty_like(W_init)
@@ -147,12 +147,12 @@ class BidirectionalLstmRnn(object):
                     dL_dx[d].add_dot(context, self.W[gate, d], dL_dpre[gate, d], 'T')
 
         # TODO edit these comments when you end debugging
-        # dL_dW@ = dL_dpre_@ * x
+        # dL_dW@ = dL_dpre_@ * x.T
         # dL_dR@ = dL_dpre_@ * h
         # dL_dp@ = dL_dpre_@ * c
         for d in ['forward', 'backward']:
             for gate in ['z', 'i', 'f', 'o']:
-                self.dL_dW[gate, d].assign_dot(self.context[gate, d], input_sequence, dL_dpre[gate, d], 'T')
+                self.dL_dW[gate, d].assign_dot(self.context[gate, d], input_sequence, dL_dpre[gate, d], 'N', 'T')
                 self.dL_dR[gate, d].assign_dot(self.context[gate, d], self.h[:, :n], dL_dpre[gate, d], 'T')
                 if gate != 'z':
                     self.dL_dp[gate, d].assign_dot(self.context[gate, d], self.c[:, :n], dL_dpre[gate, d], 'T')

@@ -119,15 +119,17 @@ class CpuMatrix(object):
         else:
             out.npa += c.npa * d.npa
 
-    def assign_dot(self, context, a, b, matrix_operation='N', alpha=1.0):
-        self.add_dot(context, a, b, matrix_operation, alpha, 0.0)
+    def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
+        self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=0.0)
 
-    def add_dot(self, context, a, b, matrix_operation='N', alpha=1.0, beta=1.0):
+    def add_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N', alpha=1.0, beta=1.0):
         """
         self = alpha * op(a) * b + beta * self
         """
         self.npa *= beta
-        self.npa += alpha * np.dot(a.npa if matrix_operation == 'N' else a.npa.T, b.npa)
+        a = a.npa if matrix_operation_a == 'N' else a.npa.T
+        b = b.npa if matrix_operation_b == 'N' else b.npa.T
+        self.npa += alpha * np.dot(a, b)
 
     def vdot(self, context, a):
         return ctypes.c_float(np.vdot(self.npa, a.npa))

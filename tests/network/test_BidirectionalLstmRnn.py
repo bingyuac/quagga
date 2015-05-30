@@ -10,7 +10,7 @@ class TestBidirectionalLstmRnn(TestCase):
     def setUpClass(cls):
         cls.rng = np.random.RandomState(seed=42)
         cls.context = {}
-        cls.N = 5
+        cls.N = 10
 
     def test_forward_propagation(self):
         r = []
