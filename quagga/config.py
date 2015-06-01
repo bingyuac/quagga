@@ -1,1 +1,0 @@
-processor_type = 'gpu'

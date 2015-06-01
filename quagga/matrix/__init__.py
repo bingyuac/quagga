@@ -1,7 +1,6 @@
-from quagga.matrix import GpuMatrix, CpuMatrix, CpuMatrixContext, \
-    GpuMatrixContext
 from quagga.matrix.CpuMatrix import CpuMatrix
+from quagga.matrix.GpuMatrix import GpuMatrix
+from quagga.matrix.Matrix import Matrix
 from quagga.matrix.GpuMatrixContext import GpuMatrixContext
 from quagga.matrix.CpuMatrixContext import CpuMatrixContext
-MatrixClass = {'cpu': CpuMatrix, 'gpu': GpuMatrix}
-MatrixContextClass = {'cpu': CpuMatrixContext, 'gpu': GpuMatrixContext}
+from quagga.matrix.MatrixContext import MatrixContext

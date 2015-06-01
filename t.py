@@ -54,4 +54,4 @@ if __name__ == '__main__':
     pre_o_t = MatrixClass[pt].from_npa(c)
 
     for i in xrange(50):
-        lstm_block.forward_propagation(pre_z_t, pre_i_t, pre_f_t, pre_o_t)
+        lstm_block.fprop(pre_z_t, pre_i_t, pre_f_t, pre_o_t)

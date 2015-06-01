@@ -401,7 +401,7 @@ def test_lstm_block():
 
                 lstm_block.set_training_mode()
                 t = time.clock()
-                lstm_block.forward_propagation(pre_z_t, pre_i_t, pre_f_t, pre_o_t, h_tm1, c_tm1)
+                lstm_block.fprop(pre_z_t, pre_i_t, pre_f_t, pre_o_t, h_tm1, c_tm1)
                 lstm_block_forward_time[pt].append(time.clock() - t)
 
         print 'shape: {:4}: {:.10f} {:20s}'.format(shape[0], np.mean(lstm_block_forward_time['cpu']), 'cpu lstm_block_forward')

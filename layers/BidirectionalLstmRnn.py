@@ -113,7 +113,7 @@ class BidirectionalLstmRnn(object):
                 pre_f = self.pre_columns['f', d][t]
                 pre_o = self.pre_columns['o', d][t]
                 cell = self.lstm_blocks[d][i]
-                cell.forward_propagation(pre_z, pre_i, pre_f, pre_o)
+                cell.fprop(pre_z, pre_i, pre_f, pre_o)
 
         pre_exp = 0.0
         for d in ['forward', 'backward']:
@@ -130,9 +130,9 @@ class BidirectionalLstmRnn(object):
         for d in ['forward', 'backward']:
             self.w_hy[d].scale(self.context['o', d], error, self.dL_dh[d])
             self.lstm_blocks[d][n-1].h.scale(self.context['f', d], error, self.dL_dw_hy[d])
-            self.lstm_blocks[d][n-1].backward_propagation(self.dL_dh[d])
+            self.lstm_blocks[d][n-1].bprop(self.dL_dh[d])
             for k in reversed(xrange(n-1)):
-                self.lstm_blocks[d][k].backward_propagation()
+                self.lstm_blocks[d][k].bprop()
 
         # dL/dx = Wz_f.T * dL/dpre_z_f + Wi_f.T * dL/dpre_i_f + Wf_f.T * dL/dpre_f_f + Wo_f.T * dL/dpre_o_f +
         #         Wz_b.T * dL/dpre_z_b + Wi_b.T * dL/dpre_i_b + Wf_b.T * dL/dpre_f_b + Wo_b.T * dL/dpre_o_b

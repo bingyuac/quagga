@@ -1,15 +1,13 @@
 import numpy as np
-
-from quagga.matrix import MatrixClass
+from quagga.matrix import Matrix, MatrixContext
 
 
 class LstmBlock(object):
-    def __init__(self, p_type, Wz, Rz, Wi, Ri, pi, Wf, Rf, pf, Wo, Ro, po,
-                 c, h, dL_dpre_z, dL_dpre_i, dL_dpre_f, dL_dpre_o,
-                 z_context, i_context, f_context, c_context, o_context,
+    def __init__(self, Wz, Rz, Wi, Ri, pi, Wf, Rf, pf, Wo, Ro, po,
+                 z_context=None, i_context=None, f_context=None, c_context=None, o_context=None,
+                 c=None, h=None,
+                 dL_dpre_z=None, dL_dpre_i=None, dL_dpre_f=None, dL_dpre_o=None,
                  prev_cell=None, next_cell=None):
-        Matrix = MatrixClass[p_type]
-        self.p_type = p_type
         self.Wz = Wz
         self.Rz = Rz
         self.Wi = Wi
@@ -21,32 +19,32 @@ class LstmBlock(object):
         self.Wo = Wo
         self.Ro = Ro
         self.po = po
-        self.z = Matrix.empty_like(c)
-        self.i = Matrix.empty_like(c)
-        self.f = Matrix.empty_like(c)
-        self.c = c
-        self.tanh_c = Matrix.empty_like(c)
-        self.o = Matrix.empty_like(c)
-        self.h = h
+        self.z = Matrix.empty_like(po)
+        self.i = Matrix.empty_like(po)
+        self.f = Matrix.empty_like(po)
+        self.c = c if c else Matrix.empty_like(po)
+        self.tanh_c = Matrix.empty_like(po)
+        self.o = Matrix.empty_like(po)
+        self.h = h if h else Matrix.empty_like(po)
         self._dz_dpre_z = Matrix.empty_like(self.z)
         self._di_dpre_i = Matrix.empty_like(self.i)
         self._df_dpre_f = Matrix.empty_like(self.f)
         self._dtanh_c_dc = Matrix.empty_like(self.c)
         self._do_dpre_o = Matrix.empty_like(self.o)
         self.dL_dh = Matrix.empty_like(self.h)
-        self.dL_dhz = Matrix.empty_like(self.z)
-        self.dL_dhi = Matrix.empty_like(self.i)
-        self.dL_dhf = Matrix.empty_like(self.f)
+        self.dL_dhz = Matrix.empty_like(self.h)
+        self.dL_dhi = Matrix.empty_like(self.h)
+        self.dL_dhf = Matrix.empty_like(self.h)
         self.dL_dc = Matrix.empty_like(self.c)
-        self.dL_dpre_z = dL_dpre_z
-        self.dL_dpre_i = dL_dpre_i
-        self.dL_dpre_f = dL_dpre_f
-        self.dL_dpre_o = dL_dpre_o
-        self.z_context = z_context
-        self.i_context = i_context
-        self.f_context = f_context
-        self.c_context = c_context
-        self.o_context = o_context
+        self.dL_dpre_z = dL_dpre_z if dL_dpre_z else Matrix.empty_like(self.z)
+        self.dL_dpre_i = dL_dpre_i if dL_dpre_i else Matrix.empty_like(self.i)
+        self.dL_dpre_f = dL_dpre_f if dL_dpre_f else Matrix.empty_like(self.f)
+        self.dL_dpre_o = dL_dpre_o if dL_dpre_o else Matrix.empty_like(self.o)
+        self.z_context = z_context if z_context else MatrixContext()
+        self.i_context = i_context if i_context else MatrixContext()
+        self.f_context = f_context if f_context else MatrixContext()
+        self.c_context = c_context if c_context else MatrixContext()
+        self.o_context = o_context if o_context else MatrixContext()
         self.prev_cell = prev_cell
         self.next_cell = next_cell
         self.back_prop = None
@@ -82,7 +80,7 @@ class LstmBlock(object):
     def set_testing_mode(self):
         self.back_prop = False
 
-    def forward_propagation(self, pre_z, pre_i, pre_f, pre_o):
+    def fprop(self, pre_z, pre_i, pre_f, pre_o):
         # z[t] = tanh(Wz * x[t] + Rz * h[t-1])
         pre_z.add_dot(self.z_context, self.Rz, self.prev_cell.h)
         pre_z.tanh(self.z_context, self.z, self.dz_dpre_z)
@@ -112,7 +110,8 @@ class LstmBlock(object):
         self.h.assign_hprod(self.o_context, self.o, self.tanh_c)
         self.o_context.block(self.z_context, self.i_context, self.f_context)
 
-    def backward_propagation(self, dL_dh=None):
+    def bprop(self, dL_dh=None):
+        # TODO rewrite this dL_dh
         if dL_dh:
             # dL/dpre_o[t] = dL/dh[t] .* tanh(c[t]) .* do[t]/dpre_o[t]
             self.dL_dpre_o.assign_hprod(self.o_context, dL_dh, self.tanh_c, self.do_dpre_o)
@@ -155,8 +154,8 @@ class LstmBlock(object):
 
 
 class MarginalLstmBlock(object):
-    def __init__(self, p_type, n):
-        zero_vector = MatrixClass[p_type].from_npa(np.zeros((n, 1)))
+    def __init__(self, n):
+        zero_vector = Matrix.from_npa(np.zeros((n, 1)))
         self.c = zero_vector
         self.h = zero_vector
         self.dL_dpre_z = None
@@ -165,3 +164,9 @@ class MarginalLstmBlock(object):
         self.dL_dpre_o = None
         self.dL_dc = None
         self.f = None
+
+    def depend_on(self):
+        pass
+
+    def block(self):
+        pass

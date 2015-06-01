@@ -13,7 +13,8 @@ class GpuMatrixContext(object):
     _events = defaultdict(_create_disabled_timing_event)
     _cublas_handle = None
 
-    def __init__(self):
+    def __init__(self, gpu_id=None):
+        # TODO rewrite in order to handle several gpus
         if GpuMatrixContext._cublas_handle is None:
             GpuMatrixContext._cublas_handle = cublas.cublas_handle_t()
             cublas.cublas_create(GpuMatrixContext._cublas_handle)
