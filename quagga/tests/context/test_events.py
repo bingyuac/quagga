@@ -2,7 +2,7 @@ import ctypes
 import numpy as np
 from unittest import TestCase
 from quagga.cuda import cudart
-from quagga.matrix import GpuMatrixContext
+from quagga.context import GpuContext
 
 
 gpu_matrix_kernels = ctypes.cdll.LoadLibrary('gpu_matrix_kernels.so')
@@ -46,7 +46,7 @@ class TestEvent(TestCase):
         k = 6
         execution_checklist = cuda_array_from_list([0] * (k * N + 1))
         test_results = cuda_array_from_list([0] * (k * N + 1))
-        contexts = [GpuMatrixContext() for _ in xrange(k)]
+        contexts = [GpuContext() for _ in xrange(k)]
 
         blocking_nodes = list()
         blocking_nodes.append(cuda_array_from_list([]))
