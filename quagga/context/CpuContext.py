@@ -1,4 +1,4 @@
-class CpuMatrixContext(object):
+class CpuContext(object):
     def synchronize(self):
         pass
 

@@ -1,12 +1,12 @@
 import quagga
-from quagga.matrix import CpuMatrixContext, GpuMatrixContext
+from quagga.context import CpuContext, GpuContext
 
 
-def MatrixContext():
+def Context():
     processor_type = quagga.config['processor_type']
     if processor_type == 'cpu':
-        return CpuMatrixContext()
+        return CpuContext()
     elif processor_type == 'gpu':
-        return GpuMatrixContext()
+        return GpuContext()
     else:
         raise ValueError(u'Processor type: {} is undefined'.format(processor_type))

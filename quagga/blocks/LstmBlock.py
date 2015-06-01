@@ -165,8 +165,8 @@ class MarginalLstmBlock(object):
         self.dL_dc = None
         self.f = None
 
-    def depend_on(self):
+    def depend_on(self, *args):
         pass
 
-    def block(self):
+    def block(self, *args):
         pass

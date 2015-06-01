@@ -276,6 +276,21 @@ def cuda_mem_get_info():
     return free.value, total.value
 
 
+_libcudart.cudaGetDeviceCount.restype = cuda_error_t
+_libcudart.cudaGetDeviceCount.argtypes = [ctypes.POINTER(ctypes.c_int)]
+def cuda_get_device_count():
+    """
+    Returns the number of compute-capable devices.
+    :return:
+    count : c_int
+        Number of compute-capable devices.
+    """
+    count = ctypes.c_int()
+    status = _libcudart.cudaGetDeviceCount(ctypes.byref(count))
+    check_cuda_status(status)
+    return count
+
+
 _libcudart.cudaSetDevice.restype = cuda_error_t
 _libcudart.cudaSetDevice.argtypes = [ctypes.c_int]
 def cuda_set_device(device):
@@ -299,16 +314,15 @@ def cuda_get_device():
     Get current CUDA device.
     Return the identifying number of the device currently used to
     process CUDA operations.
-    Returns
-    -------
-    device : int
+    :return:
+    device : c_int
         Device number.
     """
 
     device = ctypes.c_int()
     status = _libcudart.cudaGetDevice(ctypes.byref(device))
     check_cuda_status(status)
-    return device.value
+    return device
 
 
 _libcudart.cudaDriverGetVersion.restype = cuda_error_t
