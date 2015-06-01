@@ -443,3 +443,18 @@ _libcudart.cudaDeviceReset.restype = cuda_error_t
 def cuda_device_reset():
     status = _libcudart.cudaDeviceReset()
     check_cuda_status(status)
+
+
+cuda_device_flag = {
+    'cuda_device_schedule_auto': 0,
+    'cuda_device_schedule_spin': 1,
+    'cuda_device_schedule_yield': 2,
+    'cuda_device_schedule_blocking_sync': 4
+}
+
+
+_libcudart.cudaSetDeviceFlags.restype = cuda_error_t
+_libcudart.cudaSetDeviceFlags.argtypes = [ctypes.c_uint]
+def cuda_set_device_flags(flag):
+    status = _libcudart.cudaSetDeviceFlags(cuda_device_flag[flag])
+    check_cuda_status(status)

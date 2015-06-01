@@ -1,11 +1,12 @@
 import time
-import network
-import numpy as np
 from itertools import izip
-from network import LstmBlock
 from collections import OrderedDict
-from matrix import GpuMatrix, GpuMatrixContext, CpuMatrix, CpuMatrixContext
 
+import numpy as np
+
+import layers
+from layers import LstmBlock
+from quagga.matrix import GpuMatrix, GpuMatrixContext, CpuMatrix, CpuMatrixContext
 
 rng = np.random.RandomState(seed=42)
 MatrixClass = {'cpu': CpuMatrix, 'gpu': GpuMatrix}
@@ -93,7 +94,7 @@ def test_sigmoid():
             _a = (4 * rng.rand(shape[0], shape[1]) - 2).astype(dtype=np.float32)
 
             for pt in ['cpu', 'gpu']:
-                network.MatrixClass = MatrixClass[pt]
+                layers.MatrixClass = MatrixClass[pt]
                 a = MatrixClass[pt].from_npa(_a)
                 sigmoid_matirx = MatrixClass[pt].empty_like(a)
                 derivative_matrix = MatrixClass[pt].empty_like(a)

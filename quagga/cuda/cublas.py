@@ -3,8 +3,8 @@ Python interface to CUBLAS functions.
 """
 
 import ctypes
-from cuda import cudart
 
+from quagga.cuda import cudart
 
 cublas_handle_t = ctypes.c_void_p
 cublas_status_t = ctypes.c_int
@@ -78,7 +78,8 @@ def cublas_set_stream(handle, stream):
 
 
 _libcublas.cublasGetStream_v2.restype = cublas_status_t
-_libcublas.cublasGetStream_v2.argtypes = [cublas_handle_t, ctypes.POINTER(cudart.cuda_stream_t)]
+_libcublas.cublasGetStream_v2.argtypes = [cublas_handle_t, ctypes.POINTER(
+    cudart.cuda_stream_t)]
 def cublas_get_stream(handle, stream):
     status = _libcublas.cublasGetStream_v2(handle, ctypes.byref(stream))
     check_cublas_status(status)

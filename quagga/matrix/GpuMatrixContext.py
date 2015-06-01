@@ -1,6 +1,6 @@
 import atexit
-from cuda import cudart, cublas
 from collections import defaultdict
+from quagga.cuda import cudart, cublas
 
 
 def _create_disabled_timing_event():

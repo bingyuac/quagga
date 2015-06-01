@@ -1,7 +1,7 @@
 import atexit
 import ctypes
 import numpy as np
-from cuda import cudart, cublas, gpu_matrix_kernels
+from quagga.cuda import cudart, cublas, gpu_matrix_kernels
 
 
 class GpuMatrix(object):
@@ -24,7 +24,10 @@ class GpuMatrix(object):
                 return GpuMatrix(self.data, self.nrows, key[1].stop, False)
             elif type(key[1].start) == int and key[1].stop is None and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
-                return GpuMatrix(data, self.nrows, self.ncols-key[1].start, False)
+                return GpuMatrix(data, self.nrows, self.ncols - key[1].start, False)
+            elif type(key[1].start) == int and type(key[1].stop) == int and key[1].step is None:
+                data = self._get_pointer_to_column(key[1].start)
+                return GpuMatrix(data, self.nrows, key[1].stop - key[1].start, False)
             else:
                 raise ValueError('This slice: {} is unsupported!'.format(key))
         else:

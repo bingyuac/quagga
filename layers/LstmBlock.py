@@ -1,5 +1,5 @@
 import numpy as np
-from network import MatrixClass
+from layers import MatrixClass
 
 
 class LstmBlock(object):
@@ -82,7 +82,6 @@ class LstmBlock(object):
         self.back_prop = False
 
     def forward_propagation(self, pre_z, pre_i, pre_f, pre_o):
-        Matrix = MatrixClass[self.p_type]
         # z[t] = tanh(Wz * x[t] + Rz * h[t-1])
         pre_z.add_dot(self.z_context, self.Rz, self.prev_cell.h)
         pre_z.tanh(self.z_context, self.z, self.dz_dpre_z)

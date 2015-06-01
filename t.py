@@ -1,6 +1,6 @@
 import numpy as np
-from network import LstmBlock, MarginalLstmBlock
-from network import MatrixClass, MatrixContextClass
+from layers import LstmBlock, MarginalLstmBlock
+from layers import MatrixClass, MatrixContextClass
 
 
 if __name__ == '__main__':

@@ -1,9 +1,8 @@
 import ctypes
-from cuda import cudart
+from quagga.cuda import cudart
 
 
-# gpu_matrix_kernels = ctypes.cdll.LoadLibrary('gpu_matrix_kernels.so')
-gpu_matrix_kernels = ctypes.cdll.LoadLibrary('/home/sergii/Desktop/GrammarticalityJudge/c_lib/gpu_matrix_kernels.so')
+gpu_matrix_kernels = ctypes.cdll.LoadLibrary('gpu_matrix_kernels.so')
 
 
 gpu_matrix_kernels._scale.restype = cudart.cuda_error_t

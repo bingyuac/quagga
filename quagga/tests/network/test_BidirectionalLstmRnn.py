@@ -1,8 +1,10 @@
 import ctypes
-import numpy as np
 from unittest import TestCase
-from matrix import initializers
-from network import MatrixClass, BidirectionalLstmRnn
+
+import numpy as np
+
+from quagga.matrix import initializers
+from layers import MatrixClass, BidirectionalLstmRnn
 
 
 class TestBidirectionalLstmRnn(TestCase):
@@ -10,7 +12,7 @@ class TestBidirectionalLstmRnn(TestCase):
     def setUpClass(cls):
         cls.rng = np.random.RandomState(seed=42)
         cls.context = {}
-        cls.N = 10
+        cls.N = 50
 
     def test_forward_propagation(self):
         r = []
@@ -36,10 +38,10 @@ class TestBidirectionalLstmRnn(TestCase):
 
     def test_backward_propagation(self):
         r = []
-        max_input_sequence_len = 120
+        max_input_sequence_len = 20
         for i in xrange(self.N):
             nrows, ncols = self.rng.random_integers(1000, size=2)
-            nrows, ncols = 10, 20
+            print nrows, ncols
             W_init = initializers.Orthogonal(nrows, ncols)
             R_init = initializers.Orthogonal(nrows, nrows)
             p_init = initializers.Orthogonal(nrows, 1)
@@ -54,12 +56,20 @@ class TestBidirectionalLstmRnn(TestCase):
                 input_sequence = MatrixClass[p_type].from_npa(_input_sequence)
                 sequence_grammaticality = initializers.rng.randint(2)
                 sequence_grammaticality = ctypes.c_float(sequence_grammaticality)
-                print lstm_rnn.forward_propagation(input_sequence)
-                dL_dW[p_type], dL_dR[p_type], dL_dp[p_type], dL_dw_hy[p_type], dL_dx[p_type] = lstm_rnn.backward_propagation(input_sequence, sequence_grammaticality)
+                error, dL_dW[p_type], dL_dR[p_type], dL_dp[p_type], dL_dw_hy[p_type], dL_dx[p_type] = lstm_rnn.backward_propagation(input_sequence, sequence_grammaticality)
                 initializers.rng.set_state(random_state)
-            r.append(np.allclose(dL_dW['cpu'], dL_dW['gpu'], atol=1e-4))
-            r.append(np.allclose(dL_dR['cpu'], dL_dR['gpu'], atol=1e-4))
-            r.append(np.allclose(dL_dp['cpu'], dL_dp['gpu'], atol=1e-4))
-            r.append(np.allclose(dL_dw_hy['cpu'], dL_dw_hy['gpu'], atol=1e-4))
-            r.append(np.allclose(dL_dx['cpu'], dL_dx['gpu'], atol=1e-4))
-        self.assertEqual(sum(r), self.N * 5)
+                lstm_rnn.synchronize()
+            print '===='
+            for d in ['forward', 'backward']:
+                r.append(np.allclose(dL_dw_hy['cpu'][d].to_host(), dL_dw_hy['gpu'][d].to_host(), atol=1e-3))
+                for gate in 'zifo':
+                    r.append(np.allclose(dL_dW['cpu'][gate, d].to_host(),
+                                         dL_dW['gpu'][gate, d].to_host(), atol=1e-3))
+                    r.append(np.allclose(dL_dR['cpu'][gate, d].to_host(),
+                                         dL_dR['gpu'][gate, d].to_host(), atol=1e-3))
+                    if gate != 'z':
+                        r.append(np.allclose(dL_dp['cpu'][gate, d].to_host(),
+                                             dL_dp['gpu'][gate, d].to_host(), atol=1e-3))
+            r.append(np.allclose(dL_dx['cpu'].to_host(), dL_dx['gpu'].to_host(), atol=1e-3))
+
+        self.assertEqual(sum(r), self.N * 25)

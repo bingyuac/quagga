@@ -1,6 +1,8 @@
-import numpy as np
-from matrix import GpuMatrix, GpuMatrixContext
 from multiprocessing import Process, Pipe
+
+import numpy as np
+
+from quagga.matrix import GpuMatrix, GpuMatrixContext
 
 
 def consumer(conn):

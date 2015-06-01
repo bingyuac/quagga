@@ -1,6 +1,6 @@
 import numpy as np
 from unittest import TestCase
-from network import LstmBlock, MarginalLstmBlock, MatrixClass, MatrixContextClass
+from layers import LstmBlock, MarginalLstmBlock, MatrixClass, MatrixContextClass
 
 
 class TestLstmBlock(TestCase):
@@ -9,7 +9,7 @@ class TestLstmBlock(TestCase):
         cls.rng = np.random.RandomState(seed=42)
         cls.context = {}
         for p_type in ['cpu', 'gpu']:
-            for gate in ['z', 'i', 'f', 'c', 'o']:
+            for gate in 'zifco':
                 cls.context[p_type, gate] = MatrixContextClass[p_type]()
         cls.N = 50
 
@@ -27,7 +27,7 @@ class TestLstmBlock(TestCase):
         for i in xrange(self.N):
             nrows, ncols = self.rng.random_integers(7000, size=2)
             W, R, p, pre = {}, {}, {}, {}
-            for gate in ['z', 'i', 'f', 'o']:
+            for gate in 'zifo':
                 _W = self.get_random_array((nrows, ncols))
                 _R = self.get_random_array((nrows, nrows))
                 if gate != 'z':
@@ -72,7 +72,7 @@ class TestLstmBlock(TestCase):
         for i in xrange(self.N):
             nrows, ncols = self.rng.random_integers(7000, size=2)
             W, R, p, pre, dL_dpre_tp1, dL_dc_tp1, f, dL_dh = {}, {}, {}, {}, {}, {}, {}, {}
-            for gate in ['z', 'i', 'f', 'o']:
+            for gate in 'zifo':
                 _W = self.get_random_array((nrows, ncols))
                 _R = self.get_random_array((nrows, nrows))
                 if gate != 'z':

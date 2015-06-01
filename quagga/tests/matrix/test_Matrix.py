@@ -1,8 +1,8 @@
 import ctypes
 import numpy as np
-from cuda import cudart
 from unittest import TestCase
-from matrix import GpuMatrix, GpuMatrixContext, CpuMatrix, CpuMatrixContext
+from quagga.cuda import cudart
+from quagga.matrix import GpuMatrix, GpuMatrixContext, CpuMatrix, CpuMatrixContext
 
 
 class TestMatrix(TestCase):
