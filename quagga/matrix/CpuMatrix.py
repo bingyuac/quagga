@@ -18,6 +18,9 @@ class CpuMatrix(object):
             key = (key[0], slice(key[1], key[1] + 1, None))
         return CpuMatrix.from_npa(self.npa[key])
 
+    def same_shape(self, other):
+        return self.nrows == other.nrows and self.ncols == other.ncols
+
     @classmethod
     def from_npa(cls, a):
         if a.ndim != 2:

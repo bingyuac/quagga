@@ -1,18 +1,15 @@
 import quagga
 import numpy as np
 from unittest import TestCase
-from quagga.matrix import Matrix, MatrixContext
-from quagga.blocks import LstmBlock, MarginalLstmBlock
+from quagga.matrix import Matrix
+from quagga.context import Context
+from quagga.blocks import LstmCell, MarginalLstmBlock
 
 
-class TestLstmBlock(TestCase):
+class TestLstmCell(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rng = np.random.RandomState(seed=42)
-        cls.context = {}
-        for p_type in quagga.get_processors_types():
-            for gate in 'zifco':
-                cls.context[p_type, gate] = MatrixContext()
         cls.N = 50
 
     @classmethod
@@ -44,22 +41,15 @@ class TestLstmBlock(TestCase):
 
             c, h = {}, {}
             for p_type in quagga.get_processors_types():
-                cell = LstmBlock(W[p_type, 'z'], R[p_type, 'z'],
+                cell = LstmCell(W[p_type, 'z'], R[p_type, 'z'],
                                  W[p_type, 'i'], R[p_type, 'i'], p[p_type, 'i'],
                                  W[p_type, 'f'], R[p_type, 'f'], p[p_type, 'f'],
                                  W[p_type, 'o'], R[p_type, 'o'], p[p_type, 'o'],
-                                 Matrix.empty(*_p.shape),
-                                 Matrix.empty(*_p.shape),
-                                 None, None, None, None,
-                                 self.context[p_type, 'z'],
-                                 self.context[p_type, 'i'],
-                                 self.context[p_type, 'f'],
-                                 self.context[p_type, 'c'],
-                                 self.context[p_type, 'o'],
-                                 MarginalLstmBlock(_p.shape[0]))
+                                 Context(), Context(), Context(), Context(),
+                                 prev_cell=MarginalLstmBlock(_p.shape[0]))
                 cell.set_testing_mode()
                 cell.fprop(pre[p_type, 'z'], pre[p_type, 'i'], pre[p_type, 'f'], pre[p_type, 'o'])
-                cell.o_context.synchronize()
+                cell.fprop_synchronize()
                 c[p_type] = cell.c
                 h[p_type] = cell.h
 
@@ -109,25 +99,16 @@ class TestLstmBlock(TestCase):
                 next_cell.dL_dc = dL_dc_tp1[p_type]
                 next_cell.f = f[p_type]
 
-                cell = LstmBlock(W[p_type, 'z'], R[p_type, 'z'],
+                cell = LstmCell(W[p_type, 'z'], R[p_type, 'z'],
                                  W[p_type, 'i'], R[p_type, 'i'], p[p_type, 'i'],
                                  W[p_type, 'f'], R[p_type, 'f'], p[p_type, 'f'],
                                  W[p_type, 'o'], R[p_type, 'o'], p[p_type, 'o'],
-                                 Matrix.empty(*_p.shape),
-                                 Matrix.empty(*_p.shape),
-                                 Matrix.empty(*_p.shape),
-                                 Matrix.empty(*_p.shape),
-                                 Matrix.empty(*_p.shape),
-                                 Matrix.empty(*_p.shape),
-                                 self.context[p_type, 'z'],
-                                 self.context[p_type, 'i'],
-                                 self.context[p_type, 'f'],
-                                 self.context[p_type, 'c'],
-                                 self.context[p_type, 'o'],
-                                 prev_cell, next_cell)
+                                 Context(), Context(), Context(), Context(), Context(),
+                                 prev_cell=prev_cell, next_cell=next_cell)
                 cell.set_training_mode()
                 cell.fprop(pre[p_type, 'z'], pre[p_type, 'i'], pre[p_type, 'f'], pre[p_type, 'o'])
                 cell.bprop(dL_dh[p_type] if is_cell_last else None)
+                cell.bprop_synchronize()
 
                 dL_dpre[p_type, 'z'] = cell.dL_dpre_z
                 dL_dpre[p_type, 'i'] = cell.dL_dpre_i

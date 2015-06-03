@@ -41,6 +41,9 @@ class GpuMatrix(object):
             except ValueError:
                 pass
 
+    def same_shape(self, other):
+        return self.nrows == other.nrows and self.ncols == other.ncols
+
     def _get_pointer_to_column(self, k):
         void_p = ctypes.cast(self.data, ctypes.c_voidp).value + self.nrows * k * ctypes.sizeof(ctypes.c_float)
         return ctypes.cast(void_p, ctypes.POINTER(ctypes.c_float))

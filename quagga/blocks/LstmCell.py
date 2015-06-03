@@ -1,13 +1,13 @@
 import numpy as np
-from quagga.matrix import Matrix, MatrixContext
+from quagga.matrix import Matrix
+from quagga.blocks import Connector
 
 
-class LstmBlock(object):
+class LstmCell(object):
     def __init__(self, Wz, Rz, Wi, Ri, pi, Wf, Rf, pf, Wo, Ro, po,
-                 z_context=None, i_context=None, f_context=None, c_context=None, o_context=None,
+                 z_context, i_context, f_context, o_context,
                  c=None, h=None,
-                 dL_dpre_z=None, dL_dpre_i=None, dL_dpre_f=None, dL_dpre_o=None,
-                 prev_cell=None, next_cell=None):
+                 dL_dpre_z=None, dL_dpre_i=None, dL_dpre_f=None, dL_dpre_o=None):
         self.Wz = Wz
         self.Rz = Rz
         self.Wi = Wi
@@ -22,10 +22,10 @@ class LstmBlock(object):
         self.z = Matrix.empty_like(po)
         self.i = Matrix.empty_like(po)
         self.f = Matrix.empty_like(po)
-        self.c = c if c else Matrix.empty_like(po)
+        self.c = Connector(c if c else Matrix.empty_like(po), self.o_context)
         self.tanh_c = Matrix.empty_like(po)
         self.o = Matrix.empty_like(po)
-        self.h = h if h else Matrix.empty_like(po)
+        self.h = Connector(h if h else Matrix.empty_like(po), self.o_context)
         self._dz_dpre_z = Matrix.empty_like(self.z)
         self._di_dpre_i = Matrix.empty_like(self.i)
         self._df_dpre_f = Matrix.empty_like(self.f)
@@ -40,14 +40,19 @@ class LstmBlock(object):
         self.dL_dpre_i = dL_dpre_i if dL_dpre_i else Matrix.empty_like(self.i)
         self.dL_dpre_f = dL_dpre_f if dL_dpre_f else Matrix.empty_like(self.f)
         self.dL_dpre_o = dL_dpre_o if dL_dpre_o else Matrix.empty_like(self.o)
-        self.z_context = z_context if z_context else MatrixContext()
-        self.i_context = i_context if i_context else MatrixContext()
-        self.f_context = f_context if f_context else MatrixContext()
-        self.c_context = c_context if c_context else MatrixContext()
-        self.o_context = o_context if o_context else MatrixContext()
-        self.prev_cell = prev_cell
-        self.next_cell = next_cell
-        self.back_prop = None
+        self.z_context = z_context
+        self.i_context = i_context
+        self.f_context = f_context
+        self.o_context = o_context
+
+        self.dL_dprev_c = None
+        self.dL_dprev_h = None
+
+        self.prev_c = None
+        self.prev_h = None
+        self.prev_c_context = None
+        self.prev_h_context = None
+        self.back_prop = False
 
     @property
     def dz_dpre_z(self):
@@ -82,35 +87,51 @@ class LstmBlock(object):
 
     def fprop(self, pre_z, pre_i, pre_f, pre_o):
         # z[t] = tanh(Wz * x[t] + Rz * h[t-1])
-        pre_z.add_dot(self.z_context, self.Rz, self.prev_cell.h)
+        pre_z.add_dot(self.z_context, self.Rz, self.prev_h)
         pre_z.tanh(self.z_context, self.z, self.dz_dpre_z)
 
         # i[t] = sigmoid(Wi * x[t] + Ri * h[t-1] + pi .* c[t-1])
-        pre_i.add_dot(self.i_context, self.Ri, self.prev_cell.h)
-        pre_i.add_hprod(self.i_context, self.pi, self.prev_cell.c)
+        pre_i.add_dot(self.i_context, self.Ri, self.prev_h)
+        pre_i.add_hprod(self.i_context, self.pi, self.prev_c)
         pre_i.sigmoid(self.i_context, self.i, self.di_dpre_i)
 
         # f[t] = sigmoid(Wf * x[t] + Rf * h[t-1] + pf .* c[t-1])
-        pre_f.add_dot(self.f_context, self.Rf, self.prev_cell.h)
-        pre_f.add_hprod(self.f_context, self.pf, self.prev_cell.c)
+        pre_f.add_dot(self.f_context, self.Rf, self.prev_h)
+        pre_f.add_hprod(self.f_context, self.pf, self.prev_c)
         pre_f.sigmoid(self.f_context, self.f, self.df_dpre_f)
 
         # c[t] = i[t] .* z[t] + f[t] .* c[t-1]
         # tanh(c[t])
-        self.c_context.depend_on(self.z_context, self.i_context, self.f_context)
-        self.c.assign_sum_hprod(self.c_context, self.i, self.z, self.f, self.prev_cell.c)
-        self.c.tanh(self.c_context, self.tanh_c, self.dtanh_c_dc)
+        self.o_context.depend_on(self.z_context, self.i_context, self.f_context)
+        self.c.assign_sum_hprod(self.o_context, self.i, self.z, self.f, self.prev_c)
+        self.c.tanh(self.o_context, self.tanh_c, self.dtanh_c_dc)
 
         # o[t] = sigmoid(Wo * x[t] + Ro * h[t-1] + po .* c[t])
         # h[t] = o[t] .* tanh(c[t])
-        pre_o.add_dot(self.o_context, self.Ro, self.prev_cell.h)
-        self.o_context.depend_on(self.c_context)
+        pre_o.add_dot(self.o_context, self.Ro, self.prev_h)
         pre_o.add_hprod(self.o_context, self.po, self.c)
         pre_o.sigmoid(self.o_context, self.o, self.do_dpre_o)
         self.h.assign_hprod(self.o_context, self.o, self.tanh_c)
-        self.o_context.block(self.z_context, self.i_context, self.f_context)
 
-    def bprop(self, dL_dh=None):
+    def register_inputs(self, prev_c, prev_h, register_derivatives=True):
+        if self.prev_c:
+            raise ValueError('The block has already registered inputs!')
+        self.prev_c = prev_c.matrix
+        self.prev_h = prev_h.matrix
+        self.prev_c_context = prev_c.context
+        self.prev_h_context = prev_h.context
+
+        prev_c.register_derivative(dL_dprev_c)
+
+        prev_h.context # context in which prev_h should be calculated
+        prev_c.matrix
+        prev_c.register_derivative(dL_dprev_h)
+
+
+
+
+
+    def bprop(self, dL_dh):
         # TODO rewrite this dL_dh
         if dL_dh:
             # dL/dpre_o[t] = dL/dh[t] .* tanh(c[t]) .* do[t]/dpre_o[t]
@@ -152,6 +173,19 @@ class LstmBlock(object):
         self.dL_dpre_i.assign_hprod(self.i_context, self.dL_dc, self.z, self.di_dpre_i)
         self.dL_dpre_z.assign_hprod(self.z_context, self.dL_dc, self.i, self.dz_dpre_z)
 
+    def fprop_synchronize(self):
+        self.o_context.synchronize()
+
+    def bprop_synchronize(self):
+        self.f_context.synchronize()
+        self.i_context.synchronize()
+        self.z_context.synchronize()
+
+    def depend_on(self, *args):
+        pass
+
+    def block(self, *args):
+        pass
 
 class MarginalLstmBlock(object):
     def __init__(self, n):
@@ -164,9 +198,3 @@ class MarginalLstmBlock(object):
         self.dL_dpre_o = None
         self.dL_dc = None
         self.f = None
-
-    def depend_on(self, *args):
-        pass
-
-    def block(self, *args):
-        pass

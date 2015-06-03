@@ -1,10 +1,7 @@
 import ctypes
-from unittest import TestCase
-
 import numpy as np
-
-from quagga.matrix import initializers
-from layers import MatrixClass, BidirectionalLstmRnn
+from unittest import TestCase
+from quagga.matrix import initializers, Matrix
 
 
 class TestBidirectionalLstmRnn(TestCase):
