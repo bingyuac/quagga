@@ -1,7 +1,9 @@
-config = {'processor_type': 'gpu'}
+processor_type = 'gpu'
+dtype = 'float'
 
 
 def get_processors_types():
-    for processor_type in ['cpu', 'gpu']:
-        config['processor_type'] = processor_type
-        yield processor_type
+    for each in ['cpu', 'gpu']:
+        global processor_type
+        processor_type = each
+        yield each

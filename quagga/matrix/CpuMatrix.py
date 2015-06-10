@@ -18,28 +18,54 @@ class CpuMatrix(object):
             key = (key[0], slice(key[1], key[1] + 1, None))
         return CpuMatrix.from_npa(self.npa[key])
 
+    def slice_columns(self, context, column_indxs, out):
+        out.npa = self.npa[:, column_indxs]
+
     def same_shape(self, other):
         return self.nrows == other.nrows and self.ncols == other.ncols
 
+    @staticmethod
+    def str_to_dtype(dtype):
+        if dtype == 'float':
+            return np.float32
+        if dtype == 'int':
+            return np.int32
+        raise TypeError(u'data type {} not understood'.format(dtype))
+
     @classmethod
-    def from_npa(cls, a):
+    def from_npa(cls, a, dtype=None):
         if a.ndim != 2:
             raise ValueError('CpuMatrix works only with 2-d numpy arrays!')
+        dtype = cls.str_to_dtype(dtype) if dtype else a.dtype
         if not np.isfortran(a):
-            a = np.asfortranarray(a, dtype=np.float32)
-        elif a.dtype != np.float32:
-            a = a.astype(dtype=np.float32)
+            a = np.asfortranarray(a, dtype=dtype)
+        elif a.dtype != dtype:
+            a = a.astype(dtype=dtype)
         return cls(a, a.shape[0], a.shape[1])
 
     @classmethod
-    def empty(cls, nrows, ncols):
-        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np.float32)))
+    def empty(cls, nrows, ncols, dtype):
+        np_dtype = cls.str_to_dtype(dtype) if type(dtype) is str else dtype
+        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype)))
 
     @classmethod
     def empty_like(cls, other):
         if hasattr(other, 'npa'):
             return cls.from_npa(np.nan_to_num(np.empty_like(other.npa)))
-        return cls.empty(other.nrows, other.ncols)
+        return cls.empty(other.nrows, other.ncols, other.dtype)
+
+    def to_device(self, context, a):
+        if self.npa.dtype != a.dtype:
+            raise ValueError("Allocated memory has {} type. "
+                             "Can't transfer to the device {} type".
+                             format(self.npa.dtype, a.dtype))
+        if a.ndim != 2:
+            raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
+        if not np.isfortran(a):
+            a = np.asfortranarray(a)
+        self.nrows, self.ncols = a.shape
+        self.nelems = self.nrows * self.ncols
+        self.npa = a
 
     def to_host(self):
         return self.npa

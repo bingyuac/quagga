@@ -7,12 +7,12 @@ class Matrix(object):
         raise ValueError('Do not construct directly!')
 
     @classmethod
-    def from_npa(cls, a):
-        return cls._get_matrix_class().from_npa(a)
+    def from_npa(cls, a, dtype=None):
+        return cls._get_matrix_class().from_npa(a, dtype)
 
     @classmethod
-    def empty(cls, nrows, ncols):
-        return cls._get_matrix_class().empty(nrows, ncols)
+    def empty(cls, nrows, ncols, dtype):
+        return cls._get_matrix_class().empty(nrows, ncols, dtype)
 
     @classmethod
     def empty_like(cls, other):
@@ -20,10 +20,10 @@ class Matrix(object):
 
     @staticmethod
     def _get_matrix_class():
-        processor_type = quagga.config['processor_type']
-        if processor_type == 'cpu':
+        if quagga.processor_type == 'cpu':
             return CpuMatrix
-        elif processor_type == 'gpu':
+        elif quagga.processor_type == 'gpu':
             return GpuMatrix
         else:
-            raise ValueError(u'Processor type: {} is undefined'.format(processor_type))
+            raise ValueError(u'Processor type: {} is undefined'.
+                             format(quagga.processor_type))

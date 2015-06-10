@@ -1,0 +1,2 @@
+class SliceBlock(object):
+    pass

@@ -27,8 +27,7 @@ __global__  void sliceColumns(int nrows,
 }
 
 
-// ============================================================================
-__global__ void test_dependencies(int node_id, int* blocking_nodes, int blocking_nodes_num, int *execution_checklist, int* test_results) {
+__global__ void testDependencies(int node_id, int* blocking_nodes, int blocking_nodes_num, int *execution_checklist, int* test_results) {
 	test_results[node_id] = 1;
 	for (int i = 0; i < blocking_nodes_num; i++) {
 		int bloking_node_id = blocking_nodes[i];
@@ -268,8 +267,20 @@ __global__ void scale(int nelems,
 
 
 extern "C" {
-	cudaError_t _test_dependencies(cudaStream_t stream, int node_id, int* blocking_nodes, int blocking_nodes_num, int *execution_checklist, int* test_results) {
-		test_dependencies<<<1, 1, 0, stream>>>(node_id, blocking_nodes, blocking_nodes_num, execution_checklist, test_results);
+	cudaError_t _sliceColumns(cudaStream_t stream,
+							  int nrows,
+							  int ncols,
+							  const int* __restrict__ embedding_column_indxs,
+							  const float* __restrict__ embedding_matrix,
+							  float* __restrict__ dense_matrix) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+		sliceColumns<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
+		return cudaGetLastError();
+	}
+
+
+	cudaError_t _testDependencies(cudaStream_t stream, int node_id, int* blocking_nodes, int blocking_nodes_num, int *execution_checklist, int* test_results) {
+		testDependencies<<<1, 1, 0, stream>>>(node_id, blocking_nodes, blocking_nodes_num, execution_checklist, test_results);
 		return cudaGetLastError();
 	}
 

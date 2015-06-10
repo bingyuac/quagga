@@ -1,10 +1,11 @@
+import numpy as np
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import LstmCell, MarginalLstmBlock
+from quagga.blocks import LstmCell, Connector
 
 
 class LstmRnn(object):
-    def __init__(self, max_input_sequence_len, W_init, R_init, p_init):
+    def __init__(self, W_init, R_init, p_init, input_sequence, max_input_sequence_len):
         self.max_input_sequence_len = max_input_sequence_len
         self.W, self.dL_dW = {}, {}
         self.R, self.dL_dR = {}, {}
@@ -26,10 +27,8 @@ class LstmRnn(object):
             self.context[node] = Context()
         self.c = Matrix.empty(p_init.nrows, max_input_sequence_len)
         self.h = Matrix.empty(p_init.nrows, max_input_sequence_len)
-        self.dL_dx = Matrix.empty(W_init.ncols, max_input_sequence_len)
-
-        # TODO ???
-        self.dL_dh = Matrix.empty_like(p_init)
+        # self.dL_dx = Matrix.empty(W_init.ncols, max_input_sequence_len)
+        self.dL_dx = None
 
         self.lstm_cells = []
         for k in xrange(max_input_sequence_len):
@@ -37,20 +36,21 @@ class LstmRnn(object):
                             self.W['i'], self.R['i'], self.p['i'],
                             self.W['f'], self.R['f'], self.p['f'],
                             self.W['o'], self.R['o'], self.p['o'],
-                            self.context['z'],
-                            self.context['i'],
-                            self.context['f'],
-                            self.context['o'],
                             self.c[:, k], self.h[:, k],
                             self.dL_dpre['z'][:, k],
                             self.dL_dpre['i'][:, k],
                             self.dL_dpre['f'][:, k],
-                            self.dL_dpre['o'][:, k])
+                            self.dL_dpre['o'][:, k],
+                            self.context['z'],
+                            self.context['i'],
+                            self.context['f'],
+                            self.context['o'])
             if k == 0:
-                cell.prev_cell = MarginalLstmBlock(p_init.nrows)
+                zero_vector = Connector(Matrix.from_npa(np.zeros((p_init.nrows, 1))))
+                cell.register_inputs(zero_vector, zero_vector, propagate_error=False)
             else:
-                cell.prev_cell = self.lstm_cells[-1]
-                self.lstm_cells[-1].next_cell = cell
+                prev_cell = self.lstm_cells[-1]
+                cell.register_inputs(prev_cell.c, prev_cell.h)
             self.lstm_cells.append(cell)
 
     def set_training_mode(self):
@@ -83,3 +83,10 @@ class LstmRnn(object):
             self.lstm_cells[t].fprop(pre_z, pre_i, pre_f, pre_o)
 
     def bprop(self, input_sequence):
+        pass
+
+    def register_inputs(self, x, propagate_error=True):
+        self.x = x
+        if propagate_error:
+            x.register_user(self, context)
+        self.propagate_error = propagate_error
