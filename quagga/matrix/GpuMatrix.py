@@ -8,14 +8,14 @@ class GpuMatrix(object):
     zero_scalar = None
     one_scalar = None
 
-    def __init__(self, data, nrows, ncols, c_dtype, np_dtype, is_owner):
+    def __init__(self, data, nrows, ncols, dtype, is_owner):
         self.data = data
         self.nrows = nrows
         self.ncols = ncols
         self.nelems = nrows * ncols
-        self.c_dtype = c_dtype
-        self.np_dtype = np_dtype
-        self.nbytes = self.nelems * ctypes.sizeof(c_dtype)
+        self.dtype = dtype
+        self.np_dtype, self.c_dtype = self.str_to_dtypes(dtype)
+        self.nbytes = self.nelems * ctypes.sizeof(self.c_dtype)
         self.is_owner = is_owner
         if is_owner:
             atexit.register(cudart.cuda_free, self.data)
@@ -23,16 +23,16 @@ class GpuMatrix(object):
     def __getitem__(self, key):
         if type(key[1]) == int:
             data = self._get_pointer_to_column(key[1])
-            return GpuMatrix(data, self.nrows, 1, self.c_dtype, self.np_dtype, False)
+            return GpuMatrix(data, self.nrows, 1, self.dtype, False)
         if type(key[1]) == slice:
             if key[1].start is None and type(key[1].stop) == int and key[1].step is None:
-                return GpuMatrix(self.data, self.nrows, key[1].stop, self.c_dtype, self.np_dtype, False)
+                return GpuMatrix(self.data, self.nrows, key[1].stop, self.dtype, False)
             elif type(key[1].start) == int and key[1].stop is None and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
-                return GpuMatrix(data, self.nrows, self.ncols - key[1].start, self.c_dtype, self.np_dtype, False)
+                return GpuMatrix(data, self.nrows, self.ncols - key[1].start, self.dtype, False)
             elif type(key[1].start) == int and type(key[1].stop) == int and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
-                return GpuMatrix(data, self.nrows, key[1].stop - key[1].start, self.c_dtype, self.np_dtype, False)
+                return GpuMatrix(data, self.nrows, key[1].stop - key[1].start, self.dtype, False)
             else:
                 raise ValueError('This slice: {} is unsupported!'.format(key))
         else:
@@ -89,20 +89,20 @@ class GpuMatrix(object):
         nbytes = a.size * elem_size
         data = cudart.cuda_malloc(nbytes, ctypes.c_float)
         cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
-        return cls(data, a.shape[0], a.shape[1], c_dtype, np_dtype, True)
+        return cls(data, a.shape[0], a.shape[1], dtype, True)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype):
-        np_dtype, c_dtype = cls.str_to_dtypes(dtype)
+        c_dtype = cls.str_to_dtypes(dtype)[1]
         nbytes = nrows * ncols * ctypes.sizeof(c_dtype)
         data = cudart.cuda_malloc(nbytes, c_dtype)
-        return cls(data, nrows, ncols, c_dtype, np_dtype, True)
+        return cls(data, nrows, ncols, dtype, True)
 
     @classmethod
     def empty_like(cls, other):
         nbytes = other.nrows * other.ncols * ctypes.sizeof(other.c_dtype)
         data = cudart.cuda_malloc(nbytes, other.c_dtype)
-        return cls(data, other.nrows, other.ncols, other.c_dtype, other.np_dtype, True)
+        return cls(data, other.nrows, other.ncols, other.dtype, True)
 
     def to_device(self, context, a):
         if self.np_dtype != a.dtype:
@@ -132,6 +132,13 @@ class GpuMatrix(object):
 
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
+
+    def hstack(self, other, out):
+        """
+        Stack matrices in matrix horizontally (column wise).
+        """
+        # TODO
+        pass
 
     def scale(self, context, alpha, out=None):
         if out:
