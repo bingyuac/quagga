@@ -3,11 +3,12 @@ import numpy as np
 
 
 class CpuMatrix(object):
-    def __init__(self, npa, nrows, ncols):
+    def __init__(self, npa, nrows, ncols, dtype):
         self.npa = npa
         self.nrows = nrows
         self.ncols = ncols
         self.nelems = nrows * ncols
+        self.dtype = dtype
 
     def __getitem__(self, key):
         if type(key[1]) == int:
@@ -72,6 +73,9 @@ class CpuMatrix(object):
 
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
+
+    def copy(self, context, out):
+        out.npa.data = np.copy(out.npa).data
 
     def scale(self, context, alpha, out=None):
         if out:

@@ -12,13 +12,19 @@ class GpuMatrix(object):
         self.data = data
         self.nrows = nrows
         self.ncols = ncols
-        self.nelems = nrows * ncols
         self.dtype = dtype
         self.np_dtype, self.c_dtype = self.str_to_dtypes(dtype)
-        self.nbytes = self.nelems * ctypes.sizeof(self.c_dtype)
         self.is_owner = is_owner
         if is_owner:
             atexit.register(cudart.cuda_free, self.data)
+
+    @property
+    def nelems(self):
+        return self.nrows * self.ncols
+
+    @property
+    def nbytes(self):
+        return self.nelems * ctypes.sizeof(self.c_dtype)
 
     def __getitem__(self, key):
         if type(key[1]) == int:
@@ -133,11 +139,19 @@ class GpuMatrix(object):
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
 
-    def hstack(self, other, out):
-        """
-        Stack matrices in matrix horizontally (column wise).
-        """
-        # TODO
+    def copy(self, context, out):
+        cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'device_to_device', context.cuda_stream)
+
+    def assign_hstack(self):
+        # if f_matrix.nrows != s_matrix.nrows:
+        #     raise ValueError("Can't horizontally stack matrices with "
+        #                      "different number of rows!")
+        pass
+
+    def assign_vstack(self):
+        # if self.f_matrix.ncols != self.s_matrix.ncols:
+        #     raise ValueError("Can't vertically stack matrices with "
+        #                      "different number of columns!")
         pass
 
     def scale(self, context, alpha, out=None):

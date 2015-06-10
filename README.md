@@ -1,11 +1,14 @@
 # TODO
 
 - [ ] Add shape assertions into Cpu/GpuMatrix methods
-- [ ] Implement MergeBlock
+- [x] Implement MergeBlock
+- [ ] Implement VStackBlock
+- [ ] Implement HStackBlock
+- [ ] Implement EmbeddingBlock
 - [ ] Implement SliceBlock
-- [ ] Implement ReverseBlock
 - [ ] Implement LogisticRegression
 - [ ] Implement MeanPoolingBlock
-- [ ] Write tests for
+- [ ] Write tests for Cpu/GpuMatrix
 - [ ] Fix Cpu/GpuMatrix tests
-- [ ] Add finite difference test for blocks
+- [ ] Add finite difference tests for blocks
+- [ ] Review `update` field usage in the Connector class

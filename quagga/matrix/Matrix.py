@@ -27,7 +27,3 @@ class Matrix(object):
         else:
             raise ValueError(u'Processor type: {} is undefined'.
                              format(quagga.processor_type))
-    @staticmethod
-    def numpy_dtype_to_str(np_dtype):
-        raise TypeError(u'data type {} not understood'.format(a.dtype))
-        return

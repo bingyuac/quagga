@@ -6,5 +6,6 @@ from quagga.blocks.AsyncDataBlock import AsyncDataBlock
 from quagga.blocks.LogisticRegression import LogisticRegression
 from quagga.blocks.MeanPoolingBlock import MeanPoolingBlock
 from quagga.blocks.SliceBlock import SliceBlock
+from quagga.blocks.HStackBlock import HStackBlock
+from quagga.blocks.VStackBlock import VStackBlock
 from quagga.blocks.MergeBlock import MergeBlock
-from quagga.blocks.ReverseBlock import ReverseBlock

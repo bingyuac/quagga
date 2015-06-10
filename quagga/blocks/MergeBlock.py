@@ -1,18 +1,17 @@
-from quagga.matrix import Matrix
-from quagga.blocks import Connector
+from quagga.blocks import HStackBlock
+from quagga.blocks import VStackBlock
 
 
 class MergeBlock(object):
-    def __init__(self, first_matrix, second_matrix, max_ncols):
-        if first_matrix.nrows != second_matrix.nrows:
-            raise ValueError("Can't horizontally stack matrices with different nrows!")
-        if first_matrix.dtype != second_matrix.dtype:
-            raise ValueError("Can't concatenate matrices with different dtypes!")
+    def __init__(self, f_matrix, s_matrix, axis, **kwargs):
+        if axis == 0:
+            self.block = VStackBlock(f_matrix, s_matrix, kwargs['max_ncols'])
+        elif axis == 1:
+            self.block = HStackBlock(f_matrix, s_matrix, kwargs['f_max_ncols'], kwargs['s_max_ncols'])
+        else:
+            raise ValueError('MergeBlock can stack matrices only '
+                             'horizontally or vertically.')
 
-        self.merged_matrix = Connector(Matrix.empty(first_matrix.nrows, max_ncols, first_matrix.dtype))
-
-    def fprop(self):
-        self.merged_matrix()
-
-    def bprop(self):
-        pass
+    def __getattr__(self, name):
+        setattr(self, name, getattr(self.block, name))
+        return getattr(self, name)
