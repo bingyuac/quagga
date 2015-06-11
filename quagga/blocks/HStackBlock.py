@@ -10,13 +10,12 @@ class HStackBlock(object):
 
         self.f_matrix = f_matrix
         self.s_matrix = s_matrix
-        self.f_max_ncols = f_max_ncols
-        self.s_max_ncols = s_max_ncols
+        self.max_ncols = f_max_ncols + s_max_ncols
 
         nrows = f_matrix.nrows
         dtype = f_matrix.dtype
 
-        self.buffer = Matrix.empty(nrows, f_max_ncols+s_max_ncols, dtype)
+        self.buffer = Matrix.empty(nrows, self.max_ncols, dtype)
         self.context = Context()
         self.output = Connector(self.buffer, self.context)
 
@@ -26,23 +25,16 @@ class HStackBlock(object):
         s_matrix.register_user(self, self.context, self.dL_ds_buffer)
 
     def fprop(self):
-        if self.f_matrix.ncols > self.f_max_ncols or \
-                self.s_matrix.ncols > self.s_max_ncols:
+        if self.f_matrix.ncols + self.s_matrix.ncols > self.max_ncols:
             raise ValueError('One of the matrix is too big!')
-        ncols = self.f_matrix.ncols + self.s_matrix.ncols
-        output = self.buffer[:, ncols]
+        output = self.buffer[:, self.f_matrix.ncols + self.s_matrix.ncols]
         self.f_matrix.block(self.context)
         self.s_matrix.block(self.context)
         output.assign_hstack(self.context, self.f_matrix, self.s_matrix)
         self.output.matrix = output
 
     def bprop(self):
-        self.output.backward_block(self.context)
-        dL_doutput = self.output.derivative
-
         self.dL_df_buffer.ncols = self.f_matrix.ncols
         self.dL_ds_buffer.ncols = self.s_matrix.ncols
-        ncols = self.f_matrix.ncols + self.s_matrix.ncols
-
-        dL_doutput[:, :self.f_matrix.ncols].copy(self.context, self.dL_df_buffer)
-        dL_doutput[:, self.f_matrix.ncols:ncols].copy(self.context, self.dL_ds_buffer)
+        self.output.backward_block(self.context)
+        self.output.derivative.hsplit(self.context, self.dL_df_buffer, self.dL_ds_buffer)

@@ -35,5 +35,7 @@ class VStackBlock(object):
         self.output.matrix = output
 
     def bprop(self):
+        self.dL_df_buffer.ncols = self.f_matrix.ncols
+        self.dL_ds_buffer.ncols = self.s_matrix.ncols
         self.output.backward_block(self.context)
-        dL_doutput = self.output.derivative
+        self.output.derivative.vsplit(self.context, self.dL_df_buffer, self.dL_ds_buffer)
