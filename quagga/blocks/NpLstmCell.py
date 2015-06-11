@@ -46,9 +46,9 @@ class NpLstmCell(object):
 
         self.prev_c = prev_c
         self.prev_h = prev_h
-        self.prev_c.register_user(self, self.context)
-        self.prev_h.register_user(self, self.context)
-
+        if propagate_error:
+            self.prev_c.register_user(self, self.context)
+            self.prev_h.register_user(self, self.context)
         self.propagate_error = propagate_error
         self.back_prop = False
 

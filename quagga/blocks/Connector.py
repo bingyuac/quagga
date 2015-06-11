@@ -9,6 +9,13 @@ class Connector(object):
         self._backward_contexts = dict()
 
     def register_user(self, user, backward_context, derivative=None):
+        """
+
+        :param user: block that will be use this connector
+        :param backward_context: context in which derivative of the target
+                                 function wrt this connector will be calculated
+        :param derivative:
+        """
         self._backward_contexts[user] = backward_context
         self._derivatives[user] = derivative if derivative else Matrix.empty_like(self.matrix)
 
