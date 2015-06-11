@@ -2,7 +2,7 @@ import numpy as np
 from itertools import izip
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import LstmCell
+from quagga.blocks import VanillaLstmCell
 
 
 class BidirectionalLstmRnn(object):
@@ -59,7 +59,7 @@ class BidirectionalLstmRnn(object):
                             'backward': []}
         for d in self.lstm_blocks:
             for k in xrange(max_input_sequence_len):
-                cell = LstmCell(p_type,
+                cell = VanillaLstmCell(p_type,
                                  self.W['z', d], self.R['z', d],
                                  self.W['i', d], self.R['i', d], self.p['i', d],
                                  self.W['f', d], self.R['f', d], self.p['f', d],

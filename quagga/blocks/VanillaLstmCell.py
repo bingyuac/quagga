@@ -2,7 +2,7 @@ from quagga.matrix import Matrix
 from quagga.blocks import Connector
 
 
-class LstmCell(object):
+class VanillaLstmCell(object):
     def __init__(self, Wz, Rz, Wi, Ri, pi, Wf, Rf, pf, Wo, Ro, po,
                  c, h, dL_dpre_z, dL_dpre_i, dL_dpre_f, dL_dpre_o,
                  z_context, i_context, f_context, o_context):
@@ -110,7 +110,7 @@ class LstmCell(object):
         self.h.assign_hprod(self.o_context, self.o, self.tanh_c)
 
     def bprop(self):
-        # dL/dpre_o[t] = dL/dh[t] .* tanh(c[t]) .* do[t]/dpre_o[t]
+        # dL/dpre_o[ t] = dL/dh[t] .* tanh(c[t]) .* do[t]/dpre_o[t]
         self.h.backward_block(self.o_context)
         self.dL_dpre_o.assign_hprod(self.o_context, self.h.derivative, self.tanh_c, self.do_dpre_o)
 

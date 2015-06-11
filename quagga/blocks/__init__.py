@@ -1,5 +1,5 @@
 from quagga.blocks.Connector import Connector
-from quagga.blocks.LstmCell import LstmCell
+from quagga.blocks.VanillaLstmCell import VanillaLstmCell
 from quagga.blocks.LstmRnn import LstmRnn
 from quagga.blocks.EmbeddingBlock import EmbeddingBlock
 from quagga.blocks.AsyncDataBlock import AsyncDataBlock

@@ -1,7 +1,7 @@
 import numpy as np
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import LstmCell, Connector
+from quagga.blocks import VanillaLstmCell, Connector
 
 
 class LstmRnn(object):
@@ -32,7 +32,7 @@ class LstmRnn(object):
 
         self.lstm_cells = []
         for k in xrange(max_input_sequence_len):
-            cell = LstmCell(self.W['z'], self.R['z'],
+            cell = VanillaLstmCell(self.W['z'], self.R['z'],
                             self.W['i'], self.R['i'], self.p['i'],
                             self.W['f'], self.R['f'], self.p['f'],
                             self.W['o'], self.R['o'], self.p['o'],

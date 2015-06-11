@@ -4,6 +4,10 @@
 - [x] Implement MergeBlock
 - [ ] Implement VStackBlock
 - [ ] Implement HStackBlock
+- [ ] Implement VanillaLstmCell
+- [x] Implement NpLstmCell
+- [ ] Implement GruCell
+- [ ] Add sparse gradient Connector handle
 - [ ] Implement EmbeddingBlock
 - [ ] Implement SliceBlock
 - [ ] Implement LogisticRegression

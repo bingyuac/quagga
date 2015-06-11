@@ -26,6 +26,7 @@ class Connector(object):
         backward_contexts = self._backward_contexts.values()
         backward_contexts[0].depend_on(*backward_contexts[1:])
         for derivative in derivatives[1:]:
+            # TODO add sparse gradient handle
             derivatives[0].add(self.backward_context, derivative)
         return derivatives[0]
 

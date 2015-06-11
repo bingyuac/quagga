@@ -3,7 +3,7 @@ import numpy as np
 from unittest import TestCase
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import LstmCell, MarginalLstmBlock
+from quagga.blocks import VanillaLstmCell, MarginalLstmBlock
 
 
 class TestLstmCell(TestCase):
@@ -41,7 +41,7 @@ class TestLstmCell(TestCase):
 
             c, h = {}, {}
             for p_type in quagga.get_processors_types():
-                cell = LstmCell(W[p_type, 'z'], R[p_type, 'z'],
+                cell = VanillaLstmCell(W[p_type, 'z'], R[p_type, 'z'],
                                  W[p_type, 'i'], R[p_type, 'i'], p[p_type, 'i'],
                                  W[p_type, 'f'], R[p_type, 'f'], p[p_type, 'f'],
                                  W[p_type, 'o'], R[p_type, 'o'], p[p_type, 'o'],
@@ -99,7 +99,7 @@ class TestLstmCell(TestCase):
                 next_cell.dL_dc = dL_dc_tp1[p_type]
                 next_cell.f = f[p_type]
 
-                cell = LstmCell(W[p_type, 'z'], R[p_type, 'z'],
+                cell = VanillaLstmCell(W[p_type, 'z'], R[p_type, 'z'],
                                  W[p_type, 'i'], R[p_type, 'i'], p[p_type, 'i'],
                                  W[p_type, 'f'], R[p_type, 'f'], p[p_type, 'f'],
                                  W[p_type, 'o'], R[p_type, 'o'], p[p_type, 'o'],
