@@ -2,19 +2,19 @@
 Python interface to CUDA runtime functions.
 """
 
-import ctypes
+import ctypes as ct
 
 
-ctypes_cuda_stream = ctypes.c_void_p
-ctypes_cuda_event = ctypes.c_void_p
-ctypes_cuda_error = ctypes.c_int
+_libcudart = ct.cdll.LoadLibrary('libcudart.so')
 
 
-_libcudart = ctypes.cdll.LoadLibrary('libcudart.so')
+ct_cuda_stream = ct.c_void_p
+ct_cuda_event = ct.c_void_p
+ct_cuda_error = ct.c_int
 
 
-_libcudart.cudaGetErrorString.restype = ctypes.c_char_p
-_libcudart.cudaGetErrorString.argtypes = [ctypes_cuda_error]
+_libcudart.cudaGetErrorString.restype = ct.c_char_p
+_libcudart.cudaGetErrorString.argtypes = [ct_cuda_error]
 def cuda_get_error_string(e):
     """
     Retrieve CUDA error string.
@@ -136,9 +136,6 @@ def check_cuda_status(status):
     ----------
     status : int
         CUDA runtime error code.
-    See Also
-    --------
-    cuda_exceptions
     """
 
     if status != 0:
@@ -148,41 +145,33 @@ def check_cuda_status(status):
             raise CudaError('unknown CUDA error {}'.format(status))
 
 
-_libcudart.cudaGetLastError.restype = ctypes_cuda_error
+_libcudart.cudaGetLastError.restype = ct_cuda_error
 _libcudart.cudaGetLastError.argtypes = []
 def cuda_get_last_error():
     return _libcudart.cudaGetLastError()
 
 
-_libcudart.cudaMalloc.restype = ctypes_cuda_error
-_libcudart.cudaMalloc.argtypes = [ctypes.POINTER(ctypes.c_void_p),
-                                  ctypes.c_size_t]
+_libcudart.cudaMalloc.restype = ct_cuda_error
+_libcudart.cudaMalloc.argtypes = [ct.POINTER(ct.c_void_p), ct.c_size_t]
 def cuda_malloc(size, ctype=None):
     """
-    Allocate device memory.
     Allocate memory on the device associated with the current active context.
-    Parameters
-    ----------
-    count : int
-        Number of bytes of memory to allocate
-    ctype : ctypes._SimpleCDat, optional
-        ctypes type to cast returned pointer.
-    Returns
-    -------
-    ptr : ctypes pointer
-        Pointer to allocated device memory.
+
+    :param size: number of bytes of memory to allocate
+    :param ctype: optional ctypes type to cast returned pointer.
+    :return: pointer to allocated device memory.
     """
 
-    ptr = ctypes.c_void_p()
-    status = _libcudart.cudaMalloc(ctypes.byref(ptr), size)
+    ptr = ct.c_void_p()
+    status = _libcudart.cudaMalloc(ct.byref(ptr), size)
     check_cuda_status(status)
     if ctype:
-        ptr = ctypes.cast(ptr, ctypes.POINTER(ctype))
+        ptr = ct.cast(ptr, ct.POINTER(ctype))
     return ptr
 
 
-_libcudart.cudaFree.restype = ctypes_cuda_error
-_libcudart.cudaFree.argtypes = [ctypes.c_void_p]
+_libcudart.cudaFree.restype = ct_cuda_error
+_libcudart.cudaFree.argtypes = [ct.c_void_p]
 def cuda_free(ptr):
     """
     Free device memory.
@@ -207,9 +196,9 @@ cuda_memcpy_kinds = {
 }
 
 
-_libcudart.cudaMemcpy.restype = ctypes_cuda_error
-_libcudart.cudaMemcpy.argtypes = [ctypes.c_void_p, ctypes.c_void_p,
-                                  ctypes.c_size_t, ctypes.c_int]
+_libcudart.cudaMemcpy.restype = ct_cuda_error
+_libcudart.cudaMemcpy.argtypes = [ct.c_void_p, ct.c_void_p,
+                                  ct.c_size_t, ct.c_int]
 def cuda_memcpy(dst, src, count, kind):
     """
     Copies count bytes from the memory area pointed to by src to the memory
@@ -226,14 +215,14 @@ def cuda_memcpy(dst, src, count, kind):
         Type of transfer
     """
 
-    count = ctypes.c_size_t(count)
+    count = ct.c_size_t(count)
     status = _libcudart.cudaMemcpy(dst, src, count, cuda_memcpy_kinds[kind])
     check_cuda_status(status)
 
 
-_libcudart.cudaMemcpyAsync.restype = ctypes_cuda_error
-_libcudart.cudaMemcpyAsync.argtypes = [ctypes.c_void_p, ctypes.c_void_p,
-                                       ctypes.c_size_t, ctypes.c_int]
+_libcudart.cudaMemcpyAsync.restype = ct_cuda_error
+_libcudart.cudaMemcpyAsync.argtypes = [ct.c_void_p, ct.c_void_p,
+                                       ct.c_size_t, ct.c_int]
 def cuda_memcpy_async(dst, src, count, kind, stream):
     """
     Copies count bytes from the memory area pointed to by src to the memory
@@ -250,14 +239,14 @@ def cuda_memcpy_async(dst, src, count, kind, stream):
         Type of transfer
     """
 
-    count = ctypes.c_size_t(count)
+    count = ct.c_size_t(count)
     status = _libcudart.cudaMemcpyAsync(dst, src, count, cuda_memcpy_kinds[kind], stream)
     check_cuda_status(status)
 
 
-_libcudart.cudaMemGetInfo.restype = ctypes_cuda_error
-_libcudart.cudaMemGetInfo.argtypes = [ctypes.POINTER(ctypes.c_size_t),
-                                      ctypes.POINTER(ctypes.c_size_t)]
+_libcudart.cudaMemGetInfo.restype = ct_cuda_error
+_libcudart.cudaMemGetInfo.argtypes = [ct.POINTER(ct.c_size_t),
+                                      ct.POINTER(ct.c_size_t)]
 def cuda_mem_get_info():
     """
     Return the amount of free and total device memory.
@@ -269,15 +258,15 @@ def cuda_mem_get_info():
         Total memory in bytes.
     """
 
-    free = ctypes.c_size_t()
-    total = ctypes.c_size_t()
-    status = _libcudart.cudaMemGetInfo(ctypes.byref(free), ctypes.byref(total))
+    free = ct.c_size_t()
+    total = ct.c_size_t()
+    status = _libcudart.cudaMemGetInfo(ct.byref(free), ct.byref(total))
     check_cuda_status(status)
     return free.value, total.value
 
 
-_libcudart.cudaGetDeviceCount.restype = ctypes_cuda_error
-_libcudart.cudaGetDeviceCount.argtypes = [ctypes.POINTER(ctypes.c_int)]
+_libcudart.cudaGetDeviceCount.restype = ct_cuda_error
+_libcudart.cudaGetDeviceCount.argtypes = [ct.POINTER(ct.c_int)]
 def cuda_get_device_count():
     """
     Returns the number of compute-capable devices.
@@ -285,14 +274,14 @@ def cuda_get_device_count():
     count : c_int
         Number of compute-capable devices.
     """
-    count = ctypes.c_int()
-    status = _libcudart.cudaGetDeviceCount(ctypes.byref(count))
+    count = ct.c_int()
+    status = _libcudart.cudaGetDeviceCount(ct.byref(count))
     check_cuda_status(status)
     return count
 
 
-_libcudart.cudaSetDevice.restype = ctypes_cuda_error
-_libcudart.cudaSetDevice.argtypes = [ctypes.c_int]
+_libcudart.cudaSetDevice.restype = ct_cuda_error
+_libcudart.cudaSetDevice.argtypes = [ct.c_int]
 def cuda_set_device(device):
     """
     Set current CUDA device.
@@ -307,8 +296,8 @@ def cuda_set_device(device):
     check_cuda_status(status)
 
 
-_libcudart.cudaGetDevice.restype = ctypes_cuda_error
-_libcudart.cudaGetDevice.argtypes = [ctypes.POINTER(ctypes.c_int)]
+_libcudart.cudaGetDevice.restype = ct_cuda_error
+_libcudart.cudaGetDevice.argtypes = [ct.POINTER(ct.c_int)]
 def cuda_get_device():
     """
     Get current CUDA device.
@@ -319,14 +308,14 @@ def cuda_get_device():
         Device number.
     """
 
-    device = ctypes.c_int()
-    status = _libcudart.cudaGetDevice(ctypes.byref(device))
+    device = ct.c_int()
+    status = _libcudart.cudaGetDevice(ct.byref(device))
     check_cuda_status(status)
     return device
 
 
-_libcudart.cudaDriverGetVersion.restype = ctypes_cuda_error
-_libcudart.cudaDriverGetVersion.argtypes = [ctypes.c_void_p]
+_libcudart.cudaDriverGetVersion.restype = ct_cuda_error
+_libcudart.cudaDriverGetVersion.argtypes = [ct.c_void_p]
 def cuda_driver_get_version():
     """
     Get installed CUDA driver version.
@@ -338,8 +327,8 @@ def cuda_driver_get_version():
         Driver version.
     """
 
-    version = ctypes.c_int()
-    status = _libcudart.cudaDriverGetVersion(ctypes.byref(version))
+    version = ct.c_int()
+    status = _libcudart.cudaDriverGetVersion(ct.byref(version))
     check_cuda_status(status)
     return version.value
 
@@ -352,17 +341,17 @@ cuda_memory_type = {
 
 class CudaPointerAttributes(ctypes.Structure):
     _fields_ = [
-        ('memoryType', ctypes.c_int),
-        ('device', ctypes.c_int),
-        ('devicePointer', ctypes.c_void_p),
-        ('hostPointer', ctypes.c_void_p),
-        ('isManaged', ctypes.c_int)
+        ('memoryType', ct.c_int),
+        ('device', ct.c_int),
+        ('devicePointer', ct.c_void_p),
+        ('hostPointer', ct.c_void_p),
+        ('isManaged', ct.c_int)
         ]
 
 
-_libcudart.cudaPointerGetAttributes.restype = ctypes_cuda_error
-_libcudart.cudaPointerGetAttributes.argtypes = [ctypes.c_void_p,
-                                                ctypes.c_void_p]
+_libcudart.cudaPointerGetAttributes.restype = ct_cuda_error
+_libcudart.cudaPointerGetAttributes.argtypes = [ct.c_void_p,
+                                                ct.c_void_p]
 def cuda_pointer_get_attributes(ptr):
     """
     Get memory pointer attributes.
@@ -382,35 +371,35 @@ def cuda_pointer_get_attributes(ptr):
     """
 
     attributes = CudaPointerAttributes()
-    status = _libcudart.cudaPointerGetAttributes(ctypes.byref(attributes), ptr)
+    status = _libcudart.cudaPointerGetAttributes(ct.byref(attributes), ptr)
     check_cuda_status(status)
     memory_type = cuda_memory_type[attributes.memoryType]
     return memory_type, attributes.device, bool(attributes.isManaged)
 
 
-_libcudart.cudaStreamCreate.restype = ctypes_cuda_error
-_libcudart.cudaStreamCreate.argtypes = [ctypes.POINTER(ctypes_cuda_stream)]
+_libcudart.cudaStreamCreate.restype = ct_cuda_error
+_libcudart.cudaStreamCreate.argtypes = [ct.POINTER(ct_cuda_stream)]
 def cuda_stream_create(stream):
-    status = _libcudart.cudaStreamCreate(ctypes.byref(stream))
+    status = _libcudart.cudaStreamCreate(ct.byref(stream))
     check_cuda_status(status)
 
 
-_libcudart.cudaStreamDestroy.restype = ctypes_cuda_error
-_libcudart.cudaStreamDestroy.argtypes = [ctypes_cuda_stream]
+_libcudart.cudaStreamDestroy.restype = ct_cuda_error
+_libcudart.cudaStreamDestroy.argtypes = [ct_cuda_stream]
 def cuda_stream_destroy(stream):
     status = _libcudart.cudaStreamDestroy(stream)
     check_cuda_status(status)
 
 
-_libcudart.cudaStreamSynchronize.restype = ctypes_cuda_error
-_libcudart.cudaStreamSynchronize.argtypes = [ctypes_cuda_stream]
+_libcudart.cudaStreamSynchronize.restype = ct_cuda_error
+_libcudart.cudaStreamSynchronize.argtypes = [ct_cuda_stream]
 def cuda_stream_synchronize(stream):
     status = _libcudart.cudaStreamSynchronize(stream)
     check_cuda_status(status)
 
 
-_libcudart.cudaStreamWaitEvent.restype = ctypes_cuda_error
-_libcudart.cudaStreamWaitEvent.argtypes = [ctypes_cuda_stream, ctypes_cuda_event, ctypes.c_uint]
+_libcudart.cudaStreamWaitEvent.restype = ct_cuda_error
+_libcudart.cudaStreamWaitEvent.argtypes = [ct_cuda_stream, ct_cuda_event, ct.c_uint]
 def cuda_stream_wait_event(stream, event):
     status = _libcudart.cudaStreamWaitEvent(stream, event, 0)
     check_cuda_status(status)
@@ -424,36 +413,36 @@ cuda_event_flag = {
 }
 
 
-_libcudart.cudaEventCreate.restype = ctypes_cuda_error
-_libcudart.cudaEventCreate.argtypes = [ctypes.POINTER(ctypes_cuda_event)]
+_libcudart.cudaEventCreate.restype = ct_cuda_error
+_libcudart.cudaEventCreate.argtypes = [ct.POINTER(ct_cuda_event)]
 def cuda_event_create(event):
-    status = _libcudart.cudaEventCreate(ctypes.byref(event))
+    status = _libcudart.cudaEventCreate(ct.byref(event))
     check_cuda_status(status)
 
 
-_libcudart.cudaEventCreateWithFlags.restype = ctypes_cuda_error
-_libcudart.cudaEventCreateWithFlags.argtypes = [ctypes.POINTER(ctypes_cuda_event),
-                                                ctypes.c_uint]
+_libcudart.cudaEventCreateWithFlags.restype = ct_cuda_error
+_libcudart.cudaEventCreateWithFlags.argtypes = [ct.POINTER(ct_cuda_event),
+                                                ct.c_uint]
 def cuda_event_create_with_flags(event, flag):
-    status = _libcudart.cudaEventCreateWithFlags(ctypes.byref(event), cuda_event_flag[flag])
+    status = _libcudart.cudaEventCreateWithFlags(ct.byref(event), cuda_event_flag[flag])
     check_cuda_status(status)
 
 
-_libcudart.cudaEventDestroy.restype = ctypes_cuda_error
-_libcudart.cudaEventDestroy.argtypes = [ctypes_cuda_event]
+_libcudart.cudaEventDestroy.restype = ct_cuda_error
+_libcudart.cudaEventDestroy.argtypes = [ct_cuda_event]
 def cuda_event_destroy(event):
     status = _libcudart.cudaEventDestroy(event)
     check_cuda_status(status)
 
 
-_libcudart.cudaEventRecord.restype = ctypes_cuda_error
-_libcudart.cudaEventRecord.argtypes = [ctypes_cuda_event, ctypes_cuda_stream]
+_libcudart.cudaEventRecord.restype = ct_cuda_error
+_libcudart.cudaEventRecord.argtypes = [ct_cuda_event, ct_cuda_stream]
 def cuda_event_record(event, stream):
     status = _libcudart.cudaEventRecord(event, stream)
     check_cuda_status(status)
 
 
-_libcudart.cudaDeviceReset.restype = ctypes_cuda_error
+_libcudart.cudaDeviceReset.restype = ct_cuda_error
 def cuda_device_reset():
     status = _libcudart.cudaDeviceReset()
     check_cuda_status(status)
@@ -467,35 +456,35 @@ cuda_device_flag = {
 }
 
 
-_libcudart.cudaSetDeviceFlags.restype = ctypes_cuda_error
-_libcudart.cudaSetDeviceFlags.argtypes = [ctypes.c_uint]
+_libcudart.cudaSetDeviceFlags.restype = ct_cuda_error
+_libcudart.cudaSetDeviceFlags.argtypes = [ct.c_uint]
 def cuda_set_device_flags(flag):
     status = _libcudart.cudaSetDeviceFlags(cuda_device_flag[flag])
     check_cuda_status(status)
 
 
-class CudaIpcMemHandleType(ctypes.Structure):
-    _fields_ = [('reserved', ctypes.c_char * 64)]
+class CudaIpcMemHandleType(ct.Structure):
+    _fields_ = [('reserved', ct.c_char * 64)]
 
 
-_libcudart.cudaIpcGetMemHandle.restype = ctypes_cuda_error
-_libcudart.cudaIpcGetMemHandle.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+_libcudart.cudaIpcGetMemHandle.restype = ct_cuda_error
+_libcudart.cudaIpcGetMemHandle.argtypes = [ct.c_void_p, ct.c_void_p]
 def cuda_ipc_get_mem_handle(handle, ptr):
-    status = _libcudart.cudaIpcGetMemHandle(ctypes.byref(handle), ptr)
+    status = _libcudart.cudaIpcGetMemHandle(ct.byref(handle), ptr)
     check_cuda_status(status)
 
 
-_libcudart.cudaIpcOpenMemHandle.restype = ctypes_cuda_error
-_libcudart.cudaIpcOpenMemHandle.argtypes = [ctypes.POINTER(ctypes.c_void_p),
+_libcudart.cudaIpcOpenMemHandle.restype = ct_cuda_error
+_libcudart.cudaIpcOpenMemHandle.argtypes = [ct.POINTER(ct.c_void_p),
                                             CudaIpcMemHandleType,
-                                            ctypes.c_int]
+                                            ct.c_int]
 def cuda_ipc_open_mem_handle(ptr, handle):
-    status = _libcudart.cudaIpcOpenMemHandle(ctypes.byref(ptr), handle, 1)
+    status = _libcudart.cudaIpcOpenMemHandle(ct.byref(ptr), handle, 1)
     check_cuda_status(status)
 
 
-_libcudart.cudaIpcCloseMemHandle.restype = ctypes_cuda_error
-_libcudart.cudaIpcCloseMemHandle.argtypes = [ctypes.c_void_p]
+_libcudart.cudaIpcCloseMemHandle.restype = ct_cuda_error
+_libcudart.cudaIpcCloseMemHandle.argtypes = [ct.c_void_p]
 def cuda_ipc_close_mem_handle(ptr):
     status = _libcudart.cudaIpcCloseMemHandle(ptr)
     check_cuda_status(status)

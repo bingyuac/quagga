@@ -27,26 +27,6 @@ __global__  void sliceColumns(int nrows,
 }
 
 
-__global__ void testDependencies(int node_id, int* blocking_nodes, int blocking_nodes_num, int *execution_checklist, int* test_results) {
-	test_results[node_id] = 1;
-	for (int i = 0; i < blocking_nodes_num; i++) {
-		int bloking_node_id = blocking_nodes[i];
-		if (!execution_checklist[bloking_node_id]) {
-			test_results[node_id] = 0;
-			break;
-		}
-	}
-
-	clock_t start_clock = clock64();
-    clock_t clock_offset = 0;
-    while (clock_offset < 4000000000L) {
-        clock_offset = clock64() - start_clock;
-    }
-
-    execution_checklist[node_id] = 1;
-}
-
-
 __global__ void fill(int nelems, float val, float* __restrict__ A) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -201,58 +181,6 @@ __global__ void sum(int nelems,
 }
 
 
-__global__ void sigmoid(int nelems,
-						const float* __restrict__ data,
-						float* __restrict__ sigmoid_data) {
-	const int nthreads = blockDim.x * gridDim.x;
-	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-
-	for (int i = start_i; i < nelems; i += nthreads) {
-		sigmoid_data[i] = 1.0f / (1.0f + expf(-data[i]));
-	}
-}
-
-
-__global__ void sigmoid(int nelems,
-						const float* __restrict__ data,
-						float* __restrict__ sigmoid_data,
-						float* __restrict__ derivative) {
-	const int nthreads = blockDim.x * gridDim.x;
-	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-
-	for (int i = start_i; i < nelems; i += nthreads) {
-		sigmoid_data[i] = 1.0f / (1.0f + expf(-data[i]));
-		derivative[i] = sigmoid_data[i] * (1.0f - sigmoid_data[i]);
-	}
-}
-
-
-__global__ void tanh(int nelems,
-					 const float* __restrict__ data,
-					 float* __restrict__ tanh_data) {
-	const int nthreads = blockDim.x * gridDim.x;
-	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-
-	for (int i = start_i; i < nelems; i += nthreads) {
-		tanh_data[i] = tanhf(data[i]);
-	}
-}
-
-
-__global__ void tanh(int nelems,
-					 const float* __restrict__ data,
-					 float* __restrict__ tanh_data,
-					 float* __restrict__ derivative) {
-	const int nthreads = blockDim.x * gridDim.x;
-	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-
-	for (int i = start_i; i < nelems; i += nthreads) {
-		tanh_data[i] = tanhf(data[i]);
-		derivative[i] = 1.0f - tanh_data[i] * tanh_data[i];
-	}
-}
-
-
 __global__ void scale(int nelems,
 					  const float* __restrict__ data,
 					  float alpha,
@@ -275,12 +203,6 @@ extern "C" {
 							  float* __restrict__ dense_matrix) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
 		sliceColumns<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
-		return cudaGetLastError();
-	}
-
-
-	cudaError_t _testDependencies(cudaStream_t stream, int node_id, int* blocking_nodes, int blocking_nodes_num, int *execution_checklist, int* test_results) {
-		testDependencies<<<1, 1, 0, stream>>>(node_id, blocking_nodes, blocking_nodes_num, execution_checklist, test_results);
 		return cudaGetLastError();
 	}
 
@@ -403,48 +325,6 @@ extern "C" {
 					 float* __restrict__ e) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         sum<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, c, d, e);
-        return cudaGetLastError();
-	}
-
-
-    cudaError_t _sigmoid(cudaStream_t stream,
-                         int nelems,
-			             const float* __restrict__ data,
-			             float* __restrict__ sigmoid_data) {
-	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-        sigmoid<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, data, sigmoid_data);
-        return cudaGetLastError();
-	}
-
-
-	cudaError_t _sigmoid_der(cudaStream_t stream,
-                             int nelems,
-			                 const float* __restrict__ data,
-			                 float* __restrict__ sigmoid_data,
-			                 float* __restrict__ derivative) {
-	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-        sigmoid<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, data, sigmoid_data, derivative);
-        return cudaGetLastError();
-	}
-
-
-    cudaError_t _tanh(cudaStream_t stream,
-                      int nelems,
-			          const float* __restrict__ data,
-			          float* __restrict__ tanh_data) {
-	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-        tanh<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, data, tanh_data);
-        return cudaGetLastError();
-	}
-
-
-	cudaError_t _tanh_der(cudaStream_t stream,
-                          int nelems,
-			              const float* __restrict__ data,
-			              float* __restrict__ tanh_data,
-			              float* __restrict__ derivative) {
-	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-        tanh<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, data, tanh_data, derivative);
         return cudaGetLastError();
 	}
 

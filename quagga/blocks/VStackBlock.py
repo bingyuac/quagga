@@ -32,7 +32,7 @@ class VStackBlock(object):
         self.f_matrix.block(self.context)
         self.s_matrix.block(self.context)
         output.assign_vstack(self.context, self.f_matrix, self.s_matrix)
-        self.output.matrix = output
+        self.output.forward_matrix = output
 
     def bprop(self):
         self.dL_df_buffer.ncols = self.f_matrix.ncols

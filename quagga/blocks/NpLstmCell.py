@@ -5,7 +5,7 @@ from quagga.blocks import Connector
 class NpLstmCell(object):
     def __init__(self, W, R, h, pre_zifo, dL_dpre_zifo, prev_c, prev_h, context, propagate_error=True):
         """
-        No peepholes LSTM cell,
+        No peepholes LSTM cell
 
         :param W: matrix that contains horizontally stacked Wz, Wi, Wf, Wo
         :param R: matrix that contains horizontally stacked Rz, Ri, Rf, Ro
@@ -13,7 +13,10 @@ class NpLstmCell(object):
         :param pre_zifo: precomputed W * x
         :param dL_dpre_zifo: preallocated buffer that contains horizontally
                              stacked dL_dpre_z, dL_dpre_i, dL_dpre_f, dL_dpre_o
+        :param prev_c: connector to previous lstm cell state
+        :param prev_h: connector to previous hidden lstm cell state
         :param context: context in which computation occurs
+        :param propagate_error:
         :return:
         """
 
@@ -88,11 +91,11 @@ class NpLstmCell(object):
     def set_testing_mode(self):
         self.back_prop = False
 
-    def fprop(self, pre):
-        # zifo = phi(W * x[t] + R * h[t-1])
+    def fprop(self):
+        # zifo = tanh_sigm(W * x[t] + R * h[t-1])
         self.prev_h.block(self.context)
         self.pre_zifo.add_dot(self.context, self.R, self.prev_h)
-        self.pre_zifo.phi(self.context, self.zifo, self.dzifo_dpre_zifo)
+        self.pre_zifo.tanh_sigm(self.context, self.zifo, self.dzifo_dpre_zifo)
 
         # c[t] = i[t] .* z[t] + f[t] .* c[t-1]
         # h[t] = o[t] .* tanh(c[t])

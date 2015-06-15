@@ -4,7 +4,7 @@ from quagga.cuda import cudart, cublas
 
 
 def _create_disabled_timing_event():
-    event = cudart.ctypes_cuda_event()
+    event = cudart.ct_cuda_event()
     cudart.cuda_event_create_with_flags(event, 'disable_timing')
     return event
 
@@ -18,7 +18,7 @@ class GpuContext(object):
             GpuContext._cublas_handle = cublas.ctypes_cublas_handle()
             cublas.cublas_create(GpuContext._cublas_handle)
             cublas.cublas_set_pointer_mode(GpuContext._cublas_handle, 'device')
-        self.cuda_stream = cudart.ctypes_cuda_stream()
+        self.cuda_stream = cudart.ct_cuda_stream()
         cudart.cuda_stream_create(self.cuda_stream)
         atexit.register(cudart.cuda_stream_destroy, self.cuda_stream)
 

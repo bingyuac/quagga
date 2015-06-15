@@ -12,6 +12,6 @@ class EmbeddingBlock(object):
         self.indexes_max_len = indexes_max_len
 
     def fprop(self):
-        self.output.matrix = self.buffer[:, :self.indexes.nrows]
+        self.output.forward_matrix = self.buffer[:, :self.indexes.nrows]
         self.indexes.block(self.output)
-        self.embedding.slice_columns(self.output.forward_context, self.indexes, self.output.matrix)
+        self.embedding.slice_columns(self.output.forward_context, self.indexes, self.output.forward_matrix)

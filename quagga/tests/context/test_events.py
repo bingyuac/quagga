@@ -5,19 +5,6 @@ from quagga.cuda import cudart
 from quagga.context import GpuContext
 
 
-gpu_matrix_kernels = ctypes.cdll.LoadLibrary('gpu_matrix_kernels.so')
-gpu_matrix_kernels._testDependencies.restype = cudart.ctypes_cuda_error
-gpu_matrix_kernels._testDependencies.argtypes = [cudart.ctypes_cuda_stream,
-                                                  ctypes.c_int,
-                                                  ctypes.POINTER(ctypes.c_int),
-                                                  ctypes.c_int,
-                                                  ctypes.POINTER(ctypes.c_int),
-                                                  ctypes.POINTER(ctypes.c_int)]
-def test_dependencies(context, node_id, blocking_nodes, blocking_nodes_num, execution_checklist, test_results):
-    status = gpu_matrix_kernels._testDependencies(context.cuda_stream, node_id, blocking_nodes, blocking_nodes_num, execution_checklist, test_results)
-    cudart.check_cuda_status(status)
-
-
 def cuda_array_from_list(a):
     a = np.array(a, dtype=np.int32, order='F')
     host_data = a.ctypes.data_as(ctypes.POINTER(ctypes.c_int))

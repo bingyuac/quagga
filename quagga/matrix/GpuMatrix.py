@@ -1,7 +1,7 @@
 import atexit
-import ctypes
 import numpy as np
-from quagga.cuda import cudart, cublas, gpu_matrix_kernels
+import ctypes as ct
+from quagga.cuda import cudart, cublas, gpu_matrix_kernels, nonlinearities
 
 
 class GpuMatrix(object):
@@ -24,7 +24,7 @@ class GpuMatrix(object):
 
     @property
     def nbytes(self):
-        return self.nelems * ctypes.sizeof(self.c_dtype)
+        return self.nelems * ct.sizeof(self.c_dtype)
 
     def __getitem__(self, key):
         if type(key[1]) == int:
@@ -59,23 +59,23 @@ class GpuMatrix(object):
         return self.nrows == other.nrows and self.ncols == other.ncols
 
     def _get_pointer_to_column(self, k):
-        void_p = ctypes.cast(self.data, ctypes.c_void_p).value + self.nrows * k * ctypes.sizeof(self.c_dtype)
-        return ctypes.cast(void_p, ctypes.POINTER(self.c_dtype))
+        void_p = ct.cast(self.data, ct.c_void_p).value + self.nrows * k * ct.sizeof(self.c_dtype)
+        return ct.cast(void_p, ct.POINTER(self.c_dtype))
 
     @staticmethod
     def str_to_dtypes(dtype):
         if dtype == 'float':
-            return np.float32, ctypes.c_float
+            return np.float32, ct.c_float
         if dtype == 'int':
-            return np.int32, ctypes.c_int
+            return np.int32, ct.c_int
         raise TypeError(u'data type {} not understood'.format(dtype))
 
     @staticmethod
     def array_to_dtypes(a):
         if a.dtype == np.float32:
-            return np.float32, ctypes.c_float
+            return np.float32, ct.c_float
         if a.dtype == np.int32:
-            return np.int32, ctypes.c_int
+            return np.int32, ct.c_int
         raise TypeError(u'data type {} not understood'.format(a.dtype))
 
     @classmethod
@@ -90,23 +90,23 @@ class GpuMatrix(object):
             a = np.asfortranarray(a, dtype=np_dtype)
         elif a.dtype != np_dtype:
             a = a.astype(dtype=np_dtype)
-        host_data = a.ctypes.data_as(ctypes.POINTER(c_dtype))
-        elem_size = ctypes.sizeof(c_dtype)
+        host_data = a.ctypes.data_as(ct.POINTER(c_dtype))
+        elem_size = ct.sizeof(c_dtype)
         nbytes = a.size * elem_size
-        data = cudart.cuda_malloc(nbytes, ctypes.c_float)
+        data = cudart.cuda_malloc(nbytes, ct.c_float)
         cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
         return cls(data, a.shape[0], a.shape[1], dtype, True)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype):
         c_dtype = cls.str_to_dtypes(dtype)[1]
-        nbytes = nrows * ncols * ctypes.sizeof(c_dtype)
+        nbytes = nrows * ncols * ct.sizeof(c_dtype)
         data = cudart.cuda_malloc(nbytes, c_dtype)
         return cls(data, nrows, ncols, dtype, True)
 
     @classmethod
     def empty_like(cls, other):
-        nbytes = other.nrows * other.ncols * ctypes.sizeof(other.c_dtype)
+        nbytes = other.nrows * other.ncols * ct.sizeof(other.c_dtype)
         data = cudart.cuda_malloc(nbytes, other.c_dtype)
         return cls(data, other.nrows, other.ncols, other.dtype, True)
 
@@ -119,17 +119,15 @@ class GpuMatrix(object):
             raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
         if not np.isfortran(a):
             a = np.asfortranarray(a)
-        host_data = a.ctypes.data_as(ctypes.POINTER(self.c_dtype))
+        host_data = a.ctypes.data_as(ct.POINTER(self.c_dtype))
         self.nrows, self.ncols = a.shape
-        self.nelems = self.nrows * self.ncols
-        self.nbytes = self.nelems * ctypes.sizeof(self.c_dtype)
         cudart.cuda_memcpy_async(self.data, host_data, self.nbytes, 'host_to_device', context.cuda_stream)
 
     def to_host(self):
-        c_dtype_p = ctypes.POINTER(self.c_dtype)
+        c_dtype_p = ct.POINTER(self.c_dtype)
         host_array = (c_dtype_p * self.nelems)()
-        host_ptr = ctypes.cast(host_array, c_dtype_p)
-        elem_size = ctypes.sizeof(c_dtype_p)
+        host_ptr = ct.cast(host_array, c_dtype_p)
+        elem_size = ct.sizeof(c_dtype_p)
         cudart.cuda_memcpy(host_ptr, self.data, self.nelems * elem_size, 'device_to_host')
         return np.ndarray(shape=(self.nrows, self.ncols),
                           dtype=self.np_dtype,
@@ -171,6 +169,17 @@ class GpuMatrix(object):
             gpu_matrix_kernels.sigmoid_der(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data, derivative_matrix.data)
         else:
             gpu_matrix_kernels.sigmoid(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data)
+
+    def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None):
+        """
+        This is a fancy function that is used during forward propagation into
+        lstm cell. It calculates for the first 3/4 rows sigmoid function and
+        tanh for the 1/4 remaining rows.
+        """
+        if derivative_matrix:
+            nonlinearities.tanh_sigm_der(context.cuda_stream, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data, derivative_matrix.data)
+        else:
+            nonlinearities.tanh_sigm(context.cuda_stream, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data)
 
     def add_scaled(self, context, alpha, a):
         """

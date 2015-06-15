@@ -1,6 +1,9 @@
 # TODO
 
 - [ ] Add shape assertions into Cpu/GpuMatrix methods
+- [x] Split gpu_matrix_kernels.cu files into several
+- [ ] Change `ctypes` usage to `ct` abbreviation
+- [ ] Add benchmarks
 - [x] Implement MergeBlock
     - [ ] Implement VStackBlock
         - [ ] Implement vstack in Cpu/GpuMatrix classes
@@ -10,7 +13,8 @@
         - [ ] Implement hstack in Cpu/GpuMatrix classes
         - [ ] Add tests
 - [ ] Add mysterious `phi` function to Gpu/CpuMatrix
-    - [ ] Implement kernel that mix sigmoid and tanh
+    - [x] Implement kernel that mix sigmoid and tanh
+    - [ ] Add function to gpu_matrix_kernels
     - [ ] Add tests
 - [ ] Add different types of rnn
     - [x] Implement NpLstmRnn
@@ -25,6 +29,10 @@
         - [ ] Implement VanillaLstmCell
         - [ ] Add cpu/gpu comparisons tests
         - [ ] Add finite difference tests
+    - [ ] Implement VanillaRnn        
+        - [ ] Implement RecurrentCell
+        - [ ] Add cpu/gpu comparisons tests
+        - [ ] Add finite difference tests        
 - [ ] Connector improvement        
     - [ ] Handle sparse gradient into Connector class
     - [ ] Review `update` field usage in the Connector class

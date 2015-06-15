@@ -2,15 +2,15 @@
 Python interface to CUBLAS functions.
 """
 
-import ctypes
+import ctypes as ct
 from quagga.cuda import cudart
 
 
-ctypes_cublas_handle = ctypes.c_void_p
-ctypes_cublas_status = ctypes.c_int
+_libcublas = ct.cdll.LoadLibrary('libcublas.so')
 
 
-_libcublas = ctypes.cdll.LoadLibrary('libcublas.so')
+ctypes_cublas_handle = ct.c_void_p
+ctypes_cublas_status = ct.c_int
 
 
 cublas_statuses = {
@@ -48,9 +48,9 @@ def check_cublas_status(status):
 
 
 _libcublas.cublasCreate_v2.restype = ctypes_cublas_status
-_libcublas.cublasCreate_v2.argtypes = [ctypes.POINTER(ctypes_cublas_handle)]
+_libcublas.cublasCreate_v2.argtypes = [ct.POINTER(ctypes_cublas_handle)]
 def cublas_create(handle):
-    status = _libcublas.cublasCreate_v2(ctypes.byref(handle))
+    status = _libcublas.cublasCreate_v2(ct.byref(handle))
     check_cublas_status(status)
 
 
@@ -62,26 +62,26 @@ def cublas_destroy(handle):
 
 
 _libcublas.cublasGetVersion_v2.restype = ctypes_cublas_status
-_libcublas.cublasGetVersion_v2.argtypes = [ctypes_cublas_handle, ctypes.c_void_p]
+_libcublas.cublasGetVersion_v2.argtypes = [ctypes_cublas_handle, ct.c_void_p]
 def cublas_get_version(handle):
-    version = ctypes.c_int()
-    status = _libcublas.cublasGetVersion_v2(handle, ctypes.byref(version))
+    version = ct.c_int()
+    status = _libcublas.cublasGetVersion_v2(handle, ct.byref(version))
     check_cublas_status(status)
     return version.value
 
 
 _libcublas.cublasSetStream_v2.restype = ctypes_cublas_status
-_libcublas.cublasSetStream_v2.argtypes = [ctypes_cublas_handle, cudart.ctypes_cuda_stream]
+_libcublas.cublasSetStream_v2.argtypes = [ctypes_cublas_handle, cudart.ct_cuda_stream]
 def cublas_set_stream(handle, stream):
     status = _libcublas.cublasSetStream_v2(handle, stream)
     check_cublas_status(status)
 
 
 _libcublas.cublasGetStream_v2.restype = ctypes_cublas_status
-_libcublas.cublasGetStream_v2.argtypes = [ctypes_cublas_handle, ctypes.POINTER(
-    cudart.ctypes_cuda_stream)]
+_libcublas.cublasGetStream_v2.argtypes = [ctypes_cublas_handle, ct.POINTER(
+    cudart.ct_cuda_stream)]
 def cublas_get_stream(handle, stream):
-    status = _libcublas.cublasGetStream_v2(handle, ctypes.byref(stream))
+    status = _libcublas.cublasGetStream_v2(handle, ct.byref(stream))
     check_cublas_status(status)
 
 
@@ -94,10 +94,10 @@ cublas_pointer_mode = {
 
 _libcublas.cublasGetPointerMode_v2.restype = [ctypes_cublas_status]
 _libcublas.cublasGetPointerMode_v2.argtypes = [ctypes_cublas_handle,
-                                               ctypes.POINTER(ctypes.c_int)]
+                                               ct.POINTER(ct.c_int)]
 def cublas_get_pointer_mode(handle):
-    pointer_mode = ctypes.c_int()
-    status = _libcublas.cublasGetPointerMode_v2(handle, ctypes.byref(pointer_mode))
+    pointer_mode = ct.c_int()
+    status = _libcublas.cublasGetPointerMode_v2(handle, ct.byref(pointer_mode))
     check_cublas_status(status)
     for name in cublas_pointer_mode:
         if cublas_pointer_mode[name] == pointer_mode:
@@ -106,82 +106,81 @@ def cublas_get_pointer_mode(handle):
 
 _libcublas.cublasSetPointerMode_v2.restype = [ctypes_cublas_status]
 _libcublas.cublasSetPointerMode_v2.argtypes = [ctypes_cublas_handle,
-                                               ctypes.c_int]
+                                               ct.c_int]
 def cublas_set_pointer_mode(handle, pointer_mode):
     status = _libcublas.cublasSetPointerMode_v2(handle, cublas_pointer_mode[pointer_mode])
     check_cublas_status(status)
 
 
 _libcublas.cublasSetVector.restype = ctypes_cublas_status
-_libcublas.cublasSetVector.argtypes = [ctypes.c_int, ctypes.c_int,
-                                       ctypes.c_void_p, ctypes.c_int,
-                                       ctypes.c_void_p, ctypes.c_int]
+_libcublas.cublasSetVector.argtypes = [ct.c_int, ct.c_int, ct.c_void_p,
+                                       ct.c_int, ct.c_void_p, ct.c_int]
 def cublas_set_vector(n, elem_size, host_ptr, incx, device_ptr, incy):
     status = _libcublas.cublasSetVector(n, elem_size, host_ptr, incx, device_ptr, incy)
     check_cublas_status(status)
 
 
 _libcublas.cublasSetVectorAsync.restype = ctypes_cublas_status
-_libcublas.cublasSetVectorAsync.argtypes = [ctypes.c_int, ctypes.c_int,
-                                            ctypes.c_void_p, ctypes.c_int,
-                                            ctypes.c_void_p, ctypes.c_int,
-                                            cudart.ctypes_cuda_stream]
+_libcublas.cublasSetVectorAsync.argtypes = [ct.c_int, ct.c_int,
+                                            ct.c_void_p, ct.c_int,
+                                            ct.c_void_p, ct.c_int,
+                                            cudart.ct_cuda_stream]
 def cublas_set_vector_async(n, elem_size, host_ptr, incx, device_ptr, incy, stream):
     status = _libcublas.cublasSetVectorAsync(n, elem_size, host_ptr, incx, device_ptr, incy, stream)
     check_cublas_status(status)
 
 
 _libcublas.cublasGetVector.restype = ctypes_cublas_status
-_libcublas.cublasGetVector.argtypes = [ctypes.c_int, ctypes.c_int,
-                                       ctypes.c_void_p, ctypes.c_int,
-                                       ctypes.c_void_p, ctypes.c_int]
+_libcublas.cublasGetVector.argtypes = [ct.c_int, ct.c_int,
+                                       ct.c_void_p, ct.c_int,
+                                       ct.c_void_p, ct.c_int]
 def cublas_get_vector(n, elem_size, device_ptr, incx, host_ptr, incy):
     status = _libcublas.cublasGetVector(n, elem_size, device_ptr, incx, host_ptr, incy)
     check_cublas_status(status)
 
 
 _libcublas.cublasGetVectorAsync.restype = ctypes_cublas_status
-_libcublas.cublasGetVectorAsync.argtypes = [ctypes.c_int, ctypes.c_int,
-                                            ctypes.c_void_p, ctypes.c_int,
-                                            ctypes.c_void_p, ctypes.c_int,
-                                            cudart.ctypes_cuda_stream]
+_libcublas.cublasGetVectorAsync.argtypes = [ct.c_int, ct.c_int,
+                                            ct.c_void_p, ct.c_int,
+                                            ct.c_void_p, ct.c_int,
+                                            cudart.ct_cuda_stream]
 def cublas_get_vector_async(n, elem_size, device_ptr, incx, host_ptr, incy, stream):
     status = _libcublas.cublasGetVectorAsync(n, elem_size, device_ptr, incx, host_ptr, incy, stream)
     check_cublas_status(status)
 
 
 _libcublas.cublasSscal_v2.restype = ctypes_cublas_status
-_libcublas.cublasSscal_v2.argtypes = [ctypes_cublas_handle, ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int]
+_libcublas.cublasSscal_v2.argtypes = [ctypes_cublas_handle, ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int]
 def cublas_s_scal(handle, n, alpha, x, incx):
-    status = _libcublas.cublasSscal_v2(handle, n, ctypes.byref(alpha), x, incx)
+    status = _libcublas.cublasSscal_v2(handle, n, ct.byref(alpha), x, incx)
     check_cublas_status(status)
 
 
 _libcublas.cublasSaxpy_v2.restype = ctypes_cublas_status
-_libcublas.cublasSaxpy_v2.argtypes = [ctypes_cublas_handle, ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int]
+_libcublas.cublasSaxpy_v2.argtypes = [ctypes_cublas_handle, ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int]
 def cublas_s_axpy(handle, n, alpha, x, incx, y, incy):
-    status = _libcublas.cublasSaxpy_v2(handle, n, ctypes.byref(alpha), x, incx, y, incy)
+    status = _libcublas.cublasSaxpy_v2(handle, n, ct.byref(alpha), x, incx, y, incy)
     check_cublas_status(status)
 
 
 _libcublas.cublasSdot_v2.restype = ctypes_cublas_status
 _libcublas.cublasSdot_v2.argtypes = [ctypes_cublas_handle,
-                                     ctypes.c_int,
-                                     ctypes.POINTER(ctypes.c_float),
-                                     ctypes.c_int,
-                                     ctypes.POINTER(ctypes.c_float),
-                                     ctypes.c_int,
-                                     ctypes.POINTER(ctypes.c_float)]
+                                     ct.c_int,
+                                     ct.POINTER(ct.c_float),
+                                     ct.c_int,
+                                     ct.POINTER(ct.c_float),
+                                     ct.c_int,
+                                     ct.POINTER(ct.c_float)]
 def cublas_s_dot(handle, n, x, incx, y, incy, result):
-    status = _libcublas.cublasSdot_v2(handle, n, x, incx, y, incy, ctypes.byref(result))
+    status = _libcublas.cublasSdot_v2(handle, n, x, incx, y, incy, ct.byref(result))
     check_cublas_status(status)
 
 
@@ -197,37 +196,37 @@ cublas_op = {
 
 _libcublas.cublasSgemv_v2.restype = ctypes_cublas_status
 _libcublas.cublasSgemv_v2.argtypes = [ctypes_cublas_handle,
-                                      ctypes.c_int,
-                                      ctypes.c_int,
-                                      ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int]
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int]
 def cublas_s_gemv(handle, trans, m, n, alpha, a, lda, x, incx, beta, y, incy):
-    status = _libcublas.cublasSgemv_v2(handle, cublas_op[trans], m, n, ctypes.byref(alpha), a, lda, x, incx, beta, y, incy)
+    status = _libcublas.cublasSgemv_v2(handle, cublas_op[trans], m, n, ct.byref(alpha), a, lda, x, incx, beta, y, incy)
     check_cublas_status(status)
 
 
 _libcublas.cublasSgemm_v2.restype = ctypes_cublas_status
 _libcublas.cublasSgemm_v2.argtypes = [ctypes_cublas_handle,
-                                      ctypes.c_int,
-                                      ctypes.c_int,
-                                      ctypes.c_int,
-                                      ctypes.c_int,
-                                      ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int,
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.POINTER(ctypes.c_float),
-                                      ctypes.c_int]
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int]
 def cublas_s_gemm(handle, transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc):
-    status = _libcublas.cublasSgemm_v2(handle, cublas_op[transa], cublas_op[transb], m, n, k, ctypes.byref(alpha), a, lda, b, ldb, ctypes.byref(beta), c, ldc)
+    status = _libcublas.cublasSgemm_v2(handle, cublas_op[transa], cublas_op[transb], m, n, k, ct.byref(alpha), a, lda, b, ldb, ct.byref(beta), c, ldc)
     check_cublas_status(status)

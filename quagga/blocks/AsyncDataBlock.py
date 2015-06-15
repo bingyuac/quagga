@@ -15,7 +15,7 @@ class AsyncDataBlock(object):
         self.allocate_data()
 
     def fprop(self):
-        self.data.matrix = self.device_buffers[self.i]
+        self.data.forward_matrix = self.device_buffers[self.i]
         self.data.forward_context = self.contexts[self.i]
         self.i = (self.i + 1) % 2
         self.allocate_data()
