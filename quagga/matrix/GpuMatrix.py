@@ -140,13 +140,13 @@ class GpuMatrix(object):
     def copy(self, context, out):
         cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'device_to_device', context.cuda_stream)
 
-    def assign_hstack(self):
+    def assign_hstack(self, context, *matrices):
         # if f_matrix.nrows != s_matrix.nrows:
         #     raise ValueError("Can't horizontally stack matrices with "
         #                      "different number of rows!")
         pass
 
-    def assign_vstack(self):
+    def assign_vstack(self, context, *matrices):
         # if self.f_matrix.ncols != self.s_matrix.ncols:
         #     raise ValueError("Can't vertically stack matrices with "
         #                      "different number of columns!")

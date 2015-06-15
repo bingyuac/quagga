@@ -5,7 +5,10 @@ from quagga.blocks import Connector
 class NpLstmCell(object):
     def __init__(self, W, R, h, pre_zifo, dL_dpre_zifo, prev_c, prev_h, context, propagate_error=True):
         """
-        No peepholes LSTM cell
+        No peepholes LSTM cell block is used for building `NpLstmRnn` block.
+        This block is not completely autonomous it requires precomputed
+        `W * x` -- pre_zifo which is not the connector. That is why `NpLstmRnn`
+        should take care of proper synchronization.
 
         :param W: matrix that contains horizontally stacked Wz, Wi, Wf, Wo
         :param R: matrix that contains horizontally stacked Rz, Ri, Rf, Ro
@@ -93,7 +96,7 @@ class NpLstmCell(object):
 
     def fprop(self):
         # zifo = tanh_sigm(W * x[t] + R * h[t-1])
-        self.prev_h.block(self.context)
+        self.prev_h.forward_block(self.context)
         self.pre_zifo.add_dot(self.context, self.R, self.prev_h)
         self.pre_zifo.tanh_sigm(self.context, self.zifo, self.dzifo_dpre_zifo)
 

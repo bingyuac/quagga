@@ -12,13 +12,18 @@
         - [ ] Implement hstack kernel
         - [ ] Implement hstack in Cpu/GpuMatrix classes
         - [ ] Add tests
-- [ ] Add mysterious `phi` function to Gpu/CpuMatrix
+- [ ] Add `sigm_tanh` function to Gpu/CpuMatrix
     - [x] Implement kernel that mix sigmoid and tanh
-    - [ ] Add function to gpu_matrix_kernels
+    - [x] Add function to nonlinearities
     - [ ] Add tests
 - [ ] Add different types of rnn
-    - [x] Implement NpLstmRnn
-        - [x] Implement NpLstmCell
+    - [ ] Implement NpLstmCell
+        - [ ] Implement NpLstmCell block
+        - [ ] Add cpu/gpu comparisons tests
+        - [ ] Add finite difference tests
+    - [ ] Implement NpLstmRnn
+        - [x] Implement inner non autonomous NpLstmCell block
+        - [x] Implement NpLstmRnn block
         - [ ] Add cpu/gpu comparisons tests
         - [ ] Add finite difference tests
     - [ ] Implement GruRnn
@@ -35,7 +40,7 @@
         - [ ] Add finite difference tests        
 - [ ] Connector improvement        
     - [ ] Handle sparse gradient into Connector class
-    - [ ] Review `update` field usage in the Connector class
+    - [x] Review `update` field usage in the Connector class
 - [ ] Cpu/GpuMatrix improvement    
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels
