@@ -7,6 +7,7 @@ from quagga.cuda import cudart, cublas, gpu_matrix_kernels, nonlinearities
 class GpuMatrix(object):
     zero_scalar = None
     one_scalar = None
+    minus_one_scalar = None
 
     def __init__(self, data, nrows, ncols, dtype, is_owner):
         self.data = data
@@ -173,13 +174,17 @@ class GpuMatrix(object):
     def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None):
         """
         This is a fancy function that is used during forward propagation into
-        lstm cell. It calculates for the first 3/4 rows sigmoid function and
-        tanh for the 1/4 remaining rows.
+        lstm cell. It calculates for the first 1/4 rows tanh function and
+        sigmoid for the 3/4 remaining rows.
         """
         if derivative_matrix:
             nonlinearities.tanh_sigm_der(context.cuda_stream, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data, derivative_matrix.data)
         else:
             nonlinearities.tanh_sigm(context.cuda_stream, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data)
+
+    def softmax(self, context, softmax_matrix):
+        # TODO
+        pass
 
     def add_scaled(self, context, alpha, a):
         """
@@ -192,6 +197,9 @@ class GpuMatrix(object):
             self.add_scaled(context, GpuMatrix.one_scalar, a)
         else:
             gpu_matrix_kernels.sum(context.cuda_stream, self.nelems, a.data, b.data, c.data, self.data, self.data)
+
+    def sub(self, context, a):
+        self.add_scaled(context, GpuMatrix.minus_one_scalar, a)
 
     def sliced_add(self, context, a, column_indxs, alpha=None):
         """
@@ -252,11 +260,10 @@ class GpuMatrix(object):
             k = b.nrows if matrix_operation_b == 'N' else b.ncols
             cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha.data, a.data, a.nrows, b.data, b.nrows, beta.data, self.data, self.nrows)
 
-    def vdot(self, context, a, result=None):
-        result = result if result else GpuMatrix.empty(1, 1, 'float')
-        cublas.cublas_s_dot(context.cublas_handle, self.nelems, self.data, 1, a.data, 1, result.data)
-        return result
+    def assign_vdot(self, context, a):
+        cublas.cublas_s_dot(context.cublas_handle, self.nelems, self.data, 1, a.data, 1, self.data)
 
 
 GpuMatrix.zero_scalar = GpuMatrix.from_npa(np.zeros((1, 1)), 'float')
 GpuMatrix.one_scalar = GpuMatrix.from_npa(np.ones((1, 1)), 'float')
+GpuMatrix.minus_one_scalar = GpuMatrix.from_npa(np.ones((1, 1)), 'float')

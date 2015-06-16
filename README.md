@@ -44,7 +44,14 @@
 - [ ] Cpu/GpuMatrix improvement    
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels
+    - [ ] Synchronize Cpu/GpuMatrix classes
 - [ ] Implement EmbeddingBlock
 - [ ] Implement SliceBlock
-- [ ] Implement LogisticRegression
+- [ ] Implement LogisticRegressionCe
+    - [x] Implement LogisticRegressionCe block
+    - [ ] Add finite difference tests
+- [ ] Implement SoftmaxCe
+    - [x] Implement SoftmaxCe block
+    - [ ] Add finite difference tests   
+- [ ] Merge softmax and logreg    
 - [ ] Implement MeanPoolingBlock

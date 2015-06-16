@@ -31,8 +31,8 @@ class Connector(object):
 
     def forward_block(self, context):
         """
-        Block any calculation in `context` until all calculation in context
-        in which connector's `forward_matrix` is calculating is done.
+        Blocks all calculations in `context` until every calculation in the
+        context where the `forward_matrix` is being calculated, is done.
         """
 
         if self.forward_context:
@@ -40,8 +40,8 @@ class Connector(object):
 
     def backward_block(self, context):
         """
-        Block any calculation in `context` until all calculation in context
-        in which connector's `backward_matrix` is calculating is done.
+        Blocks all calculations in `context` until every calculation in the
+        context where the `backward_matrix` is being calculated, is done.
         """
 
         self._backward_contexts.values()[0].block(context)

@@ -15,3 +15,14 @@ class EmbeddingBlock(object):
         self.output.forward_matrix = self.buffer[:, :self.indexes.nrows]
         self.indexes.block(self.output)
         self.embedding.slice_columns(self.output.forward_context, self.indexes, self.output.forward_matrix)
+
+    def bprop(self):
+        pass
+
+    @property
+    def parameters(self):
+        return [self.embedding]
+
+    @property
+    def f(self):
+        return [{self.indexes: self.output.backward_matrix}]

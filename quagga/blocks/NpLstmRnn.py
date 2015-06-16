@@ -91,6 +91,14 @@ class NpLstmRnn(object):
         self.dL_dW.assign_dot(self.context, self.dL_dpre_zifo, self.x, 'N', 'T')
         self.dL_dR.assign_dot(self.context, self.dL_dpre_zifo[:, 1:n], self.h[:, :n-1], 'N', 'T')
 
+    @property
+    def params(self):
+        return [self.W, self.R]
+
+    @property
+    def grads(self):
+        return [self.dL_dW, self.dL_dR]
+
 
 class _NpLstmCell(object):
     def __init__(self, R, h, pre_zifo, dL_dpre_zifo, prev_c, prev_h, context, propagate_error=True):
