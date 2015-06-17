@@ -97,16 +97,17 @@ class NpLstmCell(object):
 
     def fprop(self):
         # zifo = tanh_sigm(W * x[t] + R * h[t-1])
-        self.prev_h.forward_block(self.context)
         self.pre_zifo.add_dot(self.context, self.R, self.prev_h)
         self.pre_zifo.tanh_sigm(self.context, self.zifo, self.dzifo_dpre_zifo)
 
         # c[t] = i[t] .* z[t] + f[t] .* c[t-1]
         # h[t] = o[t] .* tanh(c[t])
-        self.prev_c.block(self.context)
         self.c.assign_sum_hprod(self.context, self.i, self.z, self.f, self.prev_c)
         self.c.tanh(self.context, self.tanh_c, self.dtanh_c_dc)
         self.h.assign_hprod(self.context, self.o, self.tanh_c)
+
+        self.h.block_users()
+        self.c.block_users()
 
     def bprop(self):
         # dL/dc[t] += dL/dh[t] .* o[t] .* dtanh(c[t])/dc[t]

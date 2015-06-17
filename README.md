@@ -6,9 +6,11 @@
 - [ ] Add benchmarks
 - [x] Implement MergeBlock
     - [ ] Implement VStackBlock
+        - [ ] add VStackBlock
         - [ ] Implement vstack in Cpu/GpuMatrix classes
         - [ ] Add tests
     - [ ] Implement HStackBlock
+        - [ ] add HStackBlock
         - [ ] Implement hstack kernel
         - [ ] Implement hstack in Cpu/GpuMatrix classes
         - [ ] Add tests

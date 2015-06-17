@@ -13,7 +13,7 @@ class EmbeddingBlock(object):
 
     def fprop(self):
         self.output.forward_matrix = self.buffer[:, :self.indexes.nrows]
-        self.indexes.block(self.output)
+        self.indexes.forward_block(self.output)
         self.embedding.slice_columns(self.output.forward_context, self.indexes, self.output.forward_matrix)
 
     def bprop(self):

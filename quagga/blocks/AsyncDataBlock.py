@@ -20,6 +20,9 @@ class AsyncDataBlock(object):
         self.i = (self.i + 1) % 2
         self.allocate_data()
 
+    def bprop(self):
+        pass
+
     def allocate_data(self):
         data = self.data_source.get()
         if len(data) > self.max_buffer_size:
