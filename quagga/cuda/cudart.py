@@ -187,6 +187,17 @@ def cuda_free(ptr):
     check_cuda_status(status)
 
 
+_libcudart.cudaMallocHost.restype = ct_cuda_error
+_libcudart.cudaMallocHost.argtypes = [ct.POINTER(ct.c_void_p), ct.c_size_t]
+def cuda_malloc_host(size, ctype=None):
+    ptr = ct.c_void_p()
+    status = _libcudart.cudaMallocHost(ct.byref(ptr), size)
+    check_cuda_status(status)
+    if ctype:
+        ptr = ct.cast(ptr, ct.POINTER(ctype))
+    return ptr
+
+
 cuda_memcpy_kinds = {
     'host_to_host': 0,
     'host_to_device': 1,
@@ -222,7 +233,7 @@ def cuda_memcpy(dst, src, count, kind):
 
 _libcudart.cudaMemcpyAsync.restype = ct_cuda_error
 _libcudart.cudaMemcpyAsync.argtypes = [ct.c_void_p, ct.c_void_p,
-                                       ct.c_size_t, ct.c_int]
+                                       ct.c_size_t, ct.c_int, ct_cuda_stream]
 def cuda_memcpy_async(dst, src, count, kind, stream):
     """
     Copies count bytes from the memory area pointed to by src to the memory
@@ -241,6 +252,25 @@ def cuda_memcpy_async(dst, src, count, kind, stream):
 
     count = ct.c_size_t(count)
     status = _libcudart.cudaMemcpyAsync(dst, src, count, cuda_memcpy_kinds[kind], stream)
+    check_cuda_status(status)
+
+
+_libcudart.cudaMemcpyPeer.restype = ct_cuda_error
+_libcudart.cudaMemcpyPeer.argtypes = [ct.c_void_p, ct.c_int,
+                                      ct.c_void_p, ct.c_int, ct.c_size_t]
+def cuda_memcpy_peer(dst, dst_device, src, src_device, count):
+    count = ct.c_size_t(count)
+    status = _libcudart.cudaMemcpyPeer(dst, dst_device, src, src_device, count)
+    check_cuda_status(status)
+
+
+_libcudart.cudaMemcpyPeerAsync.restype = ct_cuda_error
+_libcudart.cudaMemcpyPeerAsync.argtypes = [ct.c_void_p, ct.c_int,
+                                           ct.c_void_p, ct.c_int,
+                                           ct.c_size_t, ct_cuda_stream]
+def cuda_memcpy_peer_async(dst, dst_device, src, src_device, count, stream):
+    count = ct.c_size_t(count)
+    status = _libcudart.cudaMemcpyPeerAsync(dst, dst_device, src, src_device, count, stream)
     check_cuda_status(status)
 
 
@@ -339,7 +369,7 @@ cuda_memory_type = {
 }
 
 
-class CudaPointerAttributes(ctypes.Structure):
+class CudaPointerAttributes(ct.Structure):
     _fields_ = [
         ('memoryType', ct.c_int),
         ('device', ct.c_int),

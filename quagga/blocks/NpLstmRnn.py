@@ -22,6 +22,7 @@ class NpLstmRnn(object):
         self.R = Matrix.empty(4 * nrows, R_init.ncols, 'float')
         self.R.assign_hstack(self.context, R_init(), R_init(), R_init(), R_init())
         self.dL_dR = Matrix.empty_like(self.R)
+        self.context.synchronize()
 
         self.x = x
         if propagate_error:
@@ -32,7 +33,6 @@ class NpLstmRnn(object):
         self.h = Connector(Matrix.empty(nrows, max_input_sequence_len, 'float'), self.context)
         self.pre_zifo = Matrix.empty(4 * nrows, max_input_sequence_len, 'float')
         self.dL_dpre_zifo = Matrix.empty_like(self.pre_zifo)
-        self.context.synchronize()
 
         self.lstm_cells = []
         for k in xrange(max_input_sequence_len):

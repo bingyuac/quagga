@@ -9,12 +9,13 @@ class GpuMatrix(object):
     one_scalar = None
     minus_one_scalar = None
 
-    def __init__(self, data, nrows, ncols, dtype, is_owner):
+    def __init__(self, data, nrows, ncols, dtype, device_id, is_owner):
         self.data = data
         self.nrows = nrows
         self.ncols = ncols
         self.dtype = dtype
         self.np_dtype, self.c_dtype = self.str_to_dtypes(dtype)
+        self.device_id = device_id
         self.is_owner = is_owner
         if is_owner:
             atexit.register(cudart.cuda_free, self.data)
@@ -26,6 +27,14 @@ class GpuMatrix(object):
     @property
     def nbytes(self):
         return self.nelems * ct.sizeof(self.c_dtype)
+
+    def __del__(self):
+        if self.is_owner:
+            try:
+                atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
+                cudart.cuda_free(self.data)
+            except ValueError:
+                pass
 
     def __getitem__(self, key):
         if type(key[1]) == int:
@@ -48,14 +57,6 @@ class GpuMatrix(object):
     def slice_columns(self, context, column_indxs, out):
         gpu_matrix_kernels.slice_columns(context.cuda_stream, self.nrows, self.ncols, column_indxs.data, self.data, out.data)
 
-    def __del__(self):
-        if self.is_owner:
-            try:
-                atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
-                cudart.cuda_free(self.data)
-            except ValueError:
-                pass
-
     def same_shape(self, other):
         return self.nrows == other.nrows and self.ncols == other.ncols
 
@@ -74,29 +75,33 @@ class GpuMatrix(object):
     @staticmethod
     def array_to_dtypes(a):
         if a.dtype == np.float32:
-            return np.float32, ct.c_float
+            return 'float', np.float32, ct.c_float
         if a.dtype == np.int32:
-            return np.int32, ct.c_int
+            return 'int', np.int32, ct.c_int
         raise TypeError(u'data type {} not understood'.format(a.dtype))
 
     @classmethod
-    def from_npa(cls, a, dtype=None):
+    def from_npa(cls, a, dtype=None, device_id=None):
         if a.ndim != 2:
             raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
         if dtype:
             np_dtype, c_dtype = cls.str_to_dtypes(dtype)
         else:
-            np_dtype, c_dtype = cls.array_to_dtypes(a)
+            dtype, np_dtype, c_dtype = cls.array_to_dtypes(a)
         if not np.isfortran(a):
             a = np.asfortranarray(a, dtype=np_dtype)
         elif a.dtype != np_dtype:
             a = a.astype(dtype=np_dtype)
+        current_device_id = cudart.cuda_get_device()
+        device_id = device_id if device_id else current_device_id
+        cudart.cuda_set_device(device_id)
         host_data = a.ctypes.data_as(ct.POINTER(c_dtype))
         elem_size = ct.sizeof(c_dtype)
         nbytes = a.size * elem_size
         data = cudart.cuda_malloc(nbytes, ct.c_float)
         cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
-        return cls(data, a.shape[0], a.shape[1], dtype, True)
+        cudart.cuda_set_device(current_device_id)
+        return cls(data, a.shape[0], a.shape[1], dtype, device_id, True)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype):
@@ -111,18 +116,37 @@ class GpuMatrix(object):
         data = cudart.cuda_malloc(nbytes, other.c_dtype)
         return cls(data, other.nrows, other.ncols, other.dtype, True)
 
-    def to_device(self, context, a):
-        if self.np_dtype != a.dtype:
-            raise ValueError("Allocated memory has {} type. "
-                             "Can't transfer to the device {} type".
-                             format(self.np_dtype, a.dtype))
-        if a.ndim != 2:
-            raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
-        if not np.isfortran(a):
-            a = np.asfortranarray(a)
-        host_data = a.ctypes.data_as(ct.POINTER(self.c_dtype))
-        self.nrows, self.ncols = a.shape
-        cudart.cuda_memcpy_async(self.data, host_data, self.nbytes, 'host_to_device', context.cuda_stream)
+    def to_device(self, context, a, nrows=None, ncols=None):
+        """
+        This method transfer data from `a` to allocated gpu memory
+
+        :param context: context in which transfer will occur
+        :param a: numpy array or ctypes pointer
+        :param nrows: optional, is used when `a` is pointer
+        :param ncols: optional, is used when `a` is pointer
+        """
+
+        if type(a) is np.ndarray:
+            if self.np_dtype != a.dtype:
+                raise ValueError("Allocated memory has {} type. "
+                                 "Can't transfer to the device {} type".
+                                 format(self.np_dtype, a.dtype))
+            if a.ndim != 2:
+                raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
+            if not np.isfortran(a):
+                a = np.asfortranarray(a)
+            self.nrows, self.ncols = a.shape
+            a = a.ctypes.data_as(ct.POINTER(self.c_dtype))
+        else:
+            if a._type_ != self.dtype:
+                raise ValueError("Allocated memory has {} type. "
+                                 "Can't transfer to the device {} type".
+                                 format(self.dtype, a.a._type_))
+            self.nrows, self.ncols = nrows, ncols
+        cudart.cuda_memcpy_async(self.data, a, self.nbytes, 'host_to_device', context.cuda_stream)
+
+    def pinned_to_device(self, context, p_host_data):
+        cudart.cuda_memcpy_async(self.data, p_host_data, self.nbytes, 'host_to_device', context.cuda_stream)
 
     def to_host(self):
         c_dtype_p = ct.POINTER(self.c_dtype)

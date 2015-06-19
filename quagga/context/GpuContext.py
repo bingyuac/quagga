@@ -13,14 +13,19 @@ class GpuContext(object):
     _events = defaultdict(_create_disabled_timing_event)
     _cublas_handle = None
 
-    def __init__(self):
+    def __init__(self, device_id=None):
+        self.device_id = device_id
+        current_device_id = cudart.cuda_get_device()
+        device_id = device_id if device_id else current_device_id
+        cudart.cuda_set_device(device_id)
         if GpuContext._cublas_handle is None:
-            GpuContext._cublas_handle = cublas.ctypes_cublas_handle()
+            GpuContext._cublas_handle = cublas.ct_cublas_handle()
             cublas.cublas_create(GpuContext._cublas_handle)
             cublas.cublas_set_pointer_mode(GpuContext._cublas_handle, 'device')
         self.cuda_stream = cudart.ct_cuda_stream()
         cudart.cuda_stream_create(self.cuda_stream)
         atexit.register(cudart.cuda_stream_destroy, self.cuda_stream)
+        cudart.cuda_set_device(current_device_id)
 
     def __del__(self):
         try:

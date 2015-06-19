@@ -4,7 +4,6 @@ from quagga.blocks import Connector
 
 class NpLstmCell(object):
     def __init__(self, W, R, h, pre_zifo, dL_dpre_zifo, prev_c, prev_h, context, propagate_error=True):
-        # TODO write this block as autonomous block
         """
         No peepholes LSTM cell block is used for building `NpLstmRnn` block.
         This block is not completely autonomous it requires precomputed
