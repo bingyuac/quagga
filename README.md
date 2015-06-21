@@ -44,7 +44,7 @@
         - [ ] Add finite difference tests        
 - [ ] Connector improvement
     - [x] Review `update` field usage in the Connector class
-    - [ ] Adapt Connector for multi-gpu purpose
+    - [x] Adapt Connector for multi-gpu purpose
 - [ ] Cpu/GpuMatrix improvement    
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels
@@ -62,3 +62,6 @@
 - [x] Add multi-gpu Context (http://on-demand.gputechconf.com/gtc-express/2011/presentations/cuda_webinars_multi_gpu.pdf)
 - [x] Fix event creation in proper device context
 - [x] Add `activate` context in all GpuMatrix operations
+- [ ] Add different types of Optimizers
+    - [ ] Implement SgdOptimizer
+    - [ ] Implement NagOptimizer

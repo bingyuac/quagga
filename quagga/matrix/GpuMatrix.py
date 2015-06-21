@@ -110,8 +110,10 @@ class GpuMatrix(object):
     @classmethod
     def empty_like(cls, other, device_id=None):
         nbytes = other.nrows * other.ncols * ct.sizeof(other.c_dtype)
-        data = cudart.cuda_malloc(nbytes, other.c_dtype)
-        return cls(data, other.nrows, other.ncols, other.dtype, True)
+        with cudart.device(device_id):
+            device_id = cudart.cuda_get_device()
+            data = cudart.cuda_malloc(nbytes, other.c_dtype)
+        return cls(data, other.nrows, other.ncols, other.dtype, device_id, True)
 
     def to_device(self, context, a, nrows=None, ncols=None):
         """
