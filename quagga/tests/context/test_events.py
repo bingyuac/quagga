@@ -1,4 +1,4 @@
-import ctypes
+import ctypes as ct
 import numpy as np
 from unittest import TestCase
 from quagga.cuda import cudart
@@ -7,19 +7,19 @@ from quagga.context import GpuContext
 
 def cuda_array_from_list(a):
     a = np.array(a, dtype=np.int32, order='F')
-    host_data = a.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
-    elem_size = ctypes.sizeof(ctypes.c_int)
+    host_data = a.ctypes.data_as(ct.POINTER(ct.c_int))
+    elem_size = ct.sizeof(ct.c_int)
     nbytes = a.size * elem_size
-    data = cudart.cuda_malloc(nbytes, ctypes.c_int)
+    data = cudart.cuda_malloc(nbytes, ct.c_int)
     cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
     return data
 
 
 def list_from_cuda_array(a, n, release_memory=True):
-    c_int_p = ctypes.POINTER(ctypes.c_int)
+    c_int_p = ct.POINTER(ct.c_int)
     host_array = (c_int_p * n)()
-    host_ptr = ctypes.cast(host_array, c_int_p)
-    elem_size = ctypes.sizeof(ctypes.c_int)
+    host_ptr = ct.cast(host_array, c_int_p)
+    elem_size = ct.sizeof(ct.c_int)
     cudart.cuda_memcpy(host_ptr, a, n * elem_size, 'device_to_host')
     if release_memory:
         cudart.cuda_free(a)

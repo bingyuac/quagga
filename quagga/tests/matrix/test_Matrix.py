@@ -1,5 +1,5 @@
-import ctypes
 import numpy as np
+import ctypes as ct
 from unittest import TestCase
 from quagga.cuda import cudart
 from quagga.matrix import GpuMatrix, GpuMatrixContext, CpuMatrix, CpuMatrixContext
@@ -199,9 +199,9 @@ class TestMatrix(TestCase):
             column_indxs_cpu = self.rng.choice(b.shape[1], a.shape[1]).astype(dtype=np.int32)
             a_gpu = GpuMatrix.from_npa(a)
             b_gpu = GpuMatrix.from_npa(b)
-            raw_column_indxs = column_indxs_cpu.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
-            nbytes = column_indxs_cpu.size * ctypes.sizeof(ctypes.c_int)
-            column_indxs_gpu = cudart.cuda_malloc(nbytes, ctypes.c_int)
+            raw_column_indxs = column_indxs_cpu.ctypes.data_as(ct.POINTER(ct.c_int))
+            nbytes = column_indxs_cpu.size * ct.sizeof(ct.c_int)
+            column_indxs_gpu = cudart.cuda_malloc(nbytes, ct.c_int)
             cudart.cuda_memcpy(column_indxs_gpu, raw_column_indxs, nbytes, 'host_to_device')
 
             b_cpu.sliced_add(self.cpu_context, a_cpu, column_indxs_cpu, alpha)

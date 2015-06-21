@@ -1,5 +1,5 @@
-import ctypes
 import numpy as np
+import ctypes as ct
 
 
 class CpuMatrix(object):
@@ -169,4 +169,4 @@ class CpuMatrix(object):
         self.npa += alpha * np.dot(a, b)
 
     def vdot(self, context, a):
-        return ctypes.c_float(np.vdot(self.npa, a.npa))
+        return ct.c_float(np.vdot(self.npa, a.npa))

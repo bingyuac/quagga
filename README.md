@@ -2,7 +2,7 @@
 
 - [ ] Add shape assertions into Cpu/GpuMatrix methods
 - [x] Split gpu_matrix_kernels.cu files into several
-- [ ] Change `ctypes` usage to `ct` abbreviation
+- [x] Change `ctypes` usage to `ct` abbreviation
 - [ ] Add benchmarks
 - [x] Implement MergeBlock
     - [ ] Implement VStackBlock
@@ -40,9 +40,9 @@
         - [ ] Implement RecurrentCell
         - [ ] Add cpu/gpu comparisons tests
         - [ ] Add finite difference tests        
-- [ ] Connector improvement        
-    - [ ] Handle sparse gradient into Connector class
+- [ ] Connector improvement
     - [x] Review `update` field usage in the Connector class
+    - [ ] Adapt Connector for multi-gpu purpose
 - [ ] Cpu/GpuMatrix improvement    
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels
@@ -58,5 +58,4 @@
 - [ ] Merge softmax and logreg    
 - [ ] Implement MeanPoolingBlock
 - [ ] Add multi-gpu Context (http://on-demand.gputechconf.com/gtc-express/2011/presentations/cuda_webinars_multi_gpu.pdf)
-- [ ] Adapt connector for multi-gpu purpose
 - [ ] Add `activate` context in all GpuMatrix operations
