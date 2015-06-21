@@ -73,6 +73,7 @@ class Connector(object):
         if obtaining_device_id == usage_device_id:
             return self._forward_matrices[obtaining_device_id]
         self._forward_matrices[obtaining_device_id].copy(self._forward_obtaining_context, self._forward_matrices[usage_device_id])
+        self._forward_usage_contexts[requester].wait(self._forward_obtaining_context)
         return self._forward_matrices[usage_device_id]
 
     forward_matrix = property(get_forward_matrix)
@@ -84,13 +85,12 @@ class Connector(object):
         usage_device_id = self._backward_usage_context.device_id
         backward_matrices = []
         for requester, matrices in self._backward_matrices.iteritems():
-            obtaining_device_id = self._backward_obtaining_contexts[requester].device_id
+            backward_obtaining_context = self._backward_obtaining_contexts[requester]
+            obtaining_device_id = backward_obtaining_context.device_id
             if usage_device_id != obtaining_device_id:
-                matrices[obtaining_device_id].copy(self._backward_obtaining_contexts[requester], matrices[usage_device_id])
+                matrices[obtaining_device_id].copy(backward_obtaining_context, matrices[usage_device_id])
+                self._backward_usage_context.wait(backward_obtaining_context)
             backward_matrices.append(matrices[usage_device_id])
-
-        backward_contexts = self._backward_obtaining_contexts.values()
-        backward_contexts[0].wait(*backward_contexts[1:])
         for backward_matrix in backward_matrices[1:]:
             backward_matrices[0].add(self._backward_usage_context, backward_matrix)
         return backward_matrices[0]
