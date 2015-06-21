@@ -74,14 +74,14 @@ class Connector(object):
         """
 
         if self._backward_usage_context:
-            self._backward_usage_context.depend_on(self._backward_obtaining_contexts.itervalues())
+            self._backward_usage_context.wait(self._backward_obtaining_contexts.itervalues())
 
     def get_backward_matrix(self, requester=None):
         if requester:
             return self._backward_matrices[requester]
         backward_matrices = self._backward_matrices.values()
         backward_contexts = self._backward_obtaining_contexts.values()
-        backward_contexts[0].depend_on(*backward_contexts[1:])
+        backward_contexts[0].wait(*backward_contexts[1:])
         for backward_matrix in backward_matrices[1:]:
             backward_matrices[0].add(self.backward_context, backward_matrix)
         return backward_matrices[0]

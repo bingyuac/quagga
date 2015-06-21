@@ -14,18 +14,11 @@ class GpuContext(object):
     _cublas_handle = None
 
     def __init__(self, device_id=None):
-        self.device_id = device_id
-        current_device_id = cudart.cuda_get_device()
-        device_id = device_id if device_id else current_device_id
-        cudart.cuda_set_device(device_id)
-        if GpuContext._cublas_handle is None:
-            GpuContext._cublas_handle = cublas.ct_cublas_handle()
-            cublas.cublas_create(GpuContext._cublas_handle)
-            cublas.cublas_set_pointer_mode(GpuContext._cublas_handle, 'device')
-        self.cuda_stream = cudart.ct_cuda_stream()
-        cudart.cuda_stream_create(self.cuda_stream)
+        with cudart.device(device_id):
+            self.device_id = cudart.cuda_get_device()
+            self.cuda_stream = cudart.ct_cuda_stream()
+            cudart.cuda_stream_create(self.cuda_stream)
         atexit.register(cudart.cuda_stream_destroy, self.cuda_stream)
-        cudart.cuda_set_device(current_device_id)
 
     def __del__(self):
         try:
@@ -36,13 +29,21 @@ class GpuContext(object):
 
     @property
     def cublas_handle(self):
-        cublas.cublas_set_stream(GpuContext._cublas_handle, self.cuda_stream)
-        return GpuContext._cublas_handle
+        cublas_handle = GpuContext._cublas_handle[self.device_id]
+        cublas.cublas_set_stream(cublas_handle, self.cuda_stream)
+        return cublas_handle
 
     def synchronize(self):
         cudart.cuda_stream_synchronize(self.cuda_stream)
 
-    def depend_on(self, *args):
+    def activate(self):
+        cudart.cuda_set_device(self.device_id)
+
+    def wait(self, *args):
+        """
+        Wait for computations ends in `args` contexts
+        """
+
         for context in args:
             event = GpuContext._events[context, self]
             cudart.cuda_event_record(event, context.cuda_stream)
@@ -57,11 +58,19 @@ class GpuContext(object):
     @staticmethod
     @atexit.register
     def __destroy_cublas_handle():
-        if GpuContext._cublas_handle:
-            cublas.cublas_destroy(GpuContext._cublas_handle)
+        for device_id in xrange(cudart.cuda_get_device_count()):
+            cublas.cublas_destroy(GpuContext._cublas_handle[device_id])
 
     @staticmethod
     @atexit.register
     def __destroy_events():
         for event in GpuContext._events.itervalues():
             cudart.cuda_event_destroy(event)
+
+
+GpuContext._cublas_handle = []
+for device_id in xrange(cudart.cuda_get_device_count()):
+    with cudart.device(device_id):
+        GpuContext._cublas_handle.append(cublas.ct_cublas_handle())
+        cublas.cublas_create(GpuContext._cublas_handle[-1])
+        cublas.cublas_set_pointer_mode(GpuContext._cublas_handle[-1], 'device')

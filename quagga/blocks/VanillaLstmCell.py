@@ -98,7 +98,7 @@ class VanillaLstmCell(object):
 
         # c[t] = i[t] .* z[t] + f[t] .* c[t-1]
         # tanh(c[t])
-        self.o_context.depend_on(self.z_context, self.i_context, self.f_context)
+        self.o_context.wait(self.z_context, self.i_context, self.f_context)
         self.c.assign_sum_hprod(self.o_context, self.i, self.z, self.f, self.prev_c)
         self.c.tanh(self.o_context, self.tanh_c, self.dtanh_c_dc)
 
@@ -135,7 +135,7 @@ class VanillaLstmCell(object):
         self.dL_dhf.assign_dot(self.f_context, self.Rf, self.dL_dpre_f, 'T')
         dL_dprev_h = self.prev_h.get_derivative(self)
         dL_dprev_h.assign_dot(self.o_context, self.Ro, self.dL_dpre_o, 'T')
-        self.o_context.depend_on(self.z_context, self.i_context, self.f_context)
+        self.o_context.wait(self.z_context, self.i_context, self.f_context)
         dL_dprev_h.add(self.o_context, self.dL_dhz, self.dL_dhi, self.dL_dhf)
 
         # dL/dc[t-1] = pi .* dL/dpre_i[t] + pf .* dL/dpre_f[t] + f[t] .* dL/dc[t]

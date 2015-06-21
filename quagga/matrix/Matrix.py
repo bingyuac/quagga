@@ -7,16 +7,16 @@ class Matrix(object):
         raise ValueError('Do not construct directly!')
 
     @classmethod
-    def from_npa(cls, a, dtype=None):
-        return cls._get_matrix_class().from_npa(a, dtype)
+    def from_npa(cls, a, dtype=None, device_id=None):
+        return cls._get_matrix_class().from_npa(a, dtype, device_id)
 
     @classmethod
-    def empty(cls, nrows, ncols, dtype):
-        return cls._get_matrix_class().empty(nrows, ncols, dtype)
+    def empty(cls, nrows, ncols, dtype, device_id=None):
+        return cls._get_matrix_class().empty(nrows, ncols, dtype, device_id)
 
     @classmethod
-    def empty_like(cls, other):
-        return cls._get_matrix_class().empty_like(other)
+    def empty_like(cls, other, device_id=None):
+        return cls._get_matrix_class().empty_like(other, device_id)
 
     @staticmethod
     def _get_matrix_class():

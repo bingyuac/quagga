@@ -144,7 +144,7 @@ class BidirectionalLstmRnn(object):
             dL_dx[d].assign_dot(context, self.W['z', d], self.dL_dpre['z', d][:, :n], 'T')
             for gate in 'ifo':
                 dL_dx[d].add_dot(context, self.W[gate, d], self.dL_dpre[gate, d][:, :n], 'T')
-        self.context['z', 'backward'].depend_on(self.context['z', 'forward'])
+        self.context['z', 'backward'].wait(self.context['z', 'forward'])
         dL_dx['forward'].add(self.context['z', 'backward'], dL_dx['backward'])
         dL_dx = dL_dx['forward']
 

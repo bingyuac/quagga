@@ -58,3 +58,5 @@
 - [ ] Merge softmax and logreg    
 - [ ] Implement MeanPoolingBlock
 - [ ] Add multi-gpu Context (http://on-demand.gputechconf.com/gtc-express/2011/presentations/cuda_webinars_multi_gpu.pdf)
+- [ ] Adapt connector for multi-gpu purpose
+- [ ] Add `activate` context in all GpuMatrix operations

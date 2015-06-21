@@ -51,11 +51,11 @@ class TestEvent(TestCase):
                 test_dependencies(contexts[context_id], i * k + context_id + 1, blocking_nodes[i*3+1], 1, execution_checklist, test_results)
 
             for context_id in xrange(3, 5):
-                contexts[context_id].depend_on(*contexts[:3])
+                contexts[context_id].wait(*contexts[:3])
                 test_dependencies(contexts[context_id], i * k + context_id + 1, blocking_nodes[i*3+2], 3, execution_checklist, test_results)
 
             for context_id in xrange(5, 6):
-                contexts[context_id].depend_on(*contexts[3:5])
+                contexts[context_id].wait(*contexts[3:5])
                 test_dependencies(contexts[context_id], i * k + context_id + 1, blocking_nodes[i*3+3], 2, execution_checklist, test_results)
                 contexts[context_id].block(*contexts[:3])
 

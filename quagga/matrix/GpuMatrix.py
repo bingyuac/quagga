@@ -92,26 +92,26 @@ class GpuMatrix(object):
             a = np.asfortranarray(a, dtype=np_dtype)
         elif a.dtype != np_dtype:
             a = a.astype(dtype=np_dtype)
-        current_device_id = cudart.cuda_get_device()
-        device_id = device_id if device_id else current_device_id
-        cudart.cuda_set_device(device_id)
         host_data = a.ctypes.data_as(ct.POINTER(c_dtype))
         elem_size = ct.sizeof(c_dtype)
         nbytes = a.size * elem_size
-        data = cudart.cuda_malloc(nbytes, ct.c_float)
-        cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
-        cudart.cuda_set_device(current_device_id)
+        with cudart.device(device_id):
+            device_id = cudart.cuda_get_device()
+            data = cudart.cuda_malloc(nbytes, ct.c_float)
+            cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
         return cls(data, a.shape[0], a.shape[1], dtype, device_id, True)
 
     @classmethod
-    def empty(cls, nrows, ncols, dtype):
+    def empty(cls, nrows, ncols, dtype, device_id=None):
         c_dtype = cls.str_to_dtypes(dtype)[1]
         nbytes = nrows * ncols * ct.sizeof(c_dtype)
-        data = cudart.cuda_malloc(nbytes, c_dtype)
-        return cls(data, nrows, ncols, dtype, True)
+        with cudart.device(device_id):
+            device_id = cudart.cuda_get_device()
+            data = cudart.cuda_malloc(nbytes, c_dtype)
+        return cls(data, nrows, ncols, dtype, device_id, True)
 
     @classmethod
-    def empty_like(cls, other):
+    def empty_like(cls, other, device_id=None):
         nbytes = other.nrows * other.ncols * ct.sizeof(other.c_dtype)
         data = cudart.cuda_malloc(nbytes, other.c_dtype)
         return cls(data, other.nrows, other.ncols, other.dtype, True)
@@ -122,8 +122,8 @@ class GpuMatrix(object):
 
         :param context: context in which transfer will occur
         :param a: numpy array or ctypes pointer
-        :param nrows: optional, is used when `a` is pointer
-        :param ncols: optional, is used when `a` is pointer
+        :param nrows: optional, is used when `a` is a pointer
+        :param ncols: optional, is used when `a` is a pointer
         """
 
         if type(a) is np.ndarray:
@@ -214,29 +214,31 @@ class GpuMatrix(object):
         """
         self += alpha * a
         """
+        context.activate()
         cublas.cublas_s_axpy(context.cublas_handle, self.nelems, alpha.data, a.data, 1, self.data, 1)
 
     def add(self, context, a, b=None, c=None):
         if not b and not c:
-            self.add_scaled(context, GpuMatrix.one_scalar, a)
+            self.add_scaled(context, GpuMatrix.one_scalar[context.device_id], a)
         else:
+            context.activate()
             gpu_matrix_kernels.sum(context.cuda_stream, self.nelems, a.data, b.data, c.data, self.data, self.data)
 
     def sub(self, context, a):
-        self.add_scaled(context, GpuMatrix.minus_one_scalar, a)
+        self.add_scaled(context, GpuMatrix.minus_one_scalar[context.device_id], a)
 
     def sliced_add(self, context, a, column_indxs, alpha=None):
         """
         self[column_indxs] += alpha * a
         """
-        alpha = alpha if alpha else GpuMatrix.one_scalar
+        alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
         gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha.data, a.data, column_indxs, self.data)
 
     def add_hprod(self, context, a, b, alpha=None):
         """
         self = a .* b + alpha * self
         """
-        alpha = alpha if alpha else GpuMatrix.one_scalar
+        alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
         gpu_matrix_kernels.add_hadamard_product(context.cuda_stream, self.nelems, a.data, b.data, alpha.data, self.data)
 
     def assign_hprod(self, context, a, b, c=None):
@@ -269,14 +271,15 @@ class GpuMatrix(object):
         gpu_matrix_kernels.hprod_sum(context.cuda_stream, a.nrows, a.ncols, a.data, b.data, self.data)
 
     def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
-        self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=GpuMatrix.zero_scalar)
+        self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=GpuMatrix.zero_scalar[context.device_id])
 
     def add_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N', alpha=None, beta=None):
         """
         self = alpha * op(a) * b + beta * self
         """
-        alpha = alpha if alpha else GpuMatrix.one_scalar
-        beta = beta if beta else GpuMatrix.one_scalar
+        context.activate()
+        alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
+        beta = beta if beta else GpuMatrix.one_scalar[context.device_id]
 
         if self.ncols == 1 and matrix_operation_b == 'N':
             cublas.cublas_s_gemv(context.cublas_handle, matrix_operation_a, a.nrows, a.ncols, alpha.data, a.data, a.nrows, b.data, 1, beta.data, self.data, 1)
@@ -288,6 +291,10 @@ class GpuMatrix(object):
         cublas.cublas_s_dot(context.cublas_handle, self.nelems, self.data, 1, a.data, 1, self.data)
 
 
-GpuMatrix.zero_scalar = GpuMatrix.from_npa(np.zeros((1, 1)), 'float')
-GpuMatrix.one_scalar = GpuMatrix.from_npa(np.ones((1, 1)), 'float')
-GpuMatrix.minus_one_scalar = GpuMatrix.from_npa(np.ones((1, 1)), 'float')
+GpuMatrix.zero_scalar = []
+GpuMatrix.one_scalar = []
+GpuMatrix.minus_one_scalar = []
+for device_id in xrange(cudart.cuda_get_device_count()):
+    GpuMatrix.zero_scalar.append(GpuMatrix.from_npa(np.zeros((1, 1)), 'float', device_id))
+    GpuMatrix.one_scalar.append(GpuMatrix.from_npa(np.ones((1, 1)), 'float', device_id))
+    GpuMatrix.minus_one_scalar.append(GpuMatrix.from_npa(-np.ones((1, 1)), 'float', device_id))

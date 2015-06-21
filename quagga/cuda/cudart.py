@@ -3,6 +3,7 @@ Python interface to CUDA runtime functions.
 """
 
 import ctypes as ct
+from contextlib import contextmanager
 
 
 _libcudart = ct.cdll.LoadLibrary('libcudart.so')
@@ -301,13 +302,13 @@ def cuda_get_device_count():
     """
     Returns the number of compute-capable devices.
     :return:
-    count : c_int
+    count : int
         Number of compute-capable devices.
     """
     count = ct.c_int()
     status = _libcudart.cudaGetDeviceCount(ct.byref(count))
     check_cuda_status(status)
-    return count
+    return count.value
 
 
 _libcudart.cudaSetDevice.restype = ct_cuda_error
@@ -334,14 +335,14 @@ def cuda_get_device():
     Return the identifying number of the device currently used to
     process CUDA operations.
     :return:
-    device : c_int
+    device : int
         Device number.
     """
 
     device = ct.c_int()
     status = _libcudart.cudaGetDevice(ct.byref(device))
     check_cuda_status(status)
-    return device
+    return device.value
 
 
 _libcudart.cudaDriverGetVersion.restype = ct_cuda_error
@@ -518,3 +519,24 @@ _libcudart.cudaIpcCloseMemHandle.argtypes = [ct.c_void_p]
 def cuda_ipc_close_mem_handle(ptr):
     status = _libcudart.cudaIpcCloseMemHandle(ptr)
     check_cuda_status(status)
+
+
+_libcudart.cudaDeviceEnablePeerAccess.restype = ct_cuda_error
+_libcudart.cudaDeviceEnablePeerAccess.argtypes = [ct.c_int, ct.c_uint]
+def cuda_device_enable_peer_access(peer_device):
+    status = _libcudart.cudaDeviceEnablePeerAccess(peer_device, 0)
+    check_cuda_status(status)
+
+
+@contextmanager
+def device(device_id):
+    if device_id is None:
+        yield
+        return
+    current_device_id = cuda_get_device()
+    if current_device_id == device_id:
+        yield
+        return
+    cuda_set_device(device_id)
+    yield
+    cuda_set_device(current_device_id)
