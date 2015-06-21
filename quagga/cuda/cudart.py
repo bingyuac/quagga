@@ -534,9 +534,6 @@ def device(device_id):
         yield
         return
     current_device_id = cuda_get_device()
-    if current_device_id == device_id:
-        yield
-        return
     cuda_set_device(device_id)
     yield
     cuda_set_device(current_device_id)

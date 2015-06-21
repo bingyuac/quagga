@@ -39,23 +39,20 @@ class GpuMatrix(object):
     def __getitem__(self, key):
         if type(key[1]) == int:
             data = self._get_pointer_to_column(key[1])
-            return GpuMatrix(data, self.nrows, 1, self.dtype, False)
+            return GpuMatrix(data, self.nrows, 1, self.dtype, self.device_id, False)
         if type(key[1]) == slice:
             if key[1].start is None and type(key[1].stop) == int and key[1].step is None:
-                return GpuMatrix(self.data, self.nrows, key[1].stop, self.dtype, False)
+                return GpuMatrix(self.data, self.nrows, key[1].stop, self.dtype, self.device_id, False)
             elif type(key[1].start) == int and key[1].stop is None and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
-                return GpuMatrix(data, self.nrows, self.ncols - key[1].start, self.dtype, False)
+                return GpuMatrix(data, self.nrows, self.ncols - key[1].start, self.dtype, self.device_id, False)
             elif type(key[1].start) == int and type(key[1].stop) == int and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
-                return GpuMatrix(data, self.nrows, key[1].stop - key[1].start, self.dtype, False)
+                return GpuMatrix(data, self.nrows, key[1].stop - key[1].start, self.dtype, self.device_id, False)
             else:
                 raise ValueError('This slice: {} is unsupported!'.format(key))
         else:
             raise IndexError('Only integers and slices are supported!')
-
-    def slice_columns(self, context, column_indxs, out):
-        gpu_matrix_kernels.slice_columns(context.cuda_stream, self.nrows, self.ncols, column_indxs.data, self.data, out.data)
 
     def same_shape(self, other):
         return self.nrows == other.nrows and self.ncols == other.ncols
@@ -143,10 +140,8 @@ class GpuMatrix(object):
                                  "Can't transfer to the device {} type".
                                  format(self.dtype, a.a._type_))
             self.nrows, self.ncols = nrows, ncols
+        context.activate()
         cudart.cuda_memcpy_async(self.data, a, self.nbytes, 'host_to_device', context.cuda_stream)
-
-    def pinned_to_device(self, context, p_host_data):
-        cudart.cuda_memcpy_async(self.data, p_host_data, self.nbytes, 'host_to_device', context.cuda_stream)
 
     def to_host(self):
         c_dtype_p = ct.POINTER(self.c_dtype)
@@ -163,37 +158,45 @@ class GpuMatrix(object):
         return [self[:, i] for i in xrange(self.ncols)]
 
     def copy(self, context, out):
+        context.activate()
         cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'device_to_device', context.cuda_stream)
+
+    def slice_columns(self, context, column_indxs, out):
+        context.activate()
+        gpu_matrix_kernels.slice_columns(context.cuda_stream, self.nrows, self.ncols, column_indxs.data, self.data, out.data)
 
     def assign_hstack(self, context, *matrices):
         # if f_matrix.nrows != s_matrix.nrows:
         #     raise ValueError("Can't horizontally stack matrices with "
         #                      "different number of rows!")
-        pass
+        context.activate()
 
     def assign_vstack(self, context, *matrices):
         # if self.f_matrix.ncols != self.s_matrix.ncols:
         #     raise ValueError("Can't vertically stack matrices with "
         #                      "different number of columns!")
-        pass
+        context.activate()
 
     def scale(self, context, alpha, out=None):
+        context.activate()
         if out:
             gpu_matrix_kernels.scale(context.cuda_stream, self.nelems, alpha.data, self.data, out.data)
         else:
             cublas.cublas_s_scal(context.cublas_handle, self.nelems, alpha.data, self.data, 1)
 
     def tanh(self, context, tanh_matrix, derivative_matrix=None):
+        context.activate()
         if derivative_matrix:
-            gpu_matrix_kernels.tanh_der(context.cuda_stream, self.nelems, self.data, tanh_matrix.data, derivative_matrix.data)
+            nonlinearities.tanh_der(context.cuda_stream, self.nelems, self.data, tanh_matrix.data, derivative_matrix.data)
         else:
-            gpu_matrix_kernels.tanh(context.cuda_stream, self.nelems, self.data, tanh_matrix.data)
+            nonlinearities.tanh(context.cuda_stream, self.nelems, self.data, tanh_matrix.data)
 
     def sigmoid(self, context, sigmoid_matrix, derivative_matrix=None):
+        context.activate()
         if derivative_matrix:
-            gpu_matrix_kernels.sigmoid_der(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data, derivative_matrix.data)
+            nonlinearities.sigmoid_der(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data, derivative_matrix.data)
         else:
-            gpu_matrix_kernels.sigmoid(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data)
+            nonlinearities.sigmoid(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data)
 
     def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None):
         """
@@ -201,6 +204,7 @@ class GpuMatrix(object):
         lstm cell. It calculates for the first 1/4 rows tanh function and
         sigmoid for the 3/4 remaining rows.
         """
+        context.activate()
         if derivative_matrix:
             nonlinearities.tanh_sigm_der(context.cuda_stream, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data, derivative_matrix.data)
         else:
@@ -208,7 +212,7 @@ class GpuMatrix(object):
 
     def softmax(self, context, softmax_matrix):
         # TODO
-        pass
+        context.activate()
 
     def add_scaled(self, context, alpha, a):
         """
@@ -232,6 +236,7 @@ class GpuMatrix(object):
         self[column_indxs] += alpha * a
         """
         alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
+        context.activate()
         gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha.data, a.data, column_indxs, self.data)
 
     def add_hprod(self, context, a, b, alpha=None):
@@ -239,6 +244,7 @@ class GpuMatrix(object):
         self = a .* b + alpha * self
         """
         alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
+        context.activate()
         gpu_matrix_kernels.add_hadamard_product(context.cuda_stream, self.nelems, a.data, b.data, alpha.data, self.data)
 
     def assign_hprod(self, context, a, b, c=None):
@@ -246,6 +252,7 @@ class GpuMatrix(object):
         self = a .* b
         self = a .* b .* c  or
         """
+        context.activate()
         if not c:
             gpu_matrix_kernels.hadamard_product_2(context.cuda_stream, a.nelems, a.data, b.data, self.data)
         else:
@@ -257,6 +264,7 @@ class GpuMatrix(object):
         self = a .* b .* c + d .* e                              or
         self = a .* b .* c + d .* e + f .* g + h .* i + j .* k
         """
+        context.activate()
         if k is not None:
             gpu_matrix_kernels.sum_hprod_11(context.cuda_stream, self.nelems, a.data, b.data, c.data, d.data, e.data, f.data, g.data, h.data, i.data, j.data, k.data, self.data)
         elif e is not None:
@@ -268,6 +276,7 @@ class GpuMatrix(object):
         """
         self = sum(a .* b, axis=1)
         """
+        context.activate()
         gpu_matrix_kernels.hprod_sum(context.cuda_stream, a.nrows, a.ncols, a.data, b.data, self.data)
 
     def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
@@ -277,10 +286,9 @@ class GpuMatrix(object):
         """
         self = alpha * op(a) * b + beta * self
         """
-        context.activate()
         alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
         beta = beta if beta else GpuMatrix.one_scalar[context.device_id]
-
+        context.activate()
         if self.ncols == 1 and matrix_operation_b == 'N':
             cublas.cublas_s_gemv(context.cublas_handle, matrix_operation_a, a.nrows, a.ncols, alpha.data, a.data, a.nrows, b.data, 1, beta.data, self.data, 1)
         else:
@@ -288,6 +296,7 @@ class GpuMatrix(object):
             cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha.data, a.data, a.nrows, b.data, b.nrows, beta.data, self.data, self.nrows)
 
     def assign_vdot(self, context, a):
+        context.activate()
         cublas.cublas_s_dot(context.cublas_handle, self.nelems, self.data, 1, a.data, 1, self.data)
 
 

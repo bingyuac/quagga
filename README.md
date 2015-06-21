@@ -61,4 +61,4 @@
 - [ ] Implement MeanPoolingBlock
 - [x] Add multi-gpu Context (http://on-demand.gputechconf.com/gtc-express/2011/presentations/cuda_webinars_multi_gpu.pdf)
 - [x] Fix event creation in proper device context
-- [ ] Add `activate` context in all GpuMatrix operations
+- [x] Add `activate` context in all GpuMatrix operations
