@@ -1,6 +1,8 @@
 # TODO
 
-- [ ] Add shape assertions into Cpu/GpuMatrix methods
+- [ ] Cpu/GpuMatrix assertions
+    - [ ] Add shape assertions into Cpu/GpuMatrix methods
+    - [ ] Add shape contexts into Cpu/GpuMatrix methods
 - [x] Split gpu_matrix_kernels.cu files into several
 - [x] Change `ctypes` usage to `ct` abbreviation
 - [ ] Add benchmarks
@@ -57,5 +59,6 @@
     - [ ] Add finite difference tests   
 - [ ] Merge softmax and logreg    
 - [ ] Implement MeanPoolingBlock
-- [ ] Add multi-gpu Context (http://on-demand.gputechconf.com/gtc-express/2011/presentations/cuda_webinars_multi_gpu.pdf)
+- [x] Add multi-gpu Context (http://on-demand.gputechconf.com/gtc-express/2011/presentations/cuda_webinars_multi_gpu.pdf)
+- [x] Fix event creation in proper device context
 - [ ] Add `activate` context in all GpuMatrix operations

@@ -41,18 +41,23 @@ class GpuContext(object):
 
     def wait(self, *args):
         """
-        Wait for computations ends in `args` contexts
+        Makes all future work submitted to context wait until
+        computations ends in `args` contexts
         """
 
         for context in args:
+            context.activate()
             event = GpuContext._events[context, self]
             cudart.cuda_event_record(event, context.cuda_stream)
+            self.activate()
             cudart.cuda_stream_wait_event(self.cuda_stream, event)
 
     def block(self, *args):
         for context in args:
+            self.activate()
             event = GpuContext._events[self, context]
             cudart.cuda_event_record(event, self.cuda_stream)
+            context.activate()
             cudart.cuda_stream_wait_event(context.cuda_stream, event)
 
     @staticmethod
