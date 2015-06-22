@@ -20,7 +20,7 @@ class CpuMatrix(object):
         return CpuMatrix.from_npa(self.npa[key])
 
     def slice_columns(self, context, column_indxs, out):
-        out.npa = self.npa[:, column_indxs]
+        out.npa = self.npa[:, column_indxs.npa.flatten()]
 
     def same_shape(self, other):
         return self.nrows == other.nrows and self.ncols == other.ncols
@@ -42,7 +42,7 @@ class CpuMatrix(object):
             a = np.asfortranarray(a, dtype=dtype)
         elif a.dtype != dtype:
             a = a.astype(dtype=dtype)
-        return cls(a, a.shape[0], a.shape[1])
+        return cls(a, a.shape[0], a.shape[1], dtype)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype):

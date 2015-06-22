@@ -201,7 +201,7 @@ extern "C" {
 							  const int* __restrict__ embedding_column_indxs,
 							  const float* __restrict__ embedding_matrix,
 							  float* __restrict__ dense_matrix) {
-		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
 		sliceColumns<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
 		return cudaGetLastError();
 	}

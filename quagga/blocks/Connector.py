@@ -131,9 +131,7 @@ class Connector(object):
         if hasattr(attribute, '__call__'):
             setattr(self, name, attribute)
         else:
-            fget = lambda self: getattr(forward_matrix, name)
-            fset = lambda self, value: setattr(forward_matrix, name, value)
-            setattr(Connector, name, property(fget, fset))
+            setattr(Connector, name, property(lambda self: getattr(self.forward_matrix, name)))
         return getattr(self, name)
 
     def __setattr__(self, name, value):

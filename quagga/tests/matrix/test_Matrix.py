@@ -2,15 +2,16 @@ import numpy as np
 import ctypes as ct
 from unittest import TestCase
 from quagga.cuda import cudart
-from quagga.matrix import GpuMatrix, GpuMatrixContext, CpuMatrix, CpuMatrixContext
+from quagga.matrix import GpuMatrix, CpuMatrix
+from quagga.context import GpuContext, CpuContext
 
 
 class TestMatrix(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rng = np.random.RandomState(seed=42)
-        cls.gpu_context = GpuMatrixContext()
-        cls.cpu_context = CpuMatrixContext()
+        cls.gpu_context = GpuContext()
+        cls.cpu_context = CpuContext()
         cls.N = 50
 
     @classmethod
@@ -451,5 +452,28 @@ class TestMatrix(TestCase):
 
             r.append(np.allclose(a_cpu.vdot(self.cpu_context, b_cpu),
                                  a_gpu.vdot(self.gpu_context, b_gpu), atol=1e-4))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_slice_columns(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
+            indxs = self.rng.choice(b.shape[1], a.shape[1]).astype(dtype=np.int32)
+            indxs = indxs.reshape((1, len(indxs)))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            column_indxs_cpu = CpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            column_indxs_gpu = GpuMatrix.from_npa(indxs)
+
+            b_cpu.slice_columns(self.cpu_context, column_indxs_cpu, a_cpu)
+            b_gpu.slice_columns(self.gpu_context, column_indxs_gpu, a_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)

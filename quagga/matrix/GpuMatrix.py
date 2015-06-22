@@ -18,7 +18,8 @@ class GpuMatrix(object):
         self.device_id = device_id
         self.is_owner = is_owner
         if is_owner:
-            atexit.register(cudart.cuda_free, self.data)
+            atexit.register(GpuMatrix._free_memory, data, device_id)
+            # atexit.register(cudart.cuda_free, self.data)
 
     @property
     def nelems(self):
@@ -28,11 +29,23 @@ class GpuMatrix(object):
     def nbytes(self):
         return self.nelems * ct.sizeof(self.c_dtype)
 
+    @staticmethod
+    def _free_memory(ptr, device_id):
+        try:
+            cudart.cuda_set_device(device_id)
+            cudart.cuda_free(ptr)
+        except:
+            device_id = 0 if device_id == 1 else 1
+            cudart.cuda_set_device(device_id)
+            cudart.cuda_free(ptr)
+
     def __del__(self):
         if self.is_owner:
             try:
-                atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
-                cudart.cuda_free(self.data)
+                atexit._exithandlers.remove((GpuMatrix._free_memory, (self.data, self.device_id), {}))
+                # atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
+                GpuMatrix._free_memory(self.data, self.device_id)
+                # cudart.cuda_free()
             except ValueError:
                 pass
 
@@ -94,7 +107,7 @@ class GpuMatrix(object):
         nbytes = a.size * elem_size
         with cudart.device(device_id):
             device_id = cudart.cuda_get_device()
-            data = cudart.cuda_malloc(nbytes, ct.c_float)
+            data = cudart.cuda_malloc(nbytes, c_dtype)
             cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
         return cls(data, a.shape[0], a.shape[1], dtype, device_id, True)
 
@@ -147,10 +160,10 @@ class GpuMatrix(object):
 
     def to_host(self):
         c_dtype_p = ct.POINTER(self.c_dtype)
-        host_array = (c_dtype_p * self.nelems)()
+        host_array = (self.c_dtype * self.nelems)()
         host_ptr = ct.cast(host_array, c_dtype_p)
-        elem_size = ct.sizeof(c_dtype_p)
-        cudart.cuda_memcpy(host_ptr, self.data, self.nelems * elem_size, 'device_to_host')
+        with cudart.device(self.device_id):
+            cudart.cuda_memcpy(host_ptr, self.data, self.nbytes, 'device_to_host')
         return np.ndarray(shape=(self.nrows, self.ncols),
                           dtype=self.np_dtype,
                           buffer=host_array,
@@ -167,7 +180,7 @@ class GpuMatrix(object):
 
     def slice_columns(self, context, column_indxs, out):
         context.activate()
-        gpu_matrix_kernels.slice_columns(context.cuda_stream, self.nrows, self.ncols, column_indxs.data, self.data, out.data)
+        gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 
     def assign_hstack(self, context, *matrices):
         # if f_matrix.nrows != s_matrix.nrows:
@@ -241,7 +254,7 @@ class GpuMatrix(object):
         """
         alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
         context.activate()
-        gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha.data, a.data, column_indxs, self.data)
+        gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha.data, a.data, column_indxs.data, self.data)
 
     def add_hprod(self, context, a, b, alpha=None):
         """

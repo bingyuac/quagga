@@ -16,7 +16,11 @@ class EmbeddingBlock(object):
 
     def fprop(self):
         self.output.ncols = self.indexes.ncols
-        self.embedding.slice_columns(self.output._f_obtaining_context, self.indexes, self.output.forward_matrix)
+        self.embedding.slice_columns(self.context, self.indexes, self.output)
+        self.context.synchronize()
+        a = self.indexes.to_host()
+        b = self.output.to_host()
+        self.output.ncols = self.indexes.ncols
 
     def bprop(self):
         pass
