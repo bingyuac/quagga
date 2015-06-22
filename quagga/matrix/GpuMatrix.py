@@ -161,6 +161,8 @@ class GpuMatrix(object):
 
     def copy(self, context, out):
         context.activate()
+        out.nrows = self.nrows
+        out.ncols = self.ncols
         cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'device_to_device', context.cuda_stream)
 
     def slice_columns(self, context, column_indxs, out):

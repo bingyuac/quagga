@@ -4,17 +4,19 @@ from quagga.blocks import Connector
 
 
 class EmbeddingBlock(object):
-    def __init__(self, embedding_init, indexes, indexes_max_len, reverse=False):
-        self.embedding = Matrix.from_npa(embedding_init())
-        self.buffer = Matrix.empty(embedding_init.nrows, indexes_max_len, 'float')
-        self.output = Connector(self.buffer, Context())
+    def __init__(self, embedding_init, indexes, indexes_max_len, device_id, reverse=False):
+        self.device_id = device_id
+        self.embedding = Matrix.from_npa(embedding_init(), device_id=device_id)
+        self.context = Context(device_id)
+        self.output = Connector(Matrix.empty(embedding_init.nrows, indexes_max_len, 'float', device_id),
+                                self.context)
         self.indexes = indexes
+        self.indexes.register_user(self, self.context)
         self.indexes_max_len = indexes_max_len
 
     def fprop(self):
-        self.output.forward_matrix = self.buffer[:, :self.indexes.nrows]
-        self.indexes.forward_block(self.output)
-        self.embedding.slice_columns(self.output.forward_context, self.indexes, self.output.forward_matrix)
+        self.output.ncols = self.indexes.ncols
+        self.embedding.slice_columns(self.output._f_obtaining_context, self.indexes, self.output.forward_matrix)
 
     def bprop(self):
         pass
