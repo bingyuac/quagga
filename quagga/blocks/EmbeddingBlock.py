@@ -1,6 +1,6 @@
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import Connector
+from quagga.connector import Connector
 
 
 class EmbeddingBlock(object):
@@ -10,17 +10,13 @@ class EmbeddingBlock(object):
         self.context = Context(device_id)
         self.output = Connector(Matrix.empty(embedding_init.nrows, indexes_max_len, 'float', device_id),
                                 self.context)
-        self.indexes = indexes
-        self.indexes.register_user(self, self.context)
+        self.indexes = indexes.register_usage(self.context)
         self.indexes_max_len = indexes_max_len
 
     def fprop(self):
         self.output.ncols = self.indexes.ncols
         self.embedding.slice_columns(self.context, self.indexes, self.output)
-        self.context.synchronize()
-        a = self.indexes.to_host()
-        b = self.output.to_host()
-        self.output.ncols = self.indexes.ncols
+        self.output.fprop()
 
     def bprop(self):
         pass

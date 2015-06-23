@@ -38,16 +38,15 @@ class Connector(object):
     def __init__(self, f_matrix, f_obtaining_context=None, b_usage_context=None):
         self._f_matrices = {f_obtaining_context.device_id: f_matrix}
         self._f_obtaining_context = f_obtaining_context
-        self._f_usage_contexts = dict()
+        self._f_usage_contexts = list()
         self._b_matrices = defaultdict(dict)
         self._b_obtaining_contexts = dict()
         self._b_usage_context = b_usage_context
 
-    def register_user(self, user, f_usage_context, b_obtaining_context=None, b_matrix=None):
+    def register_usage(self, f_usage_context, b_obtaining_context=None, b_matrix=None):
         """
         Register user of connector's forward_matrix.
 
-        :param user: block that will use this connector
         :param f_usage_context: context in which `forward_matrix`
                                       will be used
         :param b_obtaining_context: context in which `backward_matrix`
@@ -60,83 +59,68 @@ class Connector(object):
         o_device_id = self._f_obtaining_context.device_id
         if u_device_id != o_device_id and u_device_id not in self._f_matrices:
             self._f_matrices[u_device_id] = Matrix.empty_like(self._f_matrices[o_device_id], u_device_id)
-        self._f_usage_contexts[user] = f_usage_context
+        self._f_usage_contexts.append(f_usage_context)
+        if not self._b_usage_context:
+            return self._f_matrices[f_usage_context.device_id]
 
-        if self._b_usage_context:
-            u_device_id = self._b_usage_context.device_id
-            o_device_id = b_obtaining_context.device_id
-            b_matrix = b_matrix if b_matrix else Matrix.empty_like(self.forward_matrix, o_device_id)
-            if u_device_id != o_device_id:
-                self._b_matrices[user][u_device_id] = Matrix.empty_like(b_matrix, u_device_id)
-            self._b_matrices[user][o_device_id] = b_matrix
-            self._b_obtaining_contexts[user] = b_obtaining_context
+        u_device_id = self._b_usage_context.device_id
+        o_device_id = b_obtaining_context.device_id
+        b_matrix = b_matrix if b_matrix else Matrix.empty_like(self.forward_matrix, o_device_id)
+        if u_device_id != o_device_id:
+            self._b_matrices[b_obtaining_context][u_device_id] = Matrix.empty_like(b_matrix, u_device_id)
+        self._b_matrices[b_obtaining_context][o_device_id] = b_matrix
+        return self._f_matrices[f_usage_context.device_id], b_matrix
 
-    def get_forward_matrix(self, requester=None):
+    def fprop(self):
         o_device_id = self._f_obtaining_context.device_id
-        if not requester:
-            return self._f_matrices[o_device_id]
-        u_device_id = self._f_usage_contexts[requester].device_id
-        if o_device_id == u_device_id:
-            return self._f_matrices[o_device_id]
-        self._f_matrices[o_device_id].copy(self._f_obtaining_context, self._f_matrices[u_device_id])
-        self._f_usage_contexts[requester].wait(self._f_obtaining_context)
-        return self._f_matrices[u_device_id]
+        for u_device_id, forward_matrix in self._f_matrices.iteritems():
+            if u_device_id != o_device_id:
+                self._f_matrices[o_device_id].copy(self._f_obtaining_context, forward_matrix)
+        self._f_obtaining_context.block(*self._f_usage_contexts)
 
-    forward_matrix = property(get_forward_matrix)
-
-    def get_backward_matrix(self, requester=None):
-        if requester:
-            o_device_id = self._b_obtaining_contexts[requester].device_id
-            return self._b_matrices[requester][o_device_id]
+    def bprop(self):
         u_device_id = self._b_usage_context.device_id
         backward_matrices = []
-        for requester, matrices in self._b_matrices.iteritems():
-            b_obtaining_context = self._b_obtaining_contexts[requester]
+        for b_obtaining_context, matrices in self._b_matrices.iteritems():
             o_device_id = b_obtaining_context.device_id
             if u_device_id != o_device_id:
                 matrices[o_device_id].copy(b_obtaining_context, matrices[u_device_id])
-                self._b_usage_context.wait(b_obtaining_context)
             backward_matrices.append(matrices[u_device_id])
+        self._b_usage_context.wait(*self._b_matrices.iterkeys())
         for backward_matrix in backward_matrices[1:]:
             backward_matrices[0].add(self._b_usage_context, backward_matrix)
         return backward_matrices[0]
 
-    backward_matrix = property(get_backward_matrix)
-
-    def block_users(self):
-        """
-        From this moment all further calculations in user-registered contexts
-        will be blocked until all calculations that were launched previously
-        in the context where the `forward_matrix` is being calculated,
-        is done.
-        """
-
-        if self._f_obtaining_context:
-            self._f_obtaining_context.block(*self._f_usage_contexts.itervalues())
-
-    def wait_users(self):
-        """
-        From this moment all further calculations in the
-        `_backward_usage_context` will be blocked until all calculations
-        that were launched previously in the `_backward_obtaining_contexts`
-        is done.
-        """
-
-        if self._b_usage_context:
-            self._b_usage_context.wait(*self._b_obtaining_contexts.itervalues())
+    backward_matrix = property(bprop)
 
     def __getattr__(self, name):
-        forward_matrix = self.forward_matrix
-        attribute = getattr(forward_matrix, name)
+        attribute = getattr(self._f_matrices[self._f_obtaining_context.device_id], name)
         if hasattr(attribute, '__call__'):
             setattr(self, name, attribute)
         else:
-            setattr(Connector, name, property(lambda self: getattr(self.forward_matrix, name)))
+            setattr(Connector, name, property(lambda self: getattr(self._f_matrices[self._f_obtaining_context.device_id], name)))
         return getattr(self, name)
 
-    def __setattr__(self, name, value):
-        if name in ['nrows', 'ncols']:
-            for forward_matrix in self._f_matrices.itervalues():
-                setattr(forward_matrix, name, value)
-        else:
-            self.__dict__[name] = value
+    @property
+    def nrows(self):
+        return self._f_matrices[self._f_obtaining_context.device_id].nrows
+
+    @nrows.setter
+    def nrows(self, value):
+        for forward_matrix in self._f_matrices.itervalues():
+            forward_matrix.nrows = value
+        for matrices in self._b_matrices.itervalues():
+            for matrix in matrices:
+                matrix.nrows = value
+
+    @property
+    def ncols(self):
+        return self._f_matrices[self._f_obtaining_context.device_id].ncols
+
+    @ncols.setter
+    def ncols(self, value):
+        for forward_matrix in self._f_matrices.itervalues():
+            forward_matrix.ncols = value
+        for matrices in self._b_matrices.itervalues():
+            for matrix in matrices:
+                matrix.ncols = value

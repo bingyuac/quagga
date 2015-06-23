@@ -153,7 +153,7 @@ class GpuMatrix(object):
             if a._type_ != self.dtype:
                 raise ValueError("Allocated memory has {} type. "
                                  "Can't transfer to the device {} type".
-                                 format(self.dtype, a.a._type_))
+                                 format(self.dtype, a._type_))
             self.nrows, self.ncols = nrows, ncols
         context.activate()
         cudart.cuda_memcpy_async(self.data, a, self.nbytes, 'host_to_device', context.cuda_stream)
@@ -179,6 +179,8 @@ class GpuMatrix(object):
         cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'device_to_device', context.cuda_stream)
 
     def slice_columns(self, context, column_indxs, out):
+        if any(context.device_id != device_id for device_id in [self.device_id, column_indxs.device_id, out.device_id]):
+            raise ValueError('Matrices have to be on the same device as context!')
         context.activate()
         gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 

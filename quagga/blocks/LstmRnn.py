@@ -1,7 +1,8 @@
 import numpy as np
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import VanillaLstmCell, Connector
+from quagga.connector import Connector
+from quagga.blocks import VanillaLstmCell
 
 
 class LstmRnn(object):

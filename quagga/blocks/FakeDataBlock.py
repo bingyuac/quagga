@@ -1,7 +1,7 @@
 import numpy as np
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import Connector
+from quagga.connector import Connector
 
 
 class FakeDataBlock(object):
@@ -20,8 +20,8 @@ class FakeDataBlock(object):
         else:
             y = np.array([[0]], dtype=np.float32)
         self.y.to_device(self.context, y)
-        self.data.block_users()
-        self.y.block_users()
+        self.data.fprop()
+        self.y.fprop()
 
     def bprop(self):
         pass

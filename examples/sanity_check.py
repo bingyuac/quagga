@@ -19,3 +19,5 @@ class Network(object):
 
 model = Network()
 model.fprop()
+model.fprop()
+model.fprop()
