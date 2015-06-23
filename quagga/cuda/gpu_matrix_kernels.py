@@ -33,7 +33,7 @@ gpu_matrix_kernels._slicedInplaceAdd.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._slicedInplaceAdd.argtypes = [cudart.ct_cuda_stream,
                                                  ct.c_int,
                                                  ct.c_int,
-                                                 ct.c_float,
+                                                 ct.POINTER(ct.c_float),
                                                  ct.POINTER(ct.c_float),
                                                  ct.POINTER(ct.c_int),
                                                  ct.POINTER(ct.c_float)]

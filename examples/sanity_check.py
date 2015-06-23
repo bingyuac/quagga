@@ -1,8 +1,10 @@
 import numpy as np
+from quagga.matrix import GpuMatrix
 from quagga.blocks import Ravel
 from quagga.blocks import FakeDataBlock
 from quagga.blocks import EmbeddingBlock
 from quagga.blocks import LogisticRegressionCe
+from quagga.optimizers import SgdOptimizer
 
 
 class Network(object):
@@ -17,7 +19,7 @@ class Network(object):
         ravel_block = Ravel(embd_block.output, device_id=0)
         log_reg = LogisticRegressionCe(log_reg_init, ravel_block.output, data_block.y, device_id=1)
         self.blocks = [data_block, embd_block, ravel_block, log_reg]
-        self.bpropable_blocks = list(reversed(block for block in self.blocks if hasattr(block, 'bprop')))
+        self.bpropable_blocks = list(reversed([block for block in self.blocks if hasattr(block, 'bprop')]))
 
     def fprop(self):
         for block in self.blocks:
@@ -48,7 +50,6 @@ class Network(object):
         return grads
 
 
-model = Network()
-model.fprop()
-model.fprop()
-model.fprop()
+learning_rate = GpuMatrix.from_npa(np.array([[0.1]]), 'float')
+sgd = SgdOptimizer(learning_rate, Network())
+sgd.optimize()

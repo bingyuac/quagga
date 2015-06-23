@@ -35,7 +35,7 @@ class Connector(object):
                                 +----------------------+    +-----------------+
     """
 
-    def __init__(self, f_matrix, f_obtaining_context=None, b_usage_context=None):
+    def __init__(self, f_matrix, f_obtaining_context, b_usage_context=None):
         self._f_matrices = {f_obtaining_context.device_id: f_matrix}
         self._f_obtaining_context = f_obtaining_context
         self._f_usage_contexts = list()

@@ -37,7 +37,6 @@ class LogisticRegressionCe(object):
 
     def bprop(self):
         # error = probs - true_labels
-        self.true_labels.forward_block(self.context)
         self.probs.sub(self.context, self.true_labels)
         # dL/dw = error * features.T
         self.dL_dw.assign_dot(self.context, self.probs, self.features, matrix_operation_b='T')
@@ -47,8 +46,8 @@ class LogisticRegressionCe(object):
 
     @property
     def params(self):
-        return [self.w]
+        return [(self.context, self.w)]
 
     @property
     def grads(self):
-        return [self.dL_dw]
+        return [(self.context, self.dL_dw)]

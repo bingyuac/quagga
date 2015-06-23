@@ -8,6 +8,7 @@ class GpuMatrix(object):
     zero_scalar = None
     one_scalar = None
     minus_one_scalar = None
+    minus_two_scalar = None
 
     def __init__(self, data, nrows, ncols, dtype, device_id, is_owner):
         self.data = data
@@ -161,8 +162,6 @@ class GpuMatrix(object):
 
     def copy(self, context, out):
         context.activate()
-        out.nrows = self.nrows
-        out.ncols = self.ncols
         cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'device_to_device', context.cuda_stream)
 
     def ravel(self):
@@ -170,6 +169,10 @@ class GpuMatrix(object):
 
     def reshape(self, nrows, ncols):
         return GpuMatrix(self.data, nrows, ncols, self.dtype, self.device_id, False)
+
+    def negate(self, context):
+        context.activate()
+        cublas.cublas_s_axpy(context.cublas_handle, self.nelems, GpuMatrix.minus_two_scalar[context.device_id].data, self.data, 1, self.data, 1)
 
     def slice_columns(self, context, column_indxs, out):
         if any(context.device_id != device_id for device_id in [self.device_id, column_indxs.device_id, out.device_id]):
@@ -256,7 +259,6 @@ class GpuMatrix(object):
         """
         self.sliced_add_scaled(context, column_indxs, GpuMatrix.one_scalar[context.device_id], a)
 
-
     def add_hprod(self, context, a, b, alpha=None):
         """
         self = a .* b + alpha * self
@@ -321,7 +323,9 @@ class GpuMatrix(object):
 GpuMatrix.zero_scalar = []
 GpuMatrix.one_scalar = []
 GpuMatrix.minus_one_scalar = []
+GpuMatrix.minus_two_scalar = []
 for device_id in xrange(cudart.cuda_get_device_count()):
     GpuMatrix.zero_scalar.append(GpuMatrix.from_npa(np.zeros((1, 1)), 'float', device_id))
     GpuMatrix.one_scalar.append(GpuMatrix.from_npa(np.ones((1, 1)), 'float', device_id))
     GpuMatrix.minus_one_scalar.append(GpuMatrix.from_npa(-np.ones((1, 1)), 'float', device_id))
+    GpuMatrix.minus_two_scalar.append(GpuMatrix.from_npa(-2*np.ones((1, 1)), 'float', device_id))

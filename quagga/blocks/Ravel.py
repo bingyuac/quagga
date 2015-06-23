@@ -18,4 +18,4 @@ class Ravel(object):
 
     def bprop(self):
         if self.propagate_error:
-            self.matrix.copy(self.context, self.dL_dmatrix)
+            self.output.bprop().copy(self.context, self.dL_dmatrix)

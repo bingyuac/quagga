@@ -18,8 +18,7 @@ class EmbeddingBlock(object):
         self.output.fprop()
 
     def bprop(self):
-        # TODO
-        pass
+        self.output.bprop()
 
     @property
     def params(self):
@@ -27,8 +26,4 @@ class EmbeddingBlock(object):
 
     @property
     def grads(self):
-        return [(self.context, self.embedding)]
-
-    @property
-    def f(self):
-        return [{self.indexes: self.output.backward_matrix}]
+        return [(self.context, (self.indexes, self.output.backward_matrix))]

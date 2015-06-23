@@ -166,6 +166,7 @@ _libcublas.cublasSaxpy_v2.argtypes = [ct_cublas_handle, ct.c_int,
                                       ct.c_int,
                                       ct.POINTER(ct.c_float),
                                       ct.c_int]
+
 def cublas_s_axpy(handle, n, alpha, x, incx, y, incy):
     status = _libcublas.cublasSaxpy_v2(handle, n, alpha, x, incx, y, incy)
     check_cublas_status(status)
