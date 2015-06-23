@@ -7,36 +7,31 @@ class LogisticRegressionCe(object):
     Logistic regression with cross entropy loss
     """
 
-    def __init__(self, init, features, true_labels, max_instance_num, propagate_error=True):
+    def __init__(self, init, features, true_labels, device_id, propagate_error=True):
         """
 
         :param init: initializer for logistic regression weights
         :param features: connector that contains feature matrix.
+        :param device_id:
         :param true_labels: connector that contains labels
-        :param max_instance_num:
         :param propagate_error:
         """
-        self.w = Matrix.from_npa(init())
-        self.dL_dw = Matrix.empty_like(self.w)
-        self.features = features
-        self.true_labels = true_labels
-        self.probs = Matrix.empty(true_labels.nrows, max_instance_num, 'float')
-        self.context = Context()
+        if true_labels.ncols != features.ncols:
+            raise ValueError('TODO!')
+
+        self.w = Matrix.from_npa(init(), device_id=device_id)
+        self.dL_dw = Matrix.empty_like(self.w, device_id)
+        self.context = Context(device_id)
         if propagate_error:
-            self.dL_dfeatures = Matrix.empty(features.nrows, max_instance_num, 'float')
-            self.features.register_user(self, self.context, self.dL_dfeatures)
+            self.features, self.dL_dfeatures = features.register_usage(self.context, self.context)
+        else:
+            self.features = features.register_usage(self.context)
         self.propagate_error = propagate_error
-        self.max_instance_num = max_instance_num
+        self.true_labels = true_labels
+        self.probs = Matrix.empty(true_labels.nrows, true_labels.ncols, 'float', device_id)
 
     def fprop(self):
-        n = self.features.ncols
-        if n > self.max_instance_num:
-            raise ValueError('There is {} instances, that is too big. '
-                             'The maximum is: {}'.
-                             format(n, self.max_instance_num))
-        self.probs.ncols = n
-        self.dL_dfeatures.ncols = n
-        self.features.forward_block(self.context)
+        self.probs.ncols = self.features.ncols
         self.probs.assign_dot(self.context, self.w, self.features)
         self.probs.sigmoid(self.context, self.probs)
 

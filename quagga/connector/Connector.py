@@ -43,7 +43,7 @@ class Connector(object):
         self._b_obtaining_contexts = dict()
         self._b_usage_context = b_usage_context
 
-    def register_usage(self, f_usage_context, b_obtaining_context=None, b_matrix=None):
+    def register_usage(self, f_usage_context, b_obtaining_context=None):
         """
         Register user of connector's forward_matrix.
 
@@ -51,21 +51,22 @@ class Connector(object):
                                       will be used
         :param b_obtaining_context: context in which `backward_matrix`
                                     of the connector will be calculated
-        :param b_matrix: backward_matrix buffer if it is None
-                         the same as forward_matrix will be created if
-                         b_obtaining_context is not None
         """
+        # if not self._b_usage_context and b_obtaining_context:
+        #     raise ValueError('Why do you perform backward propagation? '
+        #                      'Previous block does not need you backward step')
+
         u_device_id = f_usage_context.device_id
         o_device_id = self._f_obtaining_context.device_id
         if u_device_id != o_device_id and u_device_id not in self._f_matrices:
-            self._f_matrices[u_device_id] = Matrix.empty_like(self._f_matrices[o_device_id], u_device_id)
+            self._f_matrices[u_device_id] = Matrix.empty_like(self, u_device_id)
         self._f_usage_contexts.append(f_usage_context)
         if not self._b_usage_context:
             return self._f_matrices[f_usage_context.device_id]
 
         u_device_id = self._b_usage_context.device_id
         o_device_id = b_obtaining_context.device_id
-        b_matrix = b_matrix if b_matrix else Matrix.empty_like(self.forward_matrix, o_device_id)
+        b_matrix = Matrix.empty_like(self, o_device_id)
         if u_device_id != o_device_id:
             self._b_matrices[b_obtaining_context][u_device_id] = Matrix.empty_like(b_matrix, u_device_id)
         self._b_matrices[b_obtaining_context][o_device_id] = b_matrix
@@ -122,5 +123,5 @@ class Connector(object):
         for forward_matrix in self._f_matrices.itervalues():
             forward_matrix.ncols = value
         for matrices in self._b_matrices.itervalues():
-            for matrix in matrices:
+            for matrix in matrices.itervalues():
                 matrix.ncols = value

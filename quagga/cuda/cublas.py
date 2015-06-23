@@ -208,7 +208,7 @@ _libcublas.cublasSgemv_v2.argtypes = [ct_cublas_handle,
                                       ct.POINTER(ct.c_float),
                                       ct.c_int]
 def cublas_s_gemv(handle, trans, m, n, alpha, a, lda, x, incx, beta, y, incy):
-    status = _libcublas.cublasSgemv_v2(handle, cublas_op[trans], m, n, ct.byref(alpha), a, lda, x, incx, beta, y, incy)
+    status = _libcublas.cublasSgemv_v2(handle, cublas_op[trans], m, n, alpha, a, lda, x, incx, beta, y, incy)
     check_cublas_status(status)
 
 

@@ -18,8 +18,7 @@ class GpuMatrix(object):
         self.device_id = device_id
         self.is_owner = is_owner
         if is_owner:
-            atexit.register(GpuMatrix._free_memory, data, device_id)
-            # atexit.register(cudart.cuda_free, self.data)
+            atexit.register(cudart.cuda_free, self.data)
 
     @property
     def nelems(self):
@@ -29,23 +28,11 @@ class GpuMatrix(object):
     def nbytes(self):
         return self.nelems * ct.sizeof(self.c_dtype)
 
-    @staticmethod
-    def _free_memory(ptr, device_id):
-        try:
-            cudart.cuda_set_device(device_id)
-            cudart.cuda_free(ptr)
-        except:
-            device_id = 0 if device_id == 1 else 1
-            cudart.cuda_set_device(device_id)
-            cudart.cuda_free(ptr)
-
     def __del__(self):
         if self.is_owner:
             try:
-                atexit._exithandlers.remove((GpuMatrix._free_memory, (self.data, self.device_id), {}))
-                # atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
-                GpuMatrix._free_memory(self.data, self.device_id)
-                # cudart.cuda_free()
+                atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
+                cudart.cuda_free(self.data)
             except ValueError:
                 pass
 
@@ -122,7 +109,7 @@ class GpuMatrix(object):
 
     @classmethod
     def empty_like(cls, other, device_id=None):
-        nbytes = other.nrows * other.ncols * ct.sizeof(other.c_dtype)
+        nbytes = other.nelems * ct.sizeof(other.c_dtype)
         with cudart.device(device_id):
             device_id = cudart.cuda_get_device()
             data = cudart.cuda_malloc(nbytes, other.c_dtype)
@@ -177,6 +164,12 @@ class GpuMatrix(object):
         out.nrows = self.nrows
         out.ncols = self.ncols
         cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'device_to_device', context.cuda_stream)
+
+    def ravel(self):
+        return GpuMatrix(self.data, self.nelems, 1, self.dtype, self.device_id, False)
+
+    def reshape(self, nrows, ncols):
+        return GpuMatrix(self.data, nrows, ncols, self.dtype, self.device_id, False)
 
     def slice_columns(self, context, column_indxs, out):
         if any(context.device_id != device_id for device_id in [self.device_id, column_indxs.device_id, out.device_id]):
