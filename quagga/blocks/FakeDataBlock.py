@@ -22,6 +22,3 @@ class FakeDataBlock(object):
         self.y.to_device(self.context, y)
         self.data.fprop()
         self.y.fprop()
-
-    def bprop(self):
-        pass

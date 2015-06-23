@@ -243,13 +243,19 @@ class GpuMatrix(object):
     def sub(self, context, a):
         self.add_scaled(context, GpuMatrix.minus_one_scalar[context.device_id], a)
 
-    def sliced_add(self, context, a, column_indxs, alpha=None):
+    def sliced_add_scaled(self, context, column_indxs, alpha, a):
         """
         self[column_indxs] += alpha * a
         """
-        alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
         context.activate()
         gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha.data, a.data, column_indxs.data, self.data)
+
+    def sliced_add(self, context, column_indxs, a):
+        """
+        self[column_indxs] += a
+        """
+        self.sliced_add_scaled(context, column_indxs, GpuMatrix.one_scalar[context.device_id], a)
+
 
     def add_hprod(self, context, a, b, alpha=None):
         """

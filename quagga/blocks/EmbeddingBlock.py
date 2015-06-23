@@ -22,8 +22,12 @@ class EmbeddingBlock(object):
         pass
 
     @property
-    def parameters(self):
-        return [self.embedding]
+    def params(self):
+        return [(self.context, self.embedding)]
+
+    @property
+    def grads(self):
+        return [(self.context, self.embedding)]
 
     @property
     def f(self):

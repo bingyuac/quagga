@@ -27,7 +27,7 @@ class LogisticRegressionCe(object):
         else:
             self.features = features.register_usage(self.context)
         self.propagate_error = propagate_error
-        self.true_labels = true_labels
+        self.true_labels = true_labels.register_usage(self.context)
         self.probs = Matrix.empty(true_labels.nrows, true_labels.ncols, 'float', device_id)
 
     def fprop(self):

@@ -14,6 +14,7 @@ class Ravel(object):
 
     def fprop(self):
         self.output.nrows = self.matrix.nelems
+        self.output.fprop()
 
     def bprop(self):
         if self.propagate_error:

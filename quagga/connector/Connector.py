@@ -111,7 +111,7 @@ class Connector(object):
         for forward_matrix in self._f_matrices.itervalues():
             forward_matrix.nrows = value
         for matrices in self._b_matrices.itervalues():
-            for matrix in matrices:
+            for matrix in matrices.itervalues():
                 matrix.nrows = value
 
     @property
