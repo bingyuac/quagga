@@ -106,11 +106,11 @@ class CpuMatrix(object):
             for m in [a, b, c]:
                 self.npa += m.npa
 
-    def sliced_add(self, context, a, column_indxs, alpha=1.0):
+    def sliced_add_scaled(self, context, column_indxs, alpha, a):
         """
         self[column_indxs] += alpha * a
         """
-        for i, idx in enumerate(column_indxs):
+        for i, idx in enumerate(column_indxs.npa.flatten()):
             self.npa[:, idx] += alpha * a.npa[:, i]
 
     def add_hprod(self, context, a, b, alpha=1.0):

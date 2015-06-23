@@ -168,7 +168,7 @@ _libcublas.cublasSaxpy_v2.argtypes = [ct_cublas_handle, ct.c_int,
                                       ct.c_int]
 
 def cublas_s_axpy(handle, n, alpha, x, incx, y, incy):
-    status = _libcublas.cublasSaxpy_v2(handle, n, alpha, x, incx, y, incy)
+    status = _libcublas.cublasSaxpy_v2(handle, n, ct.byref(alpha), x, incx, y, incy)
     check_cublas_status(status)
 
 
@@ -209,7 +209,7 @@ _libcublas.cublasSgemv_v2.argtypes = [ct_cublas_handle,
                                       ct.POINTER(ct.c_float),
                                       ct.c_int]
 def cublas_s_gemv(handle, trans, m, n, alpha, a, lda, x, incx, beta, y, incy):
-    status = _libcublas.cublasSgemv_v2(handle, cublas_op[trans], m, n, alpha, a, lda, x, incx, beta, y, incy)
+    status = _libcublas.cublasSgemv_v2(handle, cublas_op[trans], m, n, ct.byref(alpha), a, lda, x, incx, ct.byref(beta), y, incy)
     check_cublas_status(status)
 
 
@@ -229,5 +229,5 @@ _libcublas.cublasSgemm_v2.argtypes = [ct_cublas_handle,
                                       ct.POINTER(ct.c_float),
                                       ct.c_int]
 def cublas_s_gemm(handle, transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc):
-    status = _libcublas.cublasSgemm_v2(handle, cublas_op[transa], cublas_op[transb], m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+    status = _libcublas.cublasSgemm_v2(handle, cublas_op[transa], cublas_op[transb], m, n, k, ct.byref(alpha), a, lda, b, ldb, ct.byref(beta), c, ldc)
     check_cublas_status(status)

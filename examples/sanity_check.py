@@ -1,5 +1,5 @@
 import numpy as np
-from quagga.matrix import GpuMatrix
+import ctypes as ct
 from quagga.blocks import Ravel
 from quagga.blocks import FakeDataBlock
 from quagga.blocks import EmbeddingBlock
@@ -50,6 +50,6 @@ class Network(object):
         return grads
 
 
-learning_rate = GpuMatrix.from_npa(np.array([[0.1]]), 'float')
+learning_rate = ct.c_float(0.1)
 sgd = SgdOptimizer(learning_rate, Network())
 sgd.optimize()

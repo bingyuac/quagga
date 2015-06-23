@@ -188,25 +188,26 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
-    def test_sliced_add(self):
+    def test_sliced_add_scaled(self):
         r = []
         for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
+            # a = TestMatrix.get_random_array()
+            # b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
+            a = np.array([[1, 2], [3, 4]], np.float32)
+            b = np.array([[10, 20, 30], [40, 50, 60]], np.float32)
+            indxs = self.rng.choice(b.shape[1], a.shape[1]).astype(dtype=np.int32)
+            indxs = indxs.reshape((1, len(indxs)))
             alpha = 2 * self.rng.rand(1)[0] - 1
 
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            column_indxs_cpu = self.rng.choice(b.shape[1], a.shape[1]).astype(dtype=np.int32)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-            raw_column_indxs = column_indxs_cpu.ctypes.data_as(ct.POINTER(ct.c_int))
-            nbytes = column_indxs_cpu.size * ct.sizeof(ct.c_int)
-            column_indxs_gpu = cudart.cuda_malloc(nbytes, ct.c_int)
-            cudart.cuda_memcpy(column_indxs_gpu, raw_column_indxs, nbytes, 'host_to_device')
+            a_cpu = CpuMatrix.from_npa(a, 'float')
+            b_cpu = CpuMatrix.from_npa(b, 'float')
+            column_indxs_cpu = CpuMatrix.from_npa(indxs)
+            column_indxs_gpu = GpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a, 'float')
+            b_gpu = GpuMatrix.from_npa(b, 'float')
 
-            b_cpu.sliced_add(self.cpu_context, a_cpu, column_indxs_cpu, alpha)
-            b_gpu.sliced_add(self.gpu_context, a_gpu, column_indxs_gpu, alpha)
+            b_cpu.sliced_add_scaled(self.cpu_context, column_indxs_cpu, alpha, a_cpu)
+            b_gpu.sliced_add_scaled(self.gpu_context, column_indxs_gpu, ct.c_float(alpha), a_gpu)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host(), atol=1e-6))

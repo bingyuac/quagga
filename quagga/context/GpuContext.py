@@ -78,4 +78,3 @@ for device_id in xrange(cudart.cuda_get_device_count()):
     with cudart.device(device_id):
         GpuContext._cublas_handle.append(cublas.ct_cublas_handle())
         cublas.cublas_create(GpuContext._cublas_handle[-1])
-        cublas.cublas_set_pointer_mode(GpuContext._cublas_handle[-1], 'device')

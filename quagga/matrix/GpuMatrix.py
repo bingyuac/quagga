@@ -5,11 +5,6 @@ from quagga.cuda import cudart, cublas, gpu_matrix_kernels, nonlinearities
 
 
 class GpuMatrix(object):
-    zero_scalar = None
-    one_scalar = None
-    minus_one_scalar = None
-    minus_two_scalar = None
-
     def __init__(self, data, nrows, ncols, dtype, device_id, is_owner):
         self.data = data
         self.nrows = nrows
@@ -170,10 +165,6 @@ class GpuMatrix(object):
     def reshape(self, nrows, ncols):
         return GpuMatrix(self.data, nrows, ncols, self.dtype, self.device_id, False)
 
-    def negate(self, context):
-        context.activate()
-        cublas.cublas_s_axpy(context.cublas_handle, self.nelems, GpuMatrix.minus_two_scalar[context.device_id].data, self.data, 1, self.data, 1)
-
     def slice_columns(self, context, column_indxs, out):
         if any(context.device_id != device_id for device_id in [self.device_id, column_indxs.device_id, out.device_id]):
             raise ValueError('Matrices have to be on the same device as context!')
@@ -195,9 +186,9 @@ class GpuMatrix(object):
     def scale(self, context, alpha, out=None):
         context.activate()
         if out:
-            gpu_matrix_kernels.scale(context.cuda_stream, self.nelems, alpha.data, self.data, out.data)
+            gpu_matrix_kernels.scale(context.cuda_stream, self.nelems, alpha, self.data, out.data)
         else:
-            cublas.cublas_s_scal(context.cublas_handle, self.nelems, alpha.data, self.data, 1)
+            cublas.cublas_s_scal(context.cublas_handle, self.nelems, alpha, self.data, 1)
 
     def tanh(self, context, tanh_matrix, derivative_matrix=None):
         context.activate()
@@ -234,38 +225,37 @@ class GpuMatrix(object):
         self += alpha * a
         """
         context.activate()
-        cublas.cublas_s_axpy(context.cublas_handle, self.nelems, alpha.data, a.data, 1, self.data, 1)
+        cublas.cublas_s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
 
     def add(self, context, a, b=None, c=None):
         if not b and not c:
-            self.add_scaled(context, GpuMatrix.one_scalar[context.device_id], a)
+            self.add_scaled(context, ct.c_float(1.0), a)
         else:
             context.activate()
             gpu_matrix_kernels.sum(context.cuda_stream, self.nelems, a.data, b.data, c.data, self.data, self.data)
 
     def sub(self, context, a):
-        self.add_scaled(context, GpuMatrix.minus_one_scalar[context.device_id], a)
+        self.add_scaled(context, ct.c_float(-1.0), a)
 
     def sliced_add_scaled(self, context, column_indxs, alpha, a):
         """
         self[column_indxs] += alpha * a
         """
         context.activate()
-        gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha.data, a.data, column_indxs.data, self.data)
+        gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha, a.data, column_indxs.data, self.data)
 
     def sliced_add(self, context, column_indxs, a):
         """
         self[column_indxs] += a
         """
-        self.sliced_add_scaled(context, column_indxs, GpuMatrix.one_scalar[context.device_id], a)
+        self.sliced_add_scaled(context, column_indxs, ct.c_float(1.0), a)
 
-    def add_hprod(self, context, a, b, alpha=None):
+    def add_hprod(self, context, a, b, alpha=ct.c_float(1.0)):
         """
         self = a .* b + alpha * self
         """
-        alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
         context.activate()
-        gpu_matrix_kernels.add_hadamard_product(context.cuda_stream, self.nelems, a.data, b.data, alpha.data, self.data)
+        gpu_matrix_kernels.add_hadamard_product(context.cuda_stream, self.nelems, a.data, b.data, alpha, self.data)
 
     def assign_hprod(self, context, a, b, c=None):
         """
@@ -300,32 +290,15 @@ class GpuMatrix(object):
         gpu_matrix_kernels.hprod_sum(context.cuda_stream, a.nrows, a.ncols, a.data, b.data, self.data)
 
     def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
-        self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=GpuMatrix.zero_scalar[context.device_id])
+        self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=ct.c_float(0.0))
 
-    def add_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N', alpha=None, beta=None):
+    def add_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N', alpha=ct.c_float(1.0), beta=ct.c_float(1.0)):
         """
         self = alpha * op(a) * b + beta * self
         """
-        alpha = alpha if alpha else GpuMatrix.one_scalar[context.device_id]
-        beta = beta if beta else GpuMatrix.one_scalar[context.device_id]
         context.activate()
         if self.ncols == 1 and matrix_operation_b == 'N':
-            cublas.cublas_s_gemv(context.cublas_handle, matrix_operation_a, a.nrows, a.ncols, alpha.data, a.data, a.nrows, b.data, 1, beta.data, self.data, 1)
+            cublas.cublas_s_gemv(context.cublas_handle, matrix_operation_a, a.nrows, a.ncols, alpha, a.data, a.nrows, b.data, 1, beta, self.data, 1)
         else:
             k = b.nrows if matrix_operation_b == 'N' else b.ncols
-            cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha.data, a.data, a.nrows, b.data, b.nrows, beta.data, self.data, self.nrows)
-
-    def assign_vdot(self, context, a):
-        context.activate()
-        cublas.cublas_s_dot(context.cublas_handle, self.nelems, self.data, 1, a.data, 1, self.data)
-
-
-GpuMatrix.zero_scalar = []
-GpuMatrix.one_scalar = []
-GpuMatrix.minus_one_scalar = []
-GpuMatrix.minus_two_scalar = []
-for device_id in xrange(cudart.cuda_get_device_count()):
-    GpuMatrix.zero_scalar.append(GpuMatrix.from_npa(np.zeros((1, 1)), 'float', device_id))
-    GpuMatrix.one_scalar.append(GpuMatrix.from_npa(np.ones((1, 1)), 'float', device_id))
-    GpuMatrix.minus_one_scalar.append(GpuMatrix.from_npa(-np.ones((1, 1)), 'float', device_id))
-    GpuMatrix.minus_two_scalar.append(GpuMatrix.from_npa(-2*np.ones((1, 1)), 'float', device_id))
+            cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)

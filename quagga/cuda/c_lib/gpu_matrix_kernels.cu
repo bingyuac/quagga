@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <stdio.h>
 #include <cuda_runtime.h>
 
 
@@ -146,7 +147,7 @@ __global__  void addHadamardProduct(int nelems,
 
 __global__  void slicedInplaceAdd(int nrows,
 							      int ncols,
-							      const float* alpha,
+							      float alpha,
 							      const float* __restrict__ dense_matrix,
 							      const int* __restrict__ embedding_column_indxs,
 							      float* __restrict__ embedding_matrix) {
@@ -161,7 +162,7 @@ __global__  void slicedInplaceAdd(int nrows,
 		dense_column_idx = i / nrows;
 		row_idx = i % nrows;
 		embedding_offset = embedding_column_indxs[dense_column_idx] * nrows + row_idx;
-		atomicAdd(embedding_matrix + embedding_offset, *alpha * dense_matrix[i]);
+		atomicAdd(embedding_matrix + embedding_offset, alpha * dense_matrix[i]);
 	}
 }
 
@@ -307,7 +308,7 @@ extern "C" {
     cudaError_t _slicedInplaceAdd(cudaStream_t stream,
                                   int nrows,
 							      int ncols,
-							      const float* alpha,
+							      float alpha,
 							      const float* __restrict__ dense_matrix,
 							      const int* __restrict__ embedding_column_indxs,
 							      float* __restrict__ embedding_matrix) {
