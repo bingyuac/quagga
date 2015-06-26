@@ -10,11 +10,34 @@ class SgdOptimizer(object):
         self.learning_rate = learning_rate
 
     def optimize(self):
-        for i in xrange(1000):
+        import time
+        t = time.time()
+        for i in xrange(100000):
             self.model.fprop()
             self.model.bprop()
             self.update()
+        print (time.time() - t) / i
+        print time.time() - t
         self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
+        self.model.fprop()
+        print self.model.blocks[-1].probs.to_host(), self.model.blocks[-1].true_labels.to_host()
 
     def update(self):
         for param_u_context, param, grad_o_context, grad in izip(self.param_u_contexts, self.params, self.grad_o_contexts, self.grads):

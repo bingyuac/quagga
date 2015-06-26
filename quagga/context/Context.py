@@ -2,7 +2,7 @@ import quagga
 from quagga.context import CpuContext, GpuContext
 
 
-def Context(device_id):
+def Context(device_id=None):
     if quagga.processor_type == 'cpu':
         return CpuContext(device_id)
     elif quagga.processor_type == 'gpu':

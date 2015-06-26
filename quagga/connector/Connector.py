@@ -1,4 +1,5 @@
 from quagga.matrix import Matrix
+from quagga.context import Context
 from collections import defaultdict
 
 
@@ -35,7 +36,9 @@ class Connector(object):
                                 +----------------------+    +-----------------+
     """
 
-    def __init__(self, f_matrix, f_obtaining_context, b_usage_context=None):
+    def __init__(self, f_matrix, f_obtaining_context=None, b_usage_context=None):
+        if not f_obtaining_context:
+            f_obtaining_context = Context(f_matrix.device_id)
         self._f_matrices = {f_obtaining_context.device_id: f_matrix}
         self._f_obtaining_context = f_obtaining_context
         self._f_usage_contexts = list()
@@ -48,13 +51,13 @@ class Connector(object):
         Register user of connector's forward_matrix.
 
         :param f_usage_context: context in which `forward_matrix`
-                                      will be used
+                                will be used
         :param b_obtaining_context: context in which `backward_matrix`
                                     of the connector will be calculated
         """
-        # if not self._b_usage_context and b_obtaining_context:
-        #     raise ValueError('Why do you perform backward propagation? '
-        #                      'Previous block does not need you backward step')
+        if not self._b_usage_context and b_obtaining_context:
+            raise ValueError('Why do you perform backward propagation? '
+                             'Previous block does not need you backward step!')
 
         u_device_id = f_usage_context.device_id
         o_device_id = self._f_obtaining_context.device_id

@@ -51,9 +51,9 @@
     - [ ] Synchronize Cpu/GpuMatrix classes
 - [ ] Implement EmbeddingBlock
 - [ ] Implement SliceBlock
-- [ ] Implement LogisticRegressionCe
+- [x] Implement LogisticRegressionCe
     - [x] Implement LogisticRegressionCe block
-    - [ ] Add finite difference tests
+    - [x] Add finite difference tests
 - [ ] Implement SoftmaxCe
     - [x] Implement SoftmaxCe block
     - [ ] Add finite difference tests   
@@ -65,3 +65,5 @@
 - [ ] Add different types of Optimizers
     - [ ] Implement SgdOptimizer
     - [ ] Implement NagOptimizer
+- [ ] Implement sanity check
+    - [x] implement indexing

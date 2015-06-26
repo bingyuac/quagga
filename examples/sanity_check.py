@@ -50,6 +50,6 @@ class Network(object):
         return grads
 
 
-learning_rate = ct.c_float(0.1)
+learning_rate = ct.c_float(0.01)
 sgd = SgdOptimizer(learning_rate, Network())
 sgd.optimize()
