@@ -6,7 +6,7 @@ from quagga.matrix import GpuMatrix
 from quagga.connector import Connector
 
 
-class test_Ravel(TestCase):
+class testRavel(TestCase):
     def test_fprop(self):
         r = []
         n = 10
@@ -34,6 +34,7 @@ class test_Ravel(TestCase):
             ravel_block = Ravel(matrix)
             output, dL_doutput = ravel_block.output.register_usage(context, context)
             GpuMatrix.from_npa(np.random.rand(dL_doutput.nrows, dL_doutput.ncols), 'float').copy(context, dL_doutput)
+            ravel_block.fprop()
             ravel_block.bprop()
             a = ravel_block.dL_dmatrix.to_host()
             b = dL_doutput.to_host().reshape(a.shape, order='F')

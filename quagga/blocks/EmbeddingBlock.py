@@ -4,11 +4,10 @@ from quagga.connector import Connector
 
 
 class EmbeddingBlock(object):
-    def __init__(self, embedding_init, indexes, device_id, reverse=False):
-        self.device_id = device_id
+    def __init__(self, embedding_init, indexes, device_id=None, reverse=False):
         self.embedding = Matrix.from_npa(embedding_init(), device_id=device_id)
         self.context = Context(device_id)
-        self.output = Connector(Matrix.empty(embedding_init.nrows, indexes.ncols, 'float', device_id),
+        self.output = Connector(Matrix.empty(self.embedding.nrows, indexes.ncols, 'float', device_id),
                                 self.context, self.context)
         self.indexes = indexes.register_usage(self.context)
 
