@@ -65,5 +65,7 @@
 - [ ] Add different types of Optimizers
     - [ ] Implement SgdOptimizer
     - [ ] Implement NagOptimizer
-- [ ] Implement sanity check
+- [ ] Implement DenseBlock
+    - [ ] Write tests    
+- [x] Implement sanity check
     - [x] implement indexing

@@ -15,8 +15,8 @@ class FakeDataBlock(object):
     def fprop(self):
         data = self.rng.randint(2, size=(1, 3)).astype(np.int32)
         self.data.to_device(self.context, data)
-        # if np.sum(data) == 2:
-        if data[0][0] == 1:
+        if np.sum(data) == 2:
+        # if data[0][0] == 1:
             y = np.array([[1]], dtype=np.float32)
         else:
             y = np.array([[0]], dtype=np.float32)

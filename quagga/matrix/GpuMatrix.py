@@ -227,6 +227,13 @@ class GpuMatrix(object):
         else:
             nonlinearities.tanh_sigm(context.cuda_stream, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data)
 
+    def relu(self, context, relu_matrix, derivative_matrix=None):
+        context.activate()
+        if derivative_matrix:
+            nonlinearities.relu_der(context.cuda_stream, self.nelems, self.data, relu_matrix.data, derivative_matrix.data)
+        else:
+            nonlinearities.relu(context.cuda_stream, self.nelems, self.data, relu_matrix.data)
+
     def softmax(self, context, softmax_matrix):
         # TODO
         context.activate()

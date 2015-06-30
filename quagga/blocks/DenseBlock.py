@@ -4,24 +4,59 @@ from quagga.connector import Connector
 
 
 class DenseBlock(object):
-    def __init__(self, init, input, activation_function, device_id=None):
-        self.context = Context()
+    def __init__(self, init, features, activation_function, device_id=None):
+        self.context = Context(device_id)
         self.w = Matrix.from_npa(init(), device_id=device_id)
-        if input._b_usage_context:
-            self.input, self.dL_dinput = input.register_usage(self.context, self.context)
+        self.dL_dw = Matrix.empty_like(self.w, device_id)
+        if features._b_usage_context:
+            self.propagate_error = True
+            self.features, self.dL_dfeatures = features.register_usage(self.context, self.context)
         else:
-            self.input = input.register_usage(self.context)
-        self.output = Connector(Matrix.empty(self.w.nrows, self.input.ncols, 'float', device_id), self.context, self.context)
+            self.propagate_error = False
+            self.features = features.register_usage(self.context)
+        self.output = Connector(Matrix.empty(self.w.nrows, self.features.ncols, 'float', device_id), self.context, self.context)
+        self._df_dpref = Matrix.empty(self.w.nrows, self.features.ncols, 'float', device_id)
+
+        if activation_function == 'sigmoid':
+            self.f = self.output.sigmoid
+        elif activation_function == 'tanh':
+            self.f = self.output.tanh
+        elif activation_function == 'relu':
+            self.f = self.output.relu
+        self.back_prop = None
+
+    @property
+    def df_dpref(self):
+        if self.back_prop:
+            return self._df_dpref
+
+    def set_training_mode(self):
+        self.back_prop = True
+
+    def set_testing_mode(self):
+        self.back_prop = False
 
     def fprop(self):
-        self.output.ncols = self.input.ncols
-        self.output.assign_dot(self.context, self.w, self.input)
-        if activation_function == 'sigmoid':
-            self.output.sigmoid(self.context, self.output)
-        elif activation_function == 'tanh':
-            self.output.tanh(self.context, self.output)
-        elif activation_function == 'relu':
-            self.output.relu(self.context, self.output)
+        self._df_dpref.ncols = self.features.ncols
+        self.output.ncols = self.features.ncols
+        self.output.assign_dot(self.context, self.w, self.features)
+        self.f(self.context, self.output, self.df_dpref)
+        self.output.fprop()
 
     def bprop(self):
-        pass
+        dL_dpref = self.output.backward_matrix
+        # dL/dpref = dL/df .* df/dpref
+        dL_dpref.assign_hprod(self.context, dL_dpref, self.df_dpref)
+        # dL/dw = dL/dpref * features.T
+        self.dL_dw.assign_dot(self.context, dL_dpref, self.features, matrix_operation_b='T')
+        # dL/dfeatures = w.T * dL/dpref
+        if self.propagate_error:
+            self.dL_dfeatures.assign_dot(self.context, self.w, dL_dpref, matrix_operation_a='T')
+
+    @property
+    def params(self):
+        return [(self.context, self.w)]
+
+    @property
+    def grads(self):
+        return [(self.context, self.dL_dw)]

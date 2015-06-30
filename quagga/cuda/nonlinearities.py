@@ -5,6 +5,27 @@ from quagga.cuda import cudart
 nonlinearities = ct.cdll.LoadLibrary('nonlinearities.so')
 
 
+nonlinearities._relu.restype = cudart.ct_cuda_error
+nonlinearities._relu.argtypes = [cudart.ct_cuda_stream,
+                                    ct.c_int,
+                                    ct.POINTER(ct.c_float),
+                                    ct.POINTER(ct.c_float)]
+def relu(stream, nelems, data, relu_data):
+    status = nonlinearities._relu(stream, nelems, data, relu_data)
+    cudart.check_cuda_status(status)
+
+
+nonlinearities._relu_der.restype = cudart.ct_cuda_error
+nonlinearities._relu_der.argtypes = [cudart.ct_cuda_stream,
+                                        ct.c_int,
+                                        ct.POINTER(ct.c_float),
+                                        ct.POINTER(ct.c_float),
+                                        ct.POINTER(ct.c_float)]
+def relu_der(stream, nelems, data, relu_data, derivative):
+    status = nonlinearities._relu_der(stream, nelems, data, relu_data, derivative)
+    cudart.check_cuda_status(status)
+
+
 nonlinearities._sigmoid.restype = cudart.ct_cuda_error
 nonlinearities._sigmoid.argtypes = [cudart.ct_cuda_stream,
                                     ct.c_int,

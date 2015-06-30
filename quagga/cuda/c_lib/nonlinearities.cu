@@ -99,6 +99,32 @@ __global__ void tanhSigm(int nrows,
 }
 
 
+__global__ void relu(int nelems,
+				 	 const float* __restrict__ data,
+					 float* __restrict__ reluData) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		reluData[i] = fmaxf(0.0, data[i]);
+	}
+}
+
+
+__global__ void relu(int nelems,
+					 const float* __restrict__ data,
+					 float* __restrict__ reluData,
+					 float* __restrict__ derivative) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		reluData[i] = fmaxf(0.0, data[i]);
+		derivative[i] = !signbit(data[i]);
+	}
+}
+
+
 extern "C" {
     cudaError_t _sigmoid(cudaStream_t stream,
                          int nelems,
@@ -160,6 +186,27 @@ extern "C" {
 			                   float* __restrict__ derivative) {
 	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         tanhSigm<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, data, sigm_tanh_data, derivative);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _relu(cudaStream_t stream,
+                      int nelems,
+			          const float* __restrict__ data,
+			          float* __restrict__ relu_data) {
+	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        relu<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, data, relu_data);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _relu_der(cudaStream_t stream,
+                          int nelems,
+			              const float* __restrict__ data,
+			              float* __restrict__ relu_data,
+			              float* __restrict__ derivative) {
+	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        relu<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, data, relu_data, derivative);
         return cudaGetLastError();
 	}
 }

@@ -137,6 +137,36 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N * 3)
 
+    def test_relu(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+
+            a_cpu = CpuMatrix.from_npa(a)
+            relu_matrix_cpu = CpuMatrix.empty_like(a_cpu)
+            derivative_matrix_cpu = CpuMatrix.empty_like(a_cpu)
+            a_gpu = GpuMatrix.from_npa(a)
+            relu_matrix_gpu = GpuMatrix.empty_like(a_gpu)
+            derivative_matrix_gpu = GpuMatrix.empty_like(a_gpu)
+
+            a_cpu.relu(self.cpu_context, relu_matrix_cpu)
+            a_gpu.relu(self.gpu_context, relu_matrix_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(relu_matrix_cpu.to_host(),
+                                 relu_matrix_gpu.to_host()))
+
+            a_cpu.relu(self.cpu_context, relu_matrix_cpu, derivative_matrix_cpu)
+            a_gpu.relu(self.gpu_context, relu_matrix_gpu, derivative_matrix_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(relu_matrix_cpu.to_host(),
+                                 relu_matrix_gpu.to_host()))
+            r.append(np.allclose(derivative_matrix_cpu.to_host(),
+                                 derivative_matrix_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N * 3)
+
     def test_add_scaled(self):
         r = []
         for i in xrange(self.N):

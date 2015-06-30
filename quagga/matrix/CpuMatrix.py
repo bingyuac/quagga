@@ -93,6 +93,11 @@ class CpuMatrix(object):
         if derivative_matrix:
             derivative_matrix.npa.data = (sigmoid_matrix.npa * (1.0 - sigmoid_matrix.npa)).data
 
+    def relu(self, context, relu_matrix, derivative_matrix=None):
+        relu_matrix.npa.data = np.maximum(self.npa, 0.0).data
+        if derivative_matrix:
+            derivative_matrix.npa.data = (self.npa > 0).astype(np.float32, order='F').data
+
     def add_scaled(self, context, alpha, a):
         """
         self += alpha * a

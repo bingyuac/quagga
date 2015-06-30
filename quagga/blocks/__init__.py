@@ -9,4 +9,5 @@ from quagga.blocks.VStackBlock import VStackBlock
 from quagga.blocks.MergeBlock import MergeBlock
 from quagga.blocks.FakeDataBlock import FakeDataBlock
 from quagga.blocks.Ravel import Ravel
+from quagga.blocks.DenseBlock import DenseBlock
 
