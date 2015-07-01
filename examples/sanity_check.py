@@ -11,14 +11,14 @@ from quagga.optimizers import SgdOptimizer
 class Network(object):
     def __init__(self):
         embedding_init = lambda: np.random.rand(4, 2).astype(np.float32)
-        dense_init = lambda: (0.1 * np.random.rand(20, 12)).astype(np.float32)
-        log_reg_init = lambda: np.zeros((1, 20)).astype(np.float32)
+        dense_init = lambda: (0.05 * np.random.rand(20, 12)).astype(np.float32)
+        log_reg_init = lambda: (0.05 * np.random.rand(1, 20)).astype(np.float32)
 
         data_block = FakeDataBlock(device_id=0)
         embd_block = EmbeddingBlock(embedding_init, data_block.data, device_id=1)
         ravel_block = Ravel(embd_block.output, device_id=0)
-        dense_block = DenseBlock(dense_init, ravel_block.output, 'relu', device_id=1)
-        log_reg = LogisticRegressionCe(log_reg_init, dense_block.output, data_block.y, device_id=1)
+        dense_block = DenseBlock(dense_init, ravel_block.output, 'tanh', device_id=1)
+        log_reg = LogisticRegressionCe(log_reg_init, dense_block.output, data_block.y, device_id=0)
         self.blocks = [data_block, embd_block, ravel_block, dense_block, log_reg]
 
         self.bpropable_blocks = list(reversed([block for block in self.blocks if hasattr(block, 'bprop')]))

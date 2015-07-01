@@ -7,7 +7,7 @@ from quagga.blocks import LogisticRegressionCe
 
 
 class TestLogisticRegressionCe(TestCase):
-    def finite_difference_test_parameters(self):
+    def test_finite_difference_parameters(self):
         r = []
         n = 10
 
@@ -48,7 +48,7 @@ class TestLogisticRegressionCe(TestCase):
 
         self.assertEqual(sum(r), n)
 
-    def finite_difference_test_features(self):
+    def test_finite_difference_features(self):
         r = []
         n = 10
 
@@ -72,6 +72,7 @@ class TestLogisticRegressionCe(TestCase):
             epsilon = 1E-2
             for i in xrange(features.nrows):
                 for j in xrange(features.ncols):
+                    # http://stackoverflow.com/questions/31070383
                     features.__setitem__((i, j), features_np[i, j] + epsilon)
                     # features[i, j] = features_np[i, j] + epsilon
                     log_reg.fprop()

@@ -58,8 +58,8 @@ class GpuMatrix(object):
         elem_size = ct.sizeof(self.c_dtype)
         value = self.c_dtype(value)
         void_p = ct.cast(self.data, ct.c_void_p).value + (self.nrows * key[1] + key[0]) * elem_size
-        data_elemnt = ct.cast(void_p, ct.POINTER(self.c_dtype))
-        cudart.cuda_memcpy(data_elemnt, ct.byref(value), elem_size, 'host_to_device')
+        data_element = ct.cast(void_p, ct.POINTER(self.c_dtype))
+        cudart.cuda_memcpy(data_element, ct.byref(value), elem_size, 'host_to_device')
 
     def same_shape(self, other):
         return self.nrows == other.nrows and self.ncols == other.ncols

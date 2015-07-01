@@ -2,7 +2,7 @@
 
 - [ ] Cpu/GpuMatrix assertions
     - [ ] Add shape assertions into Cpu/GpuMatrix methods
-    - [ ] Add shape contexts into Cpu/GpuMatrix methods
+    - [ ] Add contexts assertions into Cpu/GpuMatrix methods
 - [x] Split gpu_matrix_kernels.cu files into several
 - [x] Change `ctypes` usage to `ct` abbreviation
 - [ ] Add benchmarks
@@ -49,8 +49,7 @@
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels
     - [ ] Synchronize Cpu/GpuMatrix classes
-- [ ] Implement EmbeddingBlock
-- [ ] Implement SliceBlock
+- [x] Implement EmbeddingBlock
 - [x] Implement LogisticRegressionCe
     - [x] Implement LogisticRegressionCe block
     - [x] Add finite difference tests
@@ -65,7 +64,7 @@
 - [ ] Add different types of Optimizers
     - [ ] Implement SgdOptimizer
     - [ ] Implement NagOptimizer
-- [ ] Implement DenseBlock
-    - [ ] Write tests    
+- [x] Implement DenseBlock
+    - [x] Write tests    
 - [x] Implement sanity check
     - [x] implement indexing
