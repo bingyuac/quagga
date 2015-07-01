@@ -62,9 +62,11 @@
 - [x] Fix event creation in proper device context
 - [x] Add `activate` context in all GpuMatrix operations
 - [ ] Add different types of Optimizers
-    - [ ] Implement SgdOptimizer
+    - [x] Implement SgdOptimizer
     - [ ] Implement NagOptimizer
 - [x] Implement DenseBlock
     - [x] Write tests    
 - [x] Implement sanity check
     - [x] implement indexing
+- [ ] Add Interruptions
+- [ ] Add learning rate and momentum policies  

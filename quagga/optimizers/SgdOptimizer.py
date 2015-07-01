@@ -2,17 +2,19 @@ from itertools import izip
 
 
 class SgdOptimizer(object):
-    def __init__(self, learning_rate, model):
+    def __init__(self, max_iter, learning_rate, model):
+        self.max_iter = max_iter
         self.model = model
         self.param_u_contexts, self.params = zip(*self.model.params)
         self.grad_o_contexts, self.grads = zip(*self.model.grads)
         learning_rate.value = -learning_rate.value
         self.learning_rate = learning_rate
+        self.interruptions = []
 
     def optimize(self):
         import time
         t = time.time()
-        for i in xrange(5000):
+        for i in xrange(self.max_iter):
             self.model.fprop()
             self.model.bprop()
             self.update()
@@ -29,3 +31,6 @@ class SgdOptimizer(object):
                 param.sliced_add_scaled(param_u_context, grad[0], self.learning_rate, grad[1])
             else:
                 param.add_scaled(param_u_context, self.learning_rate, grad)
+
+    def add_interruption(self, interruption):
+        self.interruptions.append(interruption)
