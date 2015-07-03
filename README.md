@@ -68,5 +68,7 @@
     - [x] Write tests    
 - [x] Implement sanity check
     - [x] implement indexing
-- [ ] Add Interruptions
-- [ ] Add learning rate and momentum policies  
+- [x] Add Interruptions
+- [ ] Add learning rate and momentum policies
+    - [x] Implemented fixed learning policy
+- [ ] Add reduction kernels for mean value

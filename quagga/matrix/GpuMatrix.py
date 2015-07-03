@@ -34,6 +34,7 @@ class GpuMatrix(object):
 
     def __getitem__(self, key):
         if type(key[1]) is int:
+
             data = self._get_pointer_to_column(key[1])
             return GpuMatrix(data, self.nrows, 1, self.dtype, self.device_id, False)
         if type(key[1]) is slice:
@@ -151,6 +152,18 @@ class GpuMatrix(object):
             self.nrows, self.ncols = nrows, ncols
         context.activate()
         cudart.cuda_memcpy_async(self.data, a, self.nbytes, 'host_to_device', context.cuda_stream)
+
+    def fill(self, value):
+        a = np.empty((self.nrows, self.ncols), self.np_dtype, 'F')
+        a.fill(value)
+        host_data = a.ctypes.data_as(ct.POINTER(self.c_dtype))
+        elem_size = ct.sizeof(self.c_dtype)
+        nbytes = a.size * elem_size
+        with cudart.device(self.device_id):
+            device_id = cudart.cuda_get_device()
+            data = cudart.cuda_malloc(nbytes, self.c_dtype)
+            cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
+        return GpuMatrix(data, self.nrows, self.ncols, self.dtype, device_id, True)
 
     def to_host(self):
         c_dtype_p = ct.POINTER(self.c_dtype)
@@ -320,3 +333,6 @@ class GpuMatrix(object):
         else:
             k = b.nrows if matrix_operation_b == 'N' else b.ncols
             cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
+
+    def cross_entropy(self, context, p, q):
+        gpu_matrix_kernels.binary_cross_entropy(context.cuda_stream, p.nelems, p.data, q.data, self.data)

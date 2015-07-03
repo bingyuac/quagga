@@ -1,3 +1,6 @@
+from quagga.Model import Model
+
+
 processor_type = 'gpu'
 dtype = 'float'
 

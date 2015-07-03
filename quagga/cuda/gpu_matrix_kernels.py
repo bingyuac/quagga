@@ -146,3 +146,14 @@ gpu_matrix_kernels._sliceColumns.argtypes = [cudart.ct_cuda_stream,
 def slice_columns(stream, nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix):
     status = gpu_matrix_kernels._sliceColumns(stream, nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._binaryCrossEntropy.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._binaryCrossEntropy.argtypes = [cudart.ct_cuda_stream,
+                                                   ct.c_int,
+                                                   ct.POINTER(ct.c_float),
+                                                   ct.POINTER(ct.c_float),
+                                                   ct.POINTER(ct.c_float)]
+def binary_cross_entropy(stream, nelems, p, q, ce):
+    status = gpu_matrix_kernels._binaryCrossEntropy(stream, nelems, p, q, ce)
+    cudart.check_cuda_status(status)

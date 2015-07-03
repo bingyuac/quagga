@@ -29,6 +29,25 @@ class LogisticRegressionCe(object):
             self.features = features.register_usage(self.context)
         self.true_labels = true_labels.register_usage(self.context)
         self.probs = Matrix.empty(true_labels.nrows, true_labels.ncols, 'float', device_id)
+        self.ce = Matrix.empty(1, 1, 'float', device_id)
+
+    # def get_block(self, features, true_labels):
+    #     """
+    #     Return the same block, which is only fprop capable
+    #
+    #
+    #     :param features:
+    #     :param true_labels:
+    #     :return:
+    #     """
+    #     copy = object.__new__(LogisticRegressionCe)
+    #     copy.w = self.w
+    #     copy.context = self.context
+    #     copy.features = features.register_usage(copy.context)
+    #     copy.true_labels = true_labels.register_usage(copy.context)
+    #     copy.probs = self.probs
+    #     copy.ce = self.ce
+    #     return copy
 
     def fprop(self):
         self.probs.ncols = self.features.ncols
@@ -43,6 +62,11 @@ class LogisticRegressionCe(object):
         # dL/dfeatures = w.T * error
         if self.propagate_error:
             self.dL_dfeatures.assign_dot(self.context, self.w, self.probs, matrix_operation_a='T')
+
+    @property
+    def loss(self):
+        self.ce.cross_entropy(self.context, self.true_labels, self.probs)
+        return self.ce.to_host()
 
     @property
     def params(self):
