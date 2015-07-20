@@ -3,10 +3,9 @@ from quagga.context import Context
 from quagga.connector import Connector
 
 
-class HStackBlock(object):
-    def __init__(self, f_matrix, s_matrix, f_max_ncols, s_max_ncols):
-        if f_matrix.dtype != s_matrix.dtype:
-            raise ValueError("Can't stack matrices with different dtypes!")
+class HorizontalStackBlock(object):
+    def __init__(self, *matrices, **kwargs):
+
 
         self.f_matrix = f_matrix
         self.s_matrix = s_matrix

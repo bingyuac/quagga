@@ -1,13 +1,13 @@
-from quagga.blocks import HStackBlock
-from quagga.blocks import VStackBlock
+from quagga.blocks import HorizontalStackBlock
+from quagga.blocks import VerticalStackBlock
 
 
 class MergeBlock(object):
-    def __init__(self, f_matrix, s_matrix, axis, **kwargs):
-        if axis == 0:
-            self.block = VStackBlock(f_matrix, s_matrix, kwargs['max_ncols'])
-        elif axis == 1:
-            self.block = HStackBlock(f_matrix, s_matrix, kwargs['f_max_ncols'], kwargs['s_max_ncols'])
+    def __init__(self, *matrices, **kwargs):
+        if kwargs['axis'] == 0:
+            self.block = VerticalStackBlock(matrices, device_id=kwargs.get('device_id'))
+        elif kwargs['axis'] == 1:
+            self.block = HorizontalStackBlock(matrices, device_id=kwargs.get('device_id'))
         else:
             raise ValueError('MergeBlock can stack matrices only '
                              'horizontally or vertically.')

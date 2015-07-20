@@ -6,10 +6,10 @@ from quagga.matrix import GpuMatrix
 from quagga.connector import Connector
 
 
-class testRavel(TestCase):
+class TestRavel(TestCase):
     def test_fprop(self):
         r = []
-        n = 10
+        n = 50
 
         for i in xrange(n):
             k = 4

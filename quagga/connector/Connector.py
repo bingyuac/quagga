@@ -56,7 +56,7 @@ class Connector(object):
                                     of the connector will be calculated
         """
         if not self._b_usage_context and b_obtaining_context:
-            raise ValueError('Why do you perform backward propagation? '
+            raise ValueError('Why are you going to backward propagate? '
                              'Previous block does not need you backward step!')
 
         u_device_id = f_usage_context.device_id

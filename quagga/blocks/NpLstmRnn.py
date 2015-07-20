@@ -1,11 +1,11 @@
 import numpy as np
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import Connector
+from quagga.connector import Connector
 
 
 class NpLstmRnn(object):
-    def __init__(self, W_init, R_init, x, max_input_sequence_len, propagate_error=True):
+    def __init__(self, W_init, R_init, x, propagate_error=True, device_id=None):
         if W_init.nrows != R_init.nrows:
             raise ValueError('W and R have to have the same number of rows!')
         if R_init.nrows != R_init.ncols:
@@ -13,7 +13,7 @@ class NpLstmRnn(object):
 
         nrows = R_init.nrows
         self.context = Context()
-        self.max_input_sequence_len = max_input_sequence_len
+        self.max_input_sequence_len = x.output.ncols
 
         self.W = Matrix.empty(4 * nrows, W_init.ncols, 'float')
         self.W.assign_hstack(self.context, W_init(), W_init(), W_init(), W_init())
@@ -26,16 +26,16 @@ class NpLstmRnn(object):
 
         self.x = x
         if propagate_error:
-            self.dL_dx = Matrix.empty(W_init.ncols, max_input_sequence_len, 'float')
+            self.dL_dx = Matrix.empty(W_init.ncols, self.max_input_sequence_len, 'float')
             self.x.register_user(self, self.context, self.dL_dx)
         self.propagate_error = propagate_error
 
-        self.h = Connector(Matrix.empty(nrows, max_input_sequence_len, 'float'), self.context)
-        self.pre_zifo = Matrix.empty(4 * nrows, max_input_sequence_len, 'float')
+        self.h = Connector(Matrix.empty(nrows, self.max_input_sequence_len, 'float'), self.context)
+        self.pre_zifo = Matrix.empty(4 * nrows, self.max_input_sequence_len, 'float')
         self.dL_dpre_zifo = Matrix.empty_like(self.pre_zifo)
 
         self.lstm_cells = []
-        for k in xrange(max_input_sequence_len):
+        for k in xrange(self.max_input_sequence_len):
             if k == 0:
                 prev_c = Matrix.from_npa(np.zeros((nrows, 1)))
                 prev_h = prev_c

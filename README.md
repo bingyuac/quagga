@@ -7,10 +7,11 @@
 - [x] Change `ctypes` usage to `ct` abbreviation
 - [ ] Add benchmarks
 - [x] Implement MergeBlock
-    - [ ] Implement VStackBlock
-        - [ ] add VStackBlock
-        - [ ] Implement vstack in Cpu/GpuMatrix classes
-        - [ ] Add tests
+    - [x] Implement VStackBlock
+        - [x] add VStackBlock
+        - [x] Implement vstack in Cpu/GpuMatrix classes
+        - [x] Implement vsplit in Cpu/GpuMatrix classes
+        - [x] Add tests
     - [ ] Implement HStackBlock
         - [ ] add HStackBlock
         - [ ] Implement hstack kernel
@@ -42,7 +43,7 @@
         - [ ] Implement RecurrentCell
         - [ ] Add cpu/gpu comparisons tests
         - [ ] Add finite difference tests        
-- [ ] Connector improvement
+- [x] Connector improvement
     - [x] Review `update` field usage in the Connector class
     - [x] Adapt Connector for multi-gpu purpose
 - [ ] Cpu/GpuMatrix improvement    
@@ -51,9 +52,11 @@
     - [ ] Synchronize Cpu/GpuMatrix classes
 - [x] Implement EmbeddingBlock
 - [x] Implement LogisticRegressionCe
+    - [ ] Add reduction kernel for CE
     - [x] Implement LogisticRegressionCe block
     - [x] Add finite difference tests
 - [ ] Implement SoftmaxCe
+    - [ ] Add reduction kernel for CE
     - [x] Implement SoftmaxCe block
     - [ ] Add finite difference tests   
 - [ ] Merge softmax and logreg    
@@ -72,3 +75,4 @@
 - [ ] Add learning rate and momentum policies
     - [x] Implemented fixed learning policy
 - [ ] Add reduction kernels for mean value
+- [ ] Change checking for `_b_usage_context` on some function or property

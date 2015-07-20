@@ -1,10 +1,14 @@
 #include <algorithm>
-#include <stdio.h>
 #include <cuda_runtime.h>
 
 
 #define MAX_NUM_THREADS_PER_BLOCK 512
 #define MAX_NUM_BLOCKS_PER_KERNEL 64
+
+
+__global__ void horizontalStack() {
+
+}
 
 
 __global__ void binaryCrossEntropy(int nelems,
@@ -40,6 +44,29 @@ __global__  void sliceColumns(int nrows,
 		row_idx = i % nrows;
 		embedding_offset = embedding_column_indxs[dense_column_idx] * nrows + row_idx;
 		dense_matrix[i] = embedding_matrix[embedding_offset];
+	}
+}
+
+
+__global__  void reverseSliceColumns(int nrows,
+							  		 int ncols,
+							  		 const int* __restrict__ embedding_column_indxs,
+							  		 const float* __restrict__ embedding_matrix,
+							  		 float* __restrict__ dense_matrix) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	int dense_column_idx;
+	int row_idx;
+	int embedding_offset;
+	int dense_offset;
+	for (int i = start_i; i < nelems; i += nthreads) {
+		dense_column_idx = i / nrows;
+		row_idx = i % nrows;
+		embedding_offset = embedding_column_indxs[dense_column_idx] * nrows + row_idx;
+		dense_offset = nrows * (ncols - 1 - dense_column_idx) + row_idx;
+		dense_matrix[dense_offset] = embedding_matrix[embedding_offset];
 	}
 }
 
@@ -212,6 +239,73 @@ __global__ void scale(int nelems,
 
 
 extern "C" {
+	cudaError_t _sliceRows(cudaStream_t stream,
+						   int n,
+						   int* row_slices,
+						   int nrows,
+						   int ncols,
+						   float** matrices,
+						   float* stacked) {
+		size_t float_size = sizeof(float);
+		float* column_address;
+		int offset = 0;
+		int k;
+
+		for (int i = 0; i < ncols; i++) {
+			for (int j = 0; j < n; j++) {
+				k = row_slices[j*2+1]-row_slices[j*2];
+				column_address = matrices[j] + k * i;
+				offset = nrows * i + row_slices[j*2];
+				cudaMemcpyAsync(column_address, stacked + offset, float_size * k, cudaMemcpyDeviceToDevice, stream);
+			}
+		}
+
+		return cudaGetLastError();
+	}
+
+	cudaError_t _verticalSplit(cudaStream_t stream,
+							   int n,
+							   int* nrows,
+							   int ncols,
+							   float** matrices,
+							   float* stacked) {
+		size_t float_size = sizeof(float);
+		float* column_address;
+		int offset = 0;
+
+		for (int i = 0; i < ncols; i++) {
+			for (int j = 0; j < n; j++) {
+				column_address = matrices[j] + nrows[j] * i;
+				cudaMemcpyAsync(column_address, stacked + offset, float_size * nrows[j], cudaMemcpyDeviceToDevice, stream);
+				offset += nrows[j];
+			}
+		}
+		return cudaGetLastError();
+	}
+
+
+	cudaError_t _verticalStack(cudaStream_t stream,
+							   int n,
+							   int* nrows,
+							   int ncols,
+							   float** matrices,
+							   float* stacked) {
+		size_t float_size = sizeof(float);
+		float* column_address;
+		int offset = 0;
+
+		for (int i = 0; i < ncols; i++) {
+			for (int j = 0; j < n; j++) {
+				column_address = matrices[j] + nrows[j] * i;
+				cudaMemcpyAsync(stacked + offset, column_address, float_size * nrows[j], cudaMemcpyDeviceToDevice, stream);
+				offset += nrows[j];
+			}
+		}
+
+		return cudaGetLastError();
+	}
+
+
 	cudaError_t _binaryCrossEntropy(cudaStream_t stream,
 									int nelems,
 								    const float* p,
@@ -231,6 +325,18 @@ extern "C" {
 							  float* __restrict__ dense_matrix) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
 		sliceColumns<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
+		return cudaGetLastError();
+	}
+
+
+	cudaError_t _reverseSliceColumns(cudaStream_t stream,
+							  		 int nrows,
+							  		 int ncols,
+							  		 const int* __restrict__ embedding_column_indxs,
+							  		 const float* __restrict__ embedding_matrix,
+							  		 float* __restrict__ dense_matrix) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+		reverseSliceColumns<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
 		return cudaGetLastError();
 	}
 

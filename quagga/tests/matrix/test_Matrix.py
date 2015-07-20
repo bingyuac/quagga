@@ -1,7 +1,7 @@
 import numpy as np
 import ctypes as ct
+from itertools import izip
 from unittest import TestCase
-from quagga.cuda import cudart
 from quagga.matrix import GpuMatrix, CpuMatrix
 from quagga.context import GpuContext, CpuContext
 
@@ -505,6 +505,75 @@ class TestMatrix(TestCase):
             b_gpu.slice_columns(self.gpu_context, column_indxs_gpu, a_gpu)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
-            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host(), atol=1e-6))
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)
+
+    def test_assign_vstack(self):
+        r = []
+        for i in xrange(self.N):
+            cpu_matrices = []
+            gpu_matrices = []
+            ncols = self.rng.random_integers(1, 7000)
+            nrows = 0
+            for k in xrange(self.rng.random_integers(10)):
+                _nrows = self.rng.random_integers(1000)
+                matrix = self.get_random_array(shape=(_nrows, ncols))
+                nrows += _nrows
+                cpu_matrices.append(CpuMatrix.from_npa(matrix))
+                gpu_matrices.append(GpuMatrix.from_npa(matrix))
+            cpu_stacked = CpuMatrix.empty(nrows, ncols, 'float')
+            gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
+            cpu_stacked.assign_vstack(self.cpu_context, cpu_matrices)
+            gpu_stacked.assign_vstack(self.gpu_context, gpu_matrices)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_vsplit(self):
+        r = []
+        for i in xrange(self.N):
+            cpu_matrices = []
+            gpu_matrices = []
+            ncols = self.rng.random_integers(1, 7000)
+            nrows = [0]
+            for k in xrange(self.rng.random_integers(10)):
+                _nrows = self.rng.random_integers(1000)
+                nrows.append(nrows[-1] + _nrows)
+                cpu_matrices.append(CpuMatrix.empty(_nrows, ncols, 'float'))
+                gpu_matrices.append(GpuMatrix.empty(_nrows, ncols, 'float'))
+            a = self.get_random_array((nrows[-1], ncols))
+            cpu_stacked = CpuMatrix.from_npa(a, 'float')
+            gpu_stacked = GpuMatrix.from_npa(a, 'float')
+
+            indxs = set(self.rng.choice(k+1, max(1, k-5), replace=False))
+            row_slices = []
+            _cpu_matrices = []
+            _gpu_matrices = []
+            for k in indxs:
+                row_slices.append((nrows[k], nrows[k+1]))
+                _cpu_matrices.append(cpu_matrices[k])
+                _gpu_matrices.append(gpu_matrices[k])
+            cpu_stacked.vsplit(self.cpu_context, _cpu_matrices, row_slices)
+            gpu_stacked.vsplit(self.gpu_context, _gpu_matrices, row_slices)
+            for cpu_m, gpu_m in izip(_cpu_matrices, _gpu_matrices):
+                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+            cpu_stacked.vsplit(self.cpu_context, cpu_matrices)
+            gpu_stacked.vsplit(self.gpu_context, gpu_matrices)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
+                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), 2 * self.N)

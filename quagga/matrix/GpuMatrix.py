@@ -34,7 +34,6 @@ class GpuMatrix(object):
 
     def __getitem__(self, key):
         if type(key[1]) is int:
-
             data = self._get_pointer_to_column(key[1])
             return GpuMatrix(data, self.nrows, 1, self.dtype, self.device_id, False)
         if type(key[1]) is slice:
@@ -189,23 +188,62 @@ class GpuMatrix(object):
     def reshape(self, nrows, ncols):
         return GpuMatrix(self.data, nrows, ncols, self.dtype, self.device_id, False)
 
-    def slice_columns(self, context, column_indxs, out):
+    def slice_columns(self, context, column_indxs, out, reverse=False):
         if any(context.device_id != device_id for device_id in [self.device_id, column_indxs.device_id, out.device_id]):
             raise ValueError('Matrices have to be on the same device as context!')
         context.activate()
-        gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
+        if reverse:
+            gpu_matrix_kernels.reverse_slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
+        else:
+            gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 
-    def assign_hstack(self, context, *matrices):
+    def assign_hstack(self, context, matrices):
         # if f_matrix.nrows != s_matrix.nrows:
         #     raise ValueError("Can't horizontally stack matrices with "
         #                      "different number of rows!")
         context.activate()
 
-    def assign_vstack(self, context, *matrices):
-        # if self.f_matrix.ncols != self.s_matrix.ncols:
-        #     raise ValueError("Can't vertically stack matrices with "
-        #                      "different number of columns!")
+    def assign_vstack(self, context, matrices):
+        nrows = 0
+        for matrix in matrices:
+            nrows += matrix.nrows
+            if matrix.ncols != self.ncols:
+                raise ValueError("The number of columns in the assigning matrix "
+                                 "differs from the number of columns in buffers!")
+        if nrows != self.nrows:
+            raise ValueError("The number of rows in the assigning matrix differs"
+                             "from the summed numbers of rows in buffers!")
         context.activate()
+        n = len(matrices)
+        nrows = (ct.c_int * n)(*(m.nrows for m in matrices))
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        gpu_matrix_kernels.vertical_stack(context.cuda_stream, n, nrows, self.ncols, matrices, self.data)
+
+    def vsplit(self, context, matrices, row_slices=None):
+        context.activate()
+        n = len(matrices)
+        if row_slices:
+            max_nrows = -np.inf
+            for row_slice in row_slices:
+                max_nrows = row_slice[1] if row_slice[1] > max_nrows else max_nrows
+            if max_nrows > self.nrows:
+                raise ValueError("One of the slice does not match with the array size!")
+            row_slices = (ct.c_int * (2 * n))(*(sum(row_slices, ())))
+            matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+            gpu_matrix_kernels.slice_rows(context.cuda_stream, n, row_slices, self.nrows, self.ncols, matrices, self.data)
+        else:
+            nrows = 0
+            for matrix in matrices:
+                nrows += matrix.nrows
+                if matrix.ncols != self.ncols:
+                    raise ValueError("The number of columns in the matrix to be split "
+                                     "differs from the number of columns in buffers!")
+            if nrows != self.nrows:
+                raise ValueError("The number of rows in the matrix to be split differs "
+                                 "from the summed numbers of rows in buffers!")
+            nrows = (ct.c_int * n)(*(m.nrows for m in matrices))
+            matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+            gpu_matrix_kernels.vertical_split(context.cuda_stream, n, nrows, self.ncols, matrices, self.data)
 
     def scale(self, context, alpha, out=None):
         context.activate()

@@ -1,5 +1,6 @@
 import numpy as np
 import ctypes as ct
+from itertools import izip
 
 
 class CpuMatrix(object):
@@ -18,9 +19,6 @@ class CpuMatrix(object):
             # key += (np.newaxis, )
             key = (key[0], slice(key[1], key[1] + 1, None))
         return CpuMatrix.from_npa(self.npa[key])
-
-    def slice_columns(self, context, column_indxs, out):
-        out.npa = self.npa[:, column_indxs.npa.flatten()]
 
     def same_shape(self, other):
         return self.nrows == other.nrows and self.ncols == other.ncols
@@ -76,6 +74,50 @@ class CpuMatrix(object):
 
     def copy(self, context, out):
         out.npa.data = np.copy(out.npa).data
+
+    def slice_columns(self, context, column_indxs, out):
+        out.npa = self.npa[:, column_indxs.npa.flatten()]
+
+    def assign_hstack(self, context, matrices):
+        # if f_matrix.nrows != s_matrix.nrows:
+        #     raise ValueError("Can't horizontally stack matrices with "
+        #                      "different number of rows!")
+        context.activate()
+
+    def assign_vstack(self, context, matrices):
+        nrows = 0
+        for matrix in matrices:
+            nrows += matrix.nrows
+            if matrix.ncols != self.ncols:
+                raise ValueError("The number of columns in the assigning matrix "
+                                 "differs from the number of columns in buffers!")
+        if nrows != self.nrows:
+            raise ValueError("The number of rows in the assigning matrix differs"
+                             "from the summed numbers of rows in buffers!")
+        stacked = np.vstack(m.npa for m in matrices)
+        stacked = np.asfortranarray(stacked)
+        self.npa.data = stacked.data
+
+    def vsplit(self, context, matrices, row_slices=None):
+        if row_slices:
+            for i, row_slice in enumerate(row_slices):
+                matrices[i].npa.data = np.asfortranarray(self.npa[row_slice[0]:row_slice[1], :]).data
+        else:
+            nrows = 0
+            for matrix in matrices:
+                nrows += matrix.nrows
+                if matrix.ncols != self.ncols:
+                    raise ValueError("The number of columns in the matrix to be split "
+                                     "differs from the number of columns in buffers!")
+            if nrows != self.nrows:
+                raise ValueError("The number of rows in the matrix to be split differs "
+                                 "from the summed numbers of rows in buffers!")
+            indices_or_sections = [matrices[0].nrows]
+            for m in matrices[1:-1]:
+                indices_or_sections.append(indices_or_sections[-1] + m.nrows)
+            _matrices = np.vsplit(self.npa, indices_or_sections)
+            for _m, m in izip(_matrices, matrices):
+                m.npa.data = np.asfortranarray(_m).data
 
     def scale(self, context, alpha, out=None):
         if out:
