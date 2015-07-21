@@ -6,17 +6,17 @@
 - [x] Split gpu_matrix_kernels.cu files into several
 - [x] Change `ctypes` usage to `ct` abbreviation
 - [ ] Add benchmarks
-- [x] Implement MergeBlock
+- [ ] Implement MergeBlock
     - [x] Implement VStackBlock
         - [x] add VStackBlock
         - [x] Implement vstack in Cpu/GpuMatrix classes
         - [x] Implement vsplit in Cpu/GpuMatrix classes
         - [x] Add tests
-    - [ ] Implement HStackBlock
-        - [ ] add HStackBlock
-        - [ ] Implement hstack kernel
-        - [ ] Implement hstack in Cpu/GpuMatrix classes
-        - [ ] Add tests
+    - [x] Implement HStackBlock
+        - [x] add HStackBlock
+        - [x] Implement hstack kernel
+        - [x] Implement hstack in Cpu/GpuMatrix classes
+        - [x] Add tests
 - [ ] Add `sigm_tanh` function to Gpu/CpuMatrix
     - [x] Implement kernel that mix sigmoid and tanh
     - [x] Add function to nonlinearities
@@ -76,3 +76,4 @@
     - [x] Implemented fixed learning policy
 - [ ] Add reduction kernels for mean value
 - [ ] Change checking for `_b_usage_context` on some function or property
+- [ ] Review usage of `vsplit` and `hsplit` (python code instead of c) 

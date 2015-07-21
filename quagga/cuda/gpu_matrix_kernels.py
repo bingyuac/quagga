@@ -183,6 +183,17 @@ def vertical_stack(stream, n, nrows, ncols, matrices, stacked):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._horizontalStack.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._horizontalStack.argtypes = [cudart.ct_cuda_stream,
+                                                ct.c_int,
+                                                ct.POINTER(ct.c_int),
+                                                ct.c_int,
+                                                ct.POINTER(ct.POINTER(ct.c_float)),
+                                                ct.POINTER(ct.c_float)]
+def horizontal_stack(stream, n, ncols, nrows, matrices, stacked):
+    status = gpu_matrix_kernels._horizontalStack(stream, n, ncols, nrows, matrices, stacked)
+    cudart.check_cuda_status(status)
+
 
 gpu_matrix_kernels._verticalSplit.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._verticalSplit.argtypes = [cudart.ct_cuda_stream,
@@ -196,14 +207,38 @@ def vertical_split(stream, n, nrows, ncols, matrices, stacked):
     cudart.check_cuda_status(status)
 
 
-gpu_matrix_kernels._sliceRows.restype = cudart.ct_cuda_error
-gpu_matrix_kernels._sliceRows.argtypes = [cudart.ct_cuda_stream,
-                                          ct.c_int,
-                                          ct.POINTER(ct.c_int),
-                                          ct.c_int,
-                                          ct.c_int,
-                                          ct.POINTER(ct.POINTER(ct.c_float)),
-                                          ct.POINTER(ct.c_float)]
-def slice_rows(stream, n, row_slices, nrows, ncols, matrices, stacked):
-    status = gpu_matrix_kernels._sliceRows(stream, n, row_slices, nrows, ncols, matrices, stacked)
+gpu_matrix_kernels._horizontalSplit.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._horizontalSplit.argtypes = [cudart.ct_cuda_stream,
+                                                ct.c_int,
+                                                ct.POINTER(ct.c_int),
+                                                ct.c_int,
+                                                ct.POINTER(ct.POINTER(ct.c_float)),
+                                                ct.POINTER(ct.c_float)]
+def hotizontal_split(stream, n, ncols, nrows, matrices, stacked):
+    status = gpu_matrix_kernels._horizontalSplit(stream, n, ncols, nrows, matrices, stacked)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._verticalSliceSplit.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._verticalSliceSplit.argtypes = [cudart.ct_cuda_stream,
+                                                   ct.c_int,
+                                                   ct.POINTER(ct.c_int),
+                                                   ct.c_int,
+                                                   ct.c_int,
+                                                   ct.POINTER(ct.POINTER(ct.c_float)),
+                                                   ct.POINTER(ct.c_float)]
+def vertical_slice_split(stream, n, row_slices, nrows, ncols, matrices, stacked):
+    status = gpu_matrix_kernels._verticalSliceSplit(stream, n, row_slices, nrows, ncols, matrices, stacked)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._horizontalSliceSplit.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._horizontalSliceSplit.argtypes = [cudart.ct_cuda_stream,
+                                                     ct.c_int,
+                                                     ct.POINTER(ct.c_int),
+                                                     ct.c_int,
+                                                     ct.POINTER(ct.POINTER(ct.c_float)),
+                                                     ct.POINTER(ct.c_float)]
+def horizontal_slice_split(stream, n, col_slices, nrows, matrices, stacked):
+    status = gpu_matrix_kernels._horizontalSliceSplit(stream, n, col_slices, nrows, matrices, stacked)
     cudart.check_cuda_status(status)

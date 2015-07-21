@@ -198,10 +198,46 @@ class GpuMatrix(object):
             gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 
     def assign_hstack(self, context, matrices):
-        # if f_matrix.nrows != s_matrix.nrows:
-        #     raise ValueError("Can't horizontally stack matrices with "
-        #                      "different number of rows!")
+        ncols = 0
+        for matrix in matrices:
+            ncols += matrix.ncols
+            if matrix.nrows != self.nrows:
+                raise ValueError("The number of rows in the assigning matrix "
+                                 "differs from the number of rows in buffers!")
+        if ncols != self.ncols:
+            raise ValueError("The number of columns in the assigning matrix differs"
+                             "from the summed numbers of columns in buffers!")
         context.activate()
+        n = len(matrices)
+        ncols = (ct.c_int * n)(*(m.ncols for m in matrices))
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        gpu_matrix_kernels.horizontal_stack(context.cuda_stream, n, ncols, self.nrows, matrices, self.data)
+
+    def hsplit(self, context, matrices, col_slices=None):
+        context.activate()
+        n = len(matrices)
+        if col_slices:
+            max_col = -np.inf
+            for col_slice in col_slices:
+                max_col = col_slice[1] if col_slice[1] > max_col else max_col
+            if max_col > self.ncols:
+                raise ValueError("One of the slice does not match with the array size!")
+            col_slices = (ct.c_int * (2 * n))(*(sum(col_slices, ())))
+            matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+            gpu_matrix_kernels.horizontal_slice_split(context.cuda_stream, n, col_slices, self.nrows, matrices, self.data)
+        else:
+            ncols = 0
+            for matrix in matrices:
+                ncols += matrix.ncols
+                if matrix.nrows != self.nrows:
+                    raise ValueError("The number of rows in the matrix to be split "
+                                     "differs from the number of rows in buffers!")
+            if ncols != self.ncols:
+                raise ValueError("The number of columns in the matrix to be split differs "
+                                 "from the summed numbers of columns in buffers!")
+            ncols = (ct.c_int * n)(*(m.ncols for m in matrices))
+            matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+            gpu_matrix_kernels.hotizontal_split(context.cuda_stream, n, ncols, self.nrows, matrices, self.data)
 
     def assign_vstack(self, context, matrices):
         nrows = 0
@@ -223,14 +259,14 @@ class GpuMatrix(object):
         context.activate()
         n = len(matrices)
         if row_slices:
-            max_nrows = -np.inf
+            max_row = -np.inf
             for row_slice in row_slices:
-                max_nrows = row_slice[1] if row_slice[1] > max_nrows else max_nrows
-            if max_nrows > self.nrows:
+                max_row = row_slice[1] if row_slice[1] > max_row else max_row
+            if max_row > self.nrows:
                 raise ValueError("One of the slice does not match with the array size!")
             row_slices = (ct.c_int * (2 * n))(*(sum(row_slices, ())))
             matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
-            gpu_matrix_kernels.slice_rows(context.cuda_stream, n, row_slices, self.nrows, self.ncols, matrices, self.data)
+            gpu_matrix_kernels.vertical_slice_split(context.cuda_stream, n, row_slices, self.nrows, self.ncols, matrices, self.data)
         else:
             nrows = 0
             for matrix in matrices:

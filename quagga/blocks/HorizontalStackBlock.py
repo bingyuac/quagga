@@ -1,39 +1,47 @@
+from itertools import izip
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.connector import Connector
 
 
 class HorizontalStackBlock(object):
+    """
+    HorizontalStackBlock concatenates matrices horizontally.
+    Can handle matrices with varying number of columns
+    """
+
     def __init__(self, *matrices, **kwargs):
-
-
-        self.f_matrix = f_matrix
-        self.s_matrix = s_matrix
-        self.max_ncols = f_max_ncols + s_max_ncols
-
-        nrows = f_matrix.nrows
-        dtype = f_matrix.dtype
-
-        self.buffer = Matrix.empty(nrows, self.max_ncols, dtype)
-        self.context = Context()
-        self.output = Connector(self.buffer, self.context)
-
-        self.dL_df_buffer = Matrix.empty(nrows, f_max_ncols, dtype)
-        self.dL_ds_buffer = Matrix.empty(nrows, s_max_ncols, dtype)
-        f_matrix.register_user(self, self.context, self.dL_df_buffer)
-        s_matrix.register_user(self, self.context, self.dL_ds_buffer)
+        dtype = matrices[0].dtype
+        for matrix in matrices:
+            if matrix.dtype != dtype:
+                raise ValueError("Can't stack matrices with different dtypes!")
+        self.context = Context(kwargs.get('device_id'))
+        self.matrices = []
+        self.dL_dmatrices = []
+        self.bpropagable = []
+        for matrix in matrices:
+            if matrix._b_usage_context:
+                matrix, dL_dmatrix = matrix.register_usage(self.context, self.context)
+                self.dL_dmatrices.append(dL_dmatrix)
+                self.bpropagable.append(True)
+            else:
+                matrix = matrix.register_usage(self.context)
+                self.bpropagable.append(False)
+            self.matrices.append(matrix)
+        ncols = sum(matrix.ncols for matrix in matrices)
+        b_usage_context = self.context if self.dL_dmatrices else None
+        self.output = Connector(Matrix.empty(matrices[0].nrows, ncols, dtype), self.context, b_usage_context)
 
     def fprop(self):
-        if self.f_matrix.ncols + self.s_matrix.ncols > self.max_ncols:
-            raise ValueError('One of the matrix is too big!')
-        output = self.buffer[:, self.f_matrix.ncols + self.s_matrix.ncols]
-        self.f_matrix.block(self.context)
-        self.s_matrix.block(self.context)
-        output.assign_hstack(self.context, self.f_matrix, self.s_matrix)
-        self.output.forward_matrix = output
+        self.output.assign_hstack(self.context, self.matrices)
+        self.output.fprop()
 
     def bprop(self):
-        self.dL_df_buffer.ncols = self.f_matrix.ncols
-        self.dL_ds_buffer.ncols = self.s_matrix.ncols
-        self.output.backward_block(self.context)
-        self.output.derivative.hsplit(self.context, self.dL_df_buffer, self.dL_ds_buffer)
+        if self.dL_dmatrices:
+            col_slices = []
+            ncols = [0]
+            for matrix, bpropagable in izip(self.matrices, self.bpropagable):
+                ncols.append(ncols[-1] + matrix.ncols)
+                if bpropagable:
+                    col_slices.append((ncols[-2], ncols[-1]))
+            self.output.backward_matrix.hsplit(self.context, self.dL_dmatrices, col_slices)

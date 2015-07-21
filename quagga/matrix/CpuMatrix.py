@@ -79,10 +79,39 @@ class CpuMatrix(object):
         out.npa = self.npa[:, column_indxs.npa.flatten()]
 
     def assign_hstack(self, context, matrices):
-        # if f_matrix.nrows != s_matrix.nrows:
-        #     raise ValueError("Can't horizontally stack matrices with "
-        #                      "different number of rows!")
-        context.activate()
+        ncols = 0
+        for matrix in matrices:
+            ncols += matrix.ncols
+            if matrix.nrows != self.nrows:
+                raise ValueError("The number of rows in the assigning matrix "
+                                 "differs from the number of rows in buffers!")
+        if ncols != self.ncols:
+            raise ValueError("The number of columns in the assigning matrix differs"
+                             "from the summed numbers of columns in buffers!")
+        stacked = np.hstack(m.npa for m in matrices)
+        stacked = np.asfortranarray(stacked)
+        self.npa.data = stacked.data
+
+    def hsplit(self, context, matrices, col_slices=None):
+        if col_slices:
+            for i, col_slice in enumerate(col_slices):
+                matrices[i].npa.data = np.asfortranarray(self.npa[:, col_slice[0]:col_slice[1]]).data
+        else:
+            ncols = 0
+            for matrix in matrices:
+                ncols += matrix.ncols
+                if matrix.nrows != self.nrows:
+                    raise ValueError("The number of rows in the matrix to be split "
+                                     "differs from the number of rows in buffers!")
+            if ncols != self.ncols:
+                raise ValueError("The number of columns in the matrix to be split differs "
+                                 "from the summed numbers of columns in buffers!")
+            indices_or_sections = [matrices[0].ncols]
+            for m in matrices[1:-1]:
+                indices_or_sections.append(indices_or_sections[-1] + m.ncols)
+            _matrices = np.hsplit(self.npa, indices_or_sections)
+            for _m, m in izip(_matrices, matrices):
+                m.npa.data = np.asfortranarray(_m).data
 
     def assign_vstack(self, context, matrices):
         nrows = 0

@@ -6,11 +6,6 @@
 #define MAX_NUM_BLOCKS_PER_KERNEL 64
 
 
-__global__ void horizontalStack() {
-
-}
-
-
 __global__ void binaryCrossEntropy(int nelems,
 								   const float* p,
 								   const float* q,
@@ -239,13 +234,68 @@ __global__ void scale(int nelems,
 
 
 extern "C" {
-	cudaError_t _sliceRows(cudaStream_t stream,
-						   int n,
-						   int* row_slices,
-						   int nrows,
-						   int ncols,
-						   float** matrices,
-						   float* stacked) {
+	cudaError_t _horizontalSliceSplit(cudaStream_t stream,
+						   			  int n,
+						   			  int* col_slices,
+						   			  int nrows,
+						   			  float** matrices,
+						   			  float* stacked) {
+		size_t float_size = sizeof(float);
+		int nelems;
+		int offset = 0;
+
+		for (int i = 0; i < n; i++) {
+			nelems = (col_slices[i*2+1] - col_slices[i*2]) * nrows;
+			offset = col_slices[i*2] * nrows;
+			cudaMemcpyAsync(matrices[i], stacked + offset, float_size * nelems, cudaMemcpyDeviceToDevice, stream);
+		}
+		return cudaGetLastError();
+	}
+
+	cudaError_t _horizontalSplit(cudaStream_t stream,
+							     int n,
+							  	 int* ncols,
+							   	 int nrows,
+							   	 float** matrices,
+							   	 float* stacked) {
+		size_t float_size = sizeof(float);
+		int nelems;
+		int offset = 0;
+
+		for (int i = 0; i < n; i++) {
+			nelems = ncols[i] * nrows;
+			cudaMemcpyAsync(matrices[i], stacked + offset, float_size * nelems, cudaMemcpyDeviceToDevice, stream);
+			offset += nelems;
+		}
+		return cudaGetLastError();
+	}
+
+	cudaError_t _horizontalStack(cudaStream_t stream,
+							   	 int n,
+							   	 int* ncols,
+							   	 int nrows,
+							   	 float** matrices,
+							   	 float* stacked) {
+		size_t float_size = sizeof(float);
+		int nelems;
+		int offset = 0;
+
+		for (int i = 0; i < n; i++) {
+			nelems = ncols[i] * nrows;
+			cudaMemcpyAsync(stacked + offset, matrices[i], float_size * nelems, cudaMemcpyDeviceToDevice, stream);
+			offset += nelems;
+		}
+		return cudaGetLastError();
+	}
+
+
+	cudaError_t _verticalSliceSplit(cudaStream_t stream,
+						   			int n,
+						   			int* row_slices,
+						   			int nrows,
+						   			int ncols,
+						   			float** matrices,
+						   			float* stacked) {
 		size_t float_size = sizeof(float);
 		float* column_address;
 		int offset = 0;
@@ -253,7 +303,7 @@ extern "C" {
 
 		for (int i = 0; i < ncols; i++) {
 			for (int j = 0; j < n; j++) {
-				k = row_slices[j*2+1]-row_slices[j*2];
+				k = row_slices[j*2+1] - row_slices[j*2];
 				column_address = matrices[j] + k * i;
 				offset = nrows * i + row_slices[j*2];
 				cudaMemcpyAsync(column_address, stacked + offset, float_size * k, cudaMemcpyDeviceToDevice, stream);

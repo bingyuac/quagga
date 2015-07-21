@@ -509,6 +509,29 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
+    def test_assign_hstack(self):
+        r = []
+        for i in xrange(self.N):
+            cpu_matrices = []
+            gpu_matrices = []
+            nrows = self.rng.random_integers(1, 7000)
+            ncols = 0
+            for k in xrange(self.rng.random_integers(10)):
+                _ncols = self.rng.random_integers(1000)
+                matrix = self.get_random_array(shape=(nrows, _ncols))
+                ncols += _ncols
+                cpu_matrices.append(CpuMatrix.from_npa(matrix))
+                gpu_matrices.append(GpuMatrix.from_npa(matrix))
+            cpu_stacked = CpuMatrix.empty(nrows, ncols, 'float')
+            gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
+            cpu_stacked.assign_hstack(self.cpu_context, cpu_matrices)
+            gpu_stacked.assign_hstack(self.gpu_context, gpu_matrices)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_assign_vstack(self):
         r = []
         for i in xrange(self.N):
@@ -524,8 +547,8 @@ class TestMatrix(TestCase):
                 gpu_matrices.append(GpuMatrix.from_npa(matrix))
             cpu_stacked = CpuMatrix.empty(nrows, ncols, 'float')
             gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
-            cpu_stacked.assign_vstack(self.cpu_context, cpu_matrices)
-            gpu_stacked.assign_vstack(self.gpu_context, gpu_matrices)
+            cpu_stacked.assign_hstack(self.cpu_context, cpu_matrices)
+            gpu_stacked.assign_hstack(self.gpu_context, gpu_matrices)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
@@ -567,6 +590,52 @@ class TestMatrix(TestCase):
 
             cpu_stacked.vsplit(self.cpu_context, cpu_matrices)
             gpu_stacked.vsplit(self.gpu_context, gpu_matrices)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
+                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), 2 * self.N)
+
+    def test_hsplit(self):
+        r = []
+        for i in xrange(self.N):
+            cpu_matrices = []
+            gpu_matrices = []
+            nrows = self.rng.random_integers(1, 7000)
+            ncols = [0]
+            for k in xrange(self.rng.random_integers(10)):
+                _ncols = self.rng.random_integers(1000)
+                ncols.append(ncols[-1] + _ncols)
+                cpu_matrices.append(CpuMatrix.empty(nrows, _ncols, 'float'))
+                gpu_matrices.append(GpuMatrix.empty(nrows, _ncols, 'float'))
+            a = self.get_random_array((nrows, ncols[-1]))
+            cpu_stacked = CpuMatrix.from_npa(a, 'float')
+            gpu_stacked = GpuMatrix.from_npa(a, 'float')
+
+            indxs = set(self.rng.choice(k+1, max(1, k-5), replace=False))
+            col_slices = []
+            _cpu_matrices = []
+            _gpu_matrices = []
+            for k in indxs:
+                col_slices.append((ncols[k], ncols[k+1]))
+                _cpu_matrices.append(cpu_matrices[k])
+                _gpu_matrices.append(gpu_matrices[k])
+            cpu_stacked.hsplit(self.cpu_context, _cpu_matrices, col_slices)
+            gpu_stacked.hsplit(self.gpu_context, _gpu_matrices, col_slices)
+            for cpu_m, gpu_m in izip(_cpu_matrices, _gpu_matrices):
+                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+            cpu_stacked.hsplit(self.cpu_context, cpu_matrices)
+            gpu_stacked.hsplit(self.gpu_context, gpu_matrices)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
