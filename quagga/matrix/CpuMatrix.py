@@ -75,6 +75,10 @@ class CpuMatrix(object):
     def copy(self, context, out):
         out.npa.data = np.copy(out.npa).data
 
+    def tile(self, context, axis, a):
+        n = self.nrows if axis == 0 else self.ncols
+        self.npa.data = np.asfortranarray(np.repeat(a.npa, n, axis)).data
+
     def slice_columns(self, context, column_indxs, out):
         out.npa = self.npa[:, column_indxs.npa.flatten()]
 

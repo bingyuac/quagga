@@ -646,3 +646,30 @@ class TestMatrix(TestCase):
                 r.append(True)
 
         self.assertEqual(sum(r), 2 * self.N)
+
+    def test_tile(self):
+        r = []
+        for i in xrange(self.N):
+            a = self.get_random_array()
+            b = self.get_random_array((1, a.shape[1]))
+            c = self.get_random_array((a.shape[0], 1))
+            a_cpu = CpuMatrix.from_npa(a, 'float')
+            a_gpu = GpuMatrix.from_npa(a, 'float')
+            b_cpu = CpuMatrix.from_npa(b, 'float')
+            b_gpu = GpuMatrix.from_npa(b, 'float')
+            c_cpu = CpuMatrix.from_npa(c, 'float')
+            c_gpu = GpuMatrix.from_npa(c, 'float')
+
+            a_cpu.tile(self.cpu_context, axis=0, a=b_cpu)
+            a_gpu.tile(self.gpu_context, axis=0, a=b_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+            a_cpu.tile(self.cpu_context, axis=1, a=c_cpu)
+            a_gpu.tile(self.gpu_context, axis=1, a=c_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), 2 * self.N)

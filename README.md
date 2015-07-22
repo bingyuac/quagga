@@ -60,7 +60,11 @@
     - [x] Implement SoftmaxCe block
     - [ ] Add finite difference tests   
 - [ ] Merge softmax and logreg    
-- [ ] Implement MeanPoolingBlock
+- [x] Implement MeanPoolingBlock
+    - [x] Implement `tile` method
+    - [x] Add `tile` test
+    - [x] Add tests
+- [ ] Implement MaxPoolingBlock
 - [x] Add multi-gpu Context (http://on-demand.gputechconf.com/gtc-express/2011/presentations/cuda_webinars_multi_gpu.pdf)
 - [x] Fix event creation in proper device context
 - [x] Add `activate` context in all GpuMatrix operations

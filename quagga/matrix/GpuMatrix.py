@@ -68,6 +68,10 @@ class GpuMatrix(object):
         void_p = ct.cast(self.data, ct.c_void_p).value + self.nrows * k * ct.sizeof(self.c_dtype)
         return ct.cast(void_p, ct.POINTER(self.c_dtype))
 
+    def _get_pointer_to_row(self, k):
+        void_p = ct.cast(self.data, ct.c_void_p).value + k * ct.sizeof(self.c_dtype)
+        return ct.cast(void_p, ct.POINTER(self.c_dtype))
+
     @staticmethod
     def str_to_dtypes(dtype):
         if dtype == 'float':
@@ -135,7 +139,7 @@ class GpuMatrix(object):
         if type(a) is np.ndarray:
             if self.np_dtype != a.dtype:
                 raise ValueError("Allocated memory has {} type. "
-                                 "Can't transfer to the device {} type".
+                                 "Can't transfer {} type".
                                  format(self.np_dtype, a.dtype))
             if a.ndim != 2:
                 raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
@@ -144,9 +148,9 @@ class GpuMatrix(object):
             self.nrows, self.ncols = a.shape
             a = a.ctypes.data_as(ct.POINTER(self.c_dtype))
         else:
-            if a._type_ != self.dtype:
+            if a._type_ != self.dtype: # this branch for ctypes array
                 raise ValueError("Allocated memory has {} type. "
-                                 "Can't transfer to the device {} type".
+                                 "Can't transfer {} type".
                                  format(self.dtype, a._type_))
             self.nrows, self.ncols = nrows, ncols
         context.activate()
@@ -159,10 +163,7 @@ class GpuMatrix(object):
         elem_size = ct.sizeof(self.c_dtype)
         nbytes = a.size * elem_size
         with cudart.device(self.device_id):
-            device_id = cudart.cuda_get_device()
-            data = cudart.cuda_malloc(nbytes, self.c_dtype)
-            cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
-        return GpuMatrix(data, self.nrows, self.ncols, self.dtype, device_id, True)
+            cudart.cuda_memcpy(self.data, host_data, nbytes, 'host_to_device')
 
     def to_host(self):
         c_dtype_p = ct.POINTER(self.c_dtype)
@@ -187,6 +188,33 @@ class GpuMatrix(object):
 
     def reshape(self, nrows, ncols):
         return GpuMatrix(self.data, nrows, ncols, self.dtype, self.device_id, False)
+
+    def tile(self, context, axis, a):
+        context.activate()
+        if axis == 0:
+            if a.nrows != 1:
+                raise ValueError('Invalid shape! `a` must have number of rows '
+                                 'equal to one!')
+            if self.ncols != a.ncols:
+                raise ValueError('Invalid shape! `a` matrix must have the '
+                                 'same number of columns as matrix to be tiled!')
+            for i in xrange(self.nrows):
+                row = self._get_pointer_to_row(i)
+                cublas.cublas_s_copy(context.cublas_handle, self.ncols, a.data, 1, row, self.nrows)
+                context.synchronize()
+        elif axis == 1:
+            if a.ncols != 1:
+                raise ValueError('Invalid shape! `a` must have number of '
+                                 'columns equal to one!')
+            if self.nrows != a.nrows:
+                raise ValueError('Invalid shape! `a` matrix must have the '
+                                 'same number of rows as matrix to be tiled!')
+            for i in xrange(self.ncols):
+                column = self._get_pointer_to_column(i)
+                cublas.cublas_s_copy(context.cublas_handle, self.nrows, a.data, 1, column, 1)
+                context.synchronize()
+        else:
+            raise ValueError('Invalid axis!')
 
     def slice_columns(self, context, column_indxs, out, reverse=False):
         if any(context.device_id != device_id for device_id in [self.device_id, column_indxs.device_id, out.device_id]):

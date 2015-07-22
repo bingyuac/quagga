@@ -172,6 +172,18 @@ def cublas_s_axpy(handle, n, alpha, x, incx, y, incy):
     check_cublas_status(status)
 
 
+_libcublas.cublasScopy_v2.restype = ct_cublas_status
+_libcublas.cublasScopy_v2.argtypes = [ct_cublas_handle,
+                                   ct.c_int,
+                                   ct.POINTER(ct.c_float),
+                                   ct.c_int,
+                                   ct.POINTER(ct.c_float),
+                                   ct.c_int]
+def cublas_s_copy(handle, n, x, incx, y, incy):
+    status = _libcublas.cublasScopy_v2(handle, n, x, incx, y, incy)
+    check_cublas_status(status)
+
+
 _libcublas.cublasSdot_v2.restype = ct_cublas_status
 _libcublas.cublasSdot_v2.argtypes = [ct_cublas_handle,
                                      ct.c_int,
