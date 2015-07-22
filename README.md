@@ -6,7 +6,7 @@
 - [x] Split gpu_matrix_kernels.cu files into several
 - [x] Change `ctypes` usage to `ct` abbreviation
 - [ ] Add benchmarks
-- [ ] Implement MergeBlock
+- [x] Implement MergeBlock
     - [x] Implement VStackBlock
         - [x] add VStackBlock
         - [x] Implement vstack in Cpu/GpuMatrix classes
