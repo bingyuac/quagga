@@ -1,5 +1,5 @@
 from quagga.matrix import Matrix
-from quagga.blocks import Connector
+from quagga.connector import Connector
 
 
 class NpLstmCell(object):

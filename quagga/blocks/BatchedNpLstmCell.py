@@ -1,7 +1,7 @@
 import numpy as np
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import Connector
+from quagga.connector import Connector
 
 
 class BatchedNpLstmCell(object):

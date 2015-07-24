@@ -50,14 +50,16 @@ class Connector(object):
         """
         Register user of connector's forward_matrix.
 
-        :param f_usage_context: context in which `forward_matrix`
-                                will be used
+        :param f_usage_context: context in which `forward_matrix` will be used
         :param b_obtaining_context: context in which `backward_matrix`
                                     of the connector will be calculated
         """
         if not self._b_usage_context and b_obtaining_context:
-            raise ValueError('Why are you going to backward propagate? '
-                             'Previous block does not need you backward step!')
+            raise ValueError('Previous block does not need backward step. '
+                             'You should not backward propagate!')
+        if self._b_usage_context and not b_obtaining_context:
+            raise ValueError('Previous block expect performing of backward '
+                             'step. You should backward propagate!')
 
         u_device_id = f_usage_context.device_id
         o_device_id = self._f_obtaining_context.device_id

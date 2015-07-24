@@ -29,7 +29,7 @@
     - [ ] Implement NpLstmRnn
         - [x] Implement inner non autonomous NpLstmCell block
         - [x] Implement NpLstmRnn block
-        - [ ] Add cpu/gpu comparisons tests
+        - [x] Add cpu/gpu comparisons tests
         - [ ] Add finite difference tests
     - [ ] Implement GruRnn
         - [ ] Implement GruCell

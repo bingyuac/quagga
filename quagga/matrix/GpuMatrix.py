@@ -34,21 +34,27 @@ class GpuMatrix(object):
 
     def __getitem__(self, key):
         if type(key[1]) is int:
-            data = self._get_pointer_to_column(key[1])
-            return GpuMatrix(data, self.nrows, 1, self.dtype, self.device_id, False)
+            if key[0] == slice(None):
+                data = self._get_pointer_to_column(key[1])
+                return GpuMatrix(data, self.nrows, 1, self.dtype, self.device_id, False)
+            if not key[0].step:
+                data = self._get_pointer_to_column(key[1])
+                k = key[0].stop - key[0].start
+                data = ct.cast(data, ct.c_void_p).value + k * ct.sizeof(self.c_dtype)
+                data = ct.cast(data, ct.POINTER(self.c_dtype))
+                return GpuMatrix(data, k, 1, self.dtype, self.device_id, False)
+            raise ValueError('This slice: {} is unsupported!'.format(key))
         if type(key[1]) is slice:
             if key[1].start is None and type(key[1].stop) is int and key[1].step is None:
                 return GpuMatrix(self.data, self.nrows, key[1].stop, self.dtype, self.device_id, False)
-            elif type(key[1].start) is int and key[1].stop is None and key[1].step is None:
+            if type(key[1].start) is int and key[1].stop is None and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
                 return GpuMatrix(data, self.nrows, self.ncols - key[1].start, self.dtype, self.device_id, False)
-            elif type(key[1].start) is int and type(key[1].stop) is int and key[1].step is None:
+            if type(key[1].start) is int and type(key[1].stop) is int and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
                 return GpuMatrix(data, self.nrows, key[1].stop - key[1].start, self.dtype, self.device_id, False)
-            else:
-                raise ValueError('This slice: {} is unsupported!'.format(key))
-        else:
-            raise IndexError('Only integers and slices are supported!')
+            raise ValueError('This slice: {} is unsupported!'.format(key))
+        raise IndexError('Only integers and slices are supported!')
 
     def __setitem__(self, key, value):
         if type(key[0]) is not int or type(key[1]) is not int:

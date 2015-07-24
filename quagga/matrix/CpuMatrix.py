@@ -4,12 +4,13 @@ from itertools import izip
 
 
 class CpuMatrix(object):
-    def __init__(self, npa, nrows, ncols, dtype):
+    def __init__(self, npa, nrows, ncols, dtype, device_id):
         self.npa = npa
         self.nrows = nrows
         self.ncols = ncols
         self.nelems = nrows * ncols
         self.dtype = dtype
+        self.device_id = device_id
 
     def __getitem__(self, key):
         if type(key[1]) == int:
@@ -32,7 +33,7 @@ class CpuMatrix(object):
         raise TypeError(u'data type {} not understood'.format(dtype))
 
     @classmethod
-    def from_npa(cls, a, dtype=None):
+    def from_npa(cls, a, dtype=None, device_id=None):
         if a.ndim != 2:
             raise ValueError('CpuMatrix works only with 2-d numpy arrays!')
         dtype = cls.str_to_dtype(dtype) if dtype else a.dtype
@@ -40,18 +41,18 @@ class CpuMatrix(object):
             a = np.asfortranarray(a, dtype=dtype)
         elif a.dtype != dtype:
             a = a.astype(dtype=dtype)
-        return cls(a, a.shape[0], a.shape[1], dtype)
+        return cls(a, a.shape[0], a.shape[1], dtype, device_id)
 
     @classmethod
-    def empty(cls, nrows, ncols, dtype):
+    def empty(cls, nrows, ncols, dtype, device_id):
         np_dtype = cls.str_to_dtype(dtype) if type(dtype) is str else dtype
-        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype)))
+        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype)), device_id=device_id)
 
     @classmethod
-    def empty_like(cls, other):
+    def empty_like(cls, other, device_id):
         if hasattr(other, 'npa'):
             return cls.from_npa(np.nan_to_num(np.empty_like(other.npa)))
-        return cls.empty(other.nrows, other.ncols, other.dtype)
+        return cls.empty(other.nrows, other.ncols, other.dtype, device_id)
 
     def to_device(self, context, a):
         if self.npa.dtype != a.dtype:
@@ -167,6 +168,22 @@ class CpuMatrix(object):
         sigmoid_matrix.npa.data = (1.0 / (1.0 + np.exp(-self.npa))).data
         if derivative_matrix:
             derivative_matrix.npa.data = (sigmoid_matrix.npa * (1.0 - sigmoid_matrix.npa)).data
+
+    def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None):
+        """
+        This is a fancy function that is used during forward propagation into
+        lstm cell. It calculates for the first 1/4 rows tanh function and
+        sigmoid for the 3/4 remaining rows.
+        """
+        n = self.npa.shape[0] * 3 / 4
+        tanh_npa = np.tanh(self.npa[:n])
+        sigmoid_npa = 1.0 / (1.0 + np.exp(-self.npa[n:]))
+        tanh_sigm_matrix.data = np.asfortranarray(np.vstack((tanh_npa, sigmoid_npa))).data
+
+        if derivative_matrix:
+            tanh_der_npa = 1.0 - tanh_npa ** 2
+            sigmoid_der_npa = sigmoid_npa * (1.0 - sigmoid_npa)
+            derivative_matrix.data = np.asfortranarray(np.vstack((tanh_der_npa, sigmoid_der_npa))).data
 
     def relu(self, context, relu_matrix, derivative_matrix=None):
         relu_matrix.npa.data = np.maximum(self.npa, 0.0).data

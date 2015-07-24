@@ -75,7 +75,7 @@ nonlinearities._tanh_sigm.argtypes = [cudart.ct_cuda_stream,
                                       ct.POINTER(ct.c_float),
                                       ct.POINTER(ct.c_float)]
 def tanh_sigm(stream, nrows, ncols, data, sig_tanh_data):
-    status = nonlinearities._sigm_tanh(stream, nrows, ncols, data, sig_tanh_data)
+    status = nonlinearities._tanh_sigm(stream, nrows, ncols, data, sig_tanh_data)
     cudart.check_cuda_status(status)
 
 
