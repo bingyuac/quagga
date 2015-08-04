@@ -38,18 +38,21 @@ class CpuMatrix(object):
             raise ValueError('CpuMatrix works only with 2-d numpy arrays!')
         dtype = cls.str_to_dtype(dtype) if dtype else a.dtype
         if not np.isfortran(a):
-            a = np.asfortranarray(a, dtype=dtype)
+            pass
+            # print 'Should be fortran array! Now I do not perform casting. I am not sure that we need it at all'
+            # TODO
+            # a = np.asfortranarray(a, dtype=dtype)
         elif a.dtype != dtype:
             a = a.astype(dtype=dtype)
         return cls(a, a.shape[0], a.shape[1], dtype, device_id)
 
     @classmethod
-    def empty(cls, nrows, ncols, dtype, device_id):
+    def empty(cls, nrows, ncols, dtype, device_id=None):
         np_dtype = cls.str_to_dtype(dtype) if type(dtype) is str else dtype
         return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype)), device_id=device_id)
 
     @classmethod
-    def empty_like(cls, other, device_id):
+    def empty_like(cls, other, device_id=None):
         if hasattr(other, 'npa'):
             return cls.from_npa(np.nan_to_num(np.empty_like(other.npa)))
         return cls.empty(other.nrows, other.ncols, other.dtype, device_id)
@@ -74,11 +77,11 @@ class CpuMatrix(object):
         return [self[:, i] for i in xrange(self.ncols)]
 
     def copy(self, context, out):
-        out.npa.data = np.copy(out.npa).data
+        out.npa[...] = np.copy(out.npa)
 
     def tile(self, context, axis, a):
         n = self.nrows if axis == 0 else self.ncols
-        self.npa.data = np.asfortranarray(np.repeat(a.npa, n, axis)).data
+        self.npa[...] = np.asfortranarray(np.repeat(a.npa, n, axis))
 
     def slice_columns(self, context, column_indxs, out):
         out.npa = self.npa[:, column_indxs.npa.flatten()]
@@ -95,12 +98,12 @@ class CpuMatrix(object):
                              "from the summed numbers of columns in buffers!")
         stacked = np.hstack(m.npa for m in matrices)
         stacked = np.asfortranarray(stacked)
-        self.npa.data = stacked.data
+        self.npa[...] = stacked
 
     def hsplit(self, context, matrices, col_slices=None):
         if col_slices:
             for i, col_slice in enumerate(col_slices):
-                matrices[i].npa.data = np.asfortranarray(self.npa[:, col_slice[0]:col_slice[1]]).data
+                matrices[i].npa[...] = np.asfortranarray(self.npa[:, col_slice[0]:col_slice[1]])
         else:
             ncols = 0
             for matrix in matrices:
@@ -116,7 +119,7 @@ class CpuMatrix(object):
                 indices_or_sections.append(indices_or_sections[-1] + m.ncols)
             _matrices = np.hsplit(self.npa, indices_or_sections)
             for _m, m in izip(_matrices, matrices):
-                m.npa.data = np.asfortranarray(_m).data
+                m.npa[...] = np.asfortranarray(_m)
 
     def assign_vstack(self, context, matrices):
         nrows = 0
@@ -130,12 +133,12 @@ class CpuMatrix(object):
                              "from the summed numbers of rows in buffers!")
         stacked = np.vstack(m.npa for m in matrices)
         stacked = np.asfortranarray(stacked)
-        self.npa.data = stacked.data
+        self.npa[...] = stacked
 
     def vsplit(self, context, matrices, row_slices=None):
         if row_slices:
             for i, row_slice in enumerate(row_slices):
-                matrices[i].npa.data = np.asfortranarray(self.npa[row_slice[0]:row_slice[1], :]).data
+                matrices[i].npa[...] = np.asfortranarray(self.npa[row_slice[0]:row_slice[1], :])
         else:
             nrows = 0
             for matrix in matrices:
@@ -151,23 +154,23 @@ class CpuMatrix(object):
                 indices_or_sections.append(indices_or_sections[-1] + m.nrows)
             _matrices = np.vsplit(self.npa, indices_or_sections)
             for _m, m in izip(_matrices, matrices):
-                m.npa.data = np.asfortranarray(_m).data
+                m.npa[...] = np.asfortranarray(_m)
 
     def scale(self, context, alpha, out=None):
         if out:
-            out.npa.data = (self.npa * alpha).data
+            out.npa[...] = (self.npa * alpha)
         else:
             self.npa *= alpha
 
     def tanh(self, context, tanh_matrix, derivative_matrix=None):
         np.tanh(self.npa, tanh_matrix.npa)
         if derivative_matrix:
-            derivative_matrix.npa.data = (1.0 - tanh_matrix.npa ** 2).data
+            derivative_matrix.npa[...] = 1.0 - tanh_matrix.npa ** 2
 
     def sigmoid(self, context, sigmoid_matrix, derivative_matrix=None):
-        sigmoid_matrix.npa.data = (1.0 / (1.0 + np.exp(-self.npa))).data
+        sigmoid_matrix.npa[...] = 1.0 / (1.0 + np.exp(-self.npa))
         if derivative_matrix:
-            derivative_matrix.npa.data = (sigmoid_matrix.npa * (1.0 - sigmoid_matrix.npa)).data
+            derivative_matrix.npa[...] = sigmoid_matrix.npa * (1.0 - sigmoid_matrix.npa)
 
     def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None):
         """
@@ -175,20 +178,20 @@ class CpuMatrix(object):
         lstm cell. It calculates for the first 1/4 rows tanh function and
         sigmoid for the 3/4 remaining rows.
         """
-        n = self.npa.shape[0] * 3 / 4
+        n = self.npa.shape[0] / 4
         tanh_npa = np.tanh(self.npa[:n])
         sigmoid_npa = 1.0 / (1.0 + np.exp(-self.npa[n:]))
-        tanh_sigm_matrix.data = np.asfortranarray(np.vstack((tanh_npa, sigmoid_npa))).data
+        tanh_sigm_matrix.npa[...] = np.asfortranarray(np.vstack((tanh_npa, sigmoid_npa)))
 
         if derivative_matrix:
             tanh_der_npa = 1.0 - tanh_npa ** 2
             sigmoid_der_npa = sigmoid_npa * (1.0 - sigmoid_npa)
-            derivative_matrix.data = np.asfortranarray(np.vstack((tanh_der_npa, sigmoid_der_npa))).data
+            derivative_matrix.npa[...] = np.asfortranarray(np.vstack((tanh_der_npa, sigmoid_der_npa)))
 
     def relu(self, context, relu_matrix, derivative_matrix=None):
-        relu_matrix.npa.data = np.maximum(self.npa, 0.0).data
+        relu_matrix.npa[...] = np.maximum(self.npa, 0.0)
         if derivative_matrix:
-            derivative_matrix.npa.data = (self.npa > 0).astype(np.float32, order='F').data
+            derivative_matrix.npa[...] = (self.npa > 0).astype(np.float32, order='F')
 
     def add_scaled(self, context, alpha, a):
         """

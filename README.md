@@ -17,10 +17,10 @@
         - [x] Implement hstack kernel
         - [x] Implement hstack in Cpu/GpuMatrix classes
         - [x] Add tests
-- [ ] Add `sigm_tanh` function to Gpu/CpuMatrix
+- [x] Add `sigm_tanh` function to Gpu/CpuMatrix
     - [x] Implement kernel that mix sigmoid and tanh
     - [x] Add function to nonlinearities
-    - [ ] Add tests
+    - [x] Add tests
 - [ ] Add different types of rnn
     - [ ] Implement NpLstmCell
         - [ ] Implement NpLstmCell block
@@ -51,7 +51,7 @@
     - [ ] Review current usage of kernels
     - [ ] Synchronize Cpu/GpuMatrix classes
 - [x] Implement EmbeddingBlock
-- [x] Implement LogisticRegressionCe
+- [ ] Implement LogisticRegressionCe
     - [ ] Add reduction kernel for CE
     - [x] Implement LogisticRegressionCe block
     - [x] Add finite difference tests
@@ -81,3 +81,5 @@
 - [ ] Add reduction kernels for mean value
 - [ ] Change checking for `_b_usage_context` on some function or property
 - [ ] Review usage of `vsplit` and `hsplit` (python code instead of c) 
+- [x] check `.data` usage in the CpuMatrix probably one should replace `data` assignment with `[...]=` assignment
+- [ ] check that one need to have fortran array order in `CpuMatrix`

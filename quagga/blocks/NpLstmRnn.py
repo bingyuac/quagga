@@ -89,6 +89,7 @@ class NpLstmRnn(object):
     def bprop(self):
         dL_dh = self.h.backward_matrix
         n = dL_dh.ncols
+        # TODO
         # self.lstm_cells[?].dL_dc   you should set to zero the last dL_dc
         for k in reversed(xrange(n-1)):
             if k == 0:
@@ -223,3 +224,4 @@ class _NpLstmCell(object):
             dL_dprev_h.assign_dot(context, self.R, self.dL_dpre_zifo, 'T')
             # dL/dc[t-1] = f[t] .* dL/dc[t]
             dL_dprev_c.assign_hprod(context, self.f, self.dL_dc)
+            # dL_dprev_c and dL_dprev_h should be connector

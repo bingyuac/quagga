@@ -65,13 +65,13 @@ __global__ void tanhSigm(int nrows,
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * ncols;
-	const int margin  = 3 * nrows / 4;
+	const int margin  = nrows / 4;
 
 	for (int i = start_i; i < nelems; i += nthreads) {
 		if (i % nrows < margin) {
-			sigmTanhData[i] = 1.0f / (1.0f + expf(-data[i]));
-		} else {
 			sigmTanhData[i] = tanhf(data[i]);
+		} else {
+			sigmTanhData[i] = 1.0f / (1.0f + expf(-data[i]));
 		}
 	}
 }
@@ -85,15 +85,15 @@ __global__ void tanhSigm(int nrows,
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * ncols;
-	const int margin  = 3 * nrows / 4;
+	const int margin  = nrows / 4;
 
 	for (int i = start_i; i < nelems; i += nthreads) {
 		if (i % nrows < margin) {
-			sigmTanhData[i] = 1.0f / (1.0f + expf(-data[i]));
-			derivative[i] = sigmTanhData[i] * (1.0f - sigmTanhData[i]);
-		} else {
 			sigmTanhData[i] = tanhf(data[i]);
 			derivative[i] = 1.0f - sigmTanhData[i] * sigmTanhData[i];
+		} else {
+			sigmTanhData[i] = 1.0f / (1.0f + expf(-data[i]));
+			derivative[i] = sigmTanhData[i] * (1.0f - sigmTanhData[i]);
 		}
 	}
 }

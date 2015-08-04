@@ -1,5 +1,5 @@
 class CpuContext(object):
-    def __init__(self, device_id):
+    def __init__(self, device_id=None):
         self.device_id = device_id
         pass
 

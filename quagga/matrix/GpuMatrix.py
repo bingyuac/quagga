@@ -40,7 +40,7 @@ class GpuMatrix(object):
             if not key[0].step:
                 data = self._get_pointer_to_column(key[1])
                 k = key[0].stop - key[0].start
-                data = ct.cast(data, ct.c_void_p).value + k * ct.sizeof(self.c_dtype)
+                data = ct.cast(data, ct.c_void_p).value + key[0].start * ct.sizeof(self.c_dtype)
                 data = ct.cast(data, ct.POINTER(self.c_dtype))
                 return GpuMatrix(data, k, 1, self.dtype, self.device_id, False)
             raise ValueError('This slice: {} is unsupported!'.format(key))
