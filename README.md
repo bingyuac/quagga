@@ -29,20 +29,13 @@
     - [ ] Implement NpLstmRnn
         - [x] Implement inner non autonomous NpLstmCell block
         - [x] Implement NpLstmRnn block
-        - [x] Add cpu/gpu comparisons tests
+        - [x] Add cpu/gpu comparisons tests for fprop
+        - [x] Add cpu/gpu comparisons tests for bprop
         - [ ] Add finite difference tests
     - [ ] Implement GruRnn
         - [ ] Implement GruCell
         - [ ] Add cpu/gpu comparisons tests
-        - [ ] Add finite difference tests
-    - [ ] Implement VanillaLstmRnn        
-        - [ ] Implement VanillaLstmCell
-        - [ ] Add cpu/gpu comparisons tests
-        - [ ] Add finite difference tests
-    - [ ] Implement VanillaRnn        
-        - [ ] Implement RecurrentCell
-        - [ ] Add cpu/gpu comparisons tests
-        - [ ] Add finite difference tests        
+        - [ ] Add finite difference tests     
 - [x] Connector improvement
     - [x] Review `update` field usage in the Connector class
     - [x] Adapt Connector for multi-gpu purpose
@@ -83,3 +76,4 @@
 - [ ] Review usage of `vsplit` and `hsplit` (python code instead of c) 
 - [x] check `.data` usage in the CpuMatrix probably one should replace `data` assignment with `[...]=` assignment
 - [ ] check that one need to have fortran array order in `CpuMatrix`
+- [ ] Split DenseBlock into nonlinearity block and dense block

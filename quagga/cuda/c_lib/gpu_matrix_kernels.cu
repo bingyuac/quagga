@@ -183,6 +183,21 @@ __global__  void addHadamardProduct(int nelems,
 }
 
 
+__global__  void addHadamardProduct(int nelems,
+							        const float* __restrict__ a,
+							        const float* __restrict__ b,
+							        const float* __restrict__ c,
+							        float alpha,
+							        float* __restrict__ d) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		d[i] = a[i] * b[i] * c[i] + alpha * d[i];
+	}
+}
+
+
 __global__  void slicedInplaceAdd(int nrows,
 							      int ncols,
 							      float alpha,
@@ -476,14 +491,27 @@ extern "C" {
     }
 
 
-    cudaError_t _addHadamardProduct(cudaStream_t stream,
-                                    int nelems,
-				 			        const float* __restrict__ a,
-							        const float* __restrict__ b,
-							        float alpha,
-							        float* __restrict__ c) {
+    cudaError_t _addHadamardProduct2(cudaStream_t stream,
+                                   	 int nelems,
+				 			       	 const float* __restrict__ a,
+							       	 const float* __restrict__ b,
+							       	 float alpha,
+							       	 float* __restrict__ c) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addHadamardProduct<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, alpha, c);
+        return cudaGetLastError();
+    }
+
+
+    cudaError_t _addHadamardProduct3(cudaStream_t stream,
+                                     int nelems,
+				 			         const float* __restrict__ a,
+							         const float* __restrict__ b,
+							         const float* __restrict__ c,
+							         float alpha,
+							         float* __restrict__ d) {
+        int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addHadamardProduct<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, c, alpha, d);
         return cudaGetLastError();
     }
 

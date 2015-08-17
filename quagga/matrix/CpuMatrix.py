@@ -77,7 +77,7 @@ class CpuMatrix(object):
         return [self[:, i] for i in xrange(self.ncols)]
 
     def copy(self, context, out):
-        out.npa[...] = np.copy(out.npa)
+        out.npa[...] = np.copy(self.npa)
 
     def tile(self, context, axis, a):
         n = self.nrows if axis == 0 else self.ncols
@@ -213,12 +213,16 @@ class CpuMatrix(object):
         for i, idx in enumerate(column_indxs.npa.flatten()):
             self.npa[:, idx] += alpha * a.npa[:, i]
 
-    def add_hprod(self, context, a, b, alpha=1.0):
+    def add_hprod(self, context, a, b, c=None, alpha=1.0):
         """
-        self = alpha * self + a .* b
+        self = a .* b + alpha * self        or
+        self = a .* b .* c + alpha * self
         """
         self.npa *= alpha
-        self.npa += a.npa * b.npa
+        if not c:
+            self.npa += a.npa * b.npa
+        else:
+            self.npa += a.npa * b.npa * c.npa
 
     def assign_hprod(self, context, a, b, c=None):
         """

@@ -1,4 +1,5 @@
 import numpy as np
+import ctypes as ct
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.connector import Connector
@@ -7,13 +8,7 @@ from quagga.connector import Connector
 class NpLstmRnn(object):
     def __init__(self, W_init, R_init, x, learning=True, device_id=None):
         """
-
-        :param W_init: could be initializers or Matrix
-        :param R_init:
-        :param x:
-        :param propagate_error:
-        :param device_id:
-        :return:
+        TODO
         """
         if W_init.nrows != R_init.nrows:
             raise ValueError('W and R have to have the same number of rows!')
@@ -89,9 +84,8 @@ class NpLstmRnn(object):
     def bprop(self):
         dL_dh = self.h.backward_matrix
         n = dL_dh.ncols
-        # TODO
-        # self.lstm_cells[?].dL_dc   you should set to zero the last dL_dc
-        for k in reversed(xrange(n-1)):
+        self.lstm_cells[n-1].dL_dc.scale(self.context, ct.c_float(0.0))
+        for k in reversed(xrange(n)):
             if k == 0:
                 dL_dprev_h = None
                 dL_dprev_c = None
@@ -106,7 +100,7 @@ class NpLstmRnn(object):
         if self.propagate_to_input:
             self.dL_dx.assign_dot(self.context, self.W, self.dL_dpre_zifo, 'T')
         self.dL_dW.assign_dot(self.context, self.dL_dpre_zifo, self.x, 'N', 'T')
-        self.dL_dR.assign_dot(self.context, self.dL_dpre_zifo[:, 1:n], self.h[:, :n-1], 'N', 'T')
+        self.dL_dR.assign_dot(self.context, self.dL_dpre_zifo[:, 1:n], self.h.__getitem__((slice(None), slice(n-1))), 'N', 'T')
 
     @property
     def params(self):

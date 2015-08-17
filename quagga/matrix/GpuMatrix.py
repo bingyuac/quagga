@@ -389,17 +389,21 @@ class GpuMatrix(object):
         """
         self.sliced_add_scaled(context, column_indxs, ct.c_float(1.0), a)
 
-    def add_hprod(self, context, a, b, alpha=ct.c_float(1.0)):
+    def add_hprod(self, context, a, b, c=None, alpha=ct.c_float(1.0)):
         """
-        self = a .* b + alpha * self
+        self = a .* b + alpha * self        or
+        self = a .* b .* c + alpha * self
         """
         context.activate()
-        gpu_matrix_kernels.add_hadamard_product(context.cuda_stream, self.nelems, a.data, b.data, alpha, self.data)
+        if not c:
+            gpu_matrix_kernels.add_hadamard_product_2(context.cuda_stream, self.nelems, a.data, b.data, alpha, self.data)
+        else:
+            gpu_matrix_kernels.add_hadamard_product_3(context.cuda_stream, self.nelems, a.data, b.data, c.data, alpha, self.data)
 
     def assign_hprod(self, context, a, b, c=None):
         """
-        self = a .* b
-        self = a .* b .* c  or
+        self = a .* b       or
+        self = a .* b .* c
         """
         context.activate()
         if not c:

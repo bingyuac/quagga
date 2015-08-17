@@ -42,15 +42,28 @@ def sliced_inplace_add(stream, nrows, ncols, alpha, dense_matrix, embedding_colu
     cudart.check_cuda_status(status)
 
 
-gpu_matrix_kernels._addHadamardProduct.restype = cudart.ct_cuda_error
-gpu_matrix_kernels._addHadamardProduct.argtypes = [cudart.ct_cuda_stream,
-                                                   ct.c_int,
-                                                   ct.POINTER(ct.c_float),
-                                                   ct.POINTER(ct.c_float),
-                                                   ct.c_float,
-                                                   ct.POINTER(ct.c_float)]
-def add_hadamard_product(stream, nelems, a, b, alpha, c):
-    status = gpu_matrix_kernels._addHadamardProduct(stream, nelems, a, b, alpha, c)
+gpu_matrix_kernels._addHadamardProduct2.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addHadamardProduct2.argtypes = [cudart.ct_cuda_stream,
+                                                    ct.c_int,
+                                                    ct.POINTER(ct.c_float),
+                                                    ct.POINTER(ct.c_float),
+                                                    ct.c_float,
+                                                    ct.POINTER(ct.c_float)]
+def add_hadamard_product_2(stream, nelems, a, b, alpha, c):
+    status = gpu_matrix_kernels._addHadamardProduct2(stream, nelems, a, b, alpha, c)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addHadamardProduct3.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addHadamardProduct3.argtypes = [cudart.ct_cuda_stream,
+                                                    ct.c_int,
+                                                    ct.POINTER(ct.c_float),
+                                                    ct.POINTER(ct.c_float),
+                                                    ct.POINTER(ct.c_float),
+                                                    ct.c_float,
+                                                    ct.POINTER(ct.c_float)]
+def add_hadamard_product_3(stream, nelems, a, b, c, alpha, d):
+    status = gpu_matrix_kernels._addHadamardProduct3(stream, nelems, a, b, c, alpha, d)
     cudart.check_cuda_status(status)
 
 

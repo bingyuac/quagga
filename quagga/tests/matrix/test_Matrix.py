@@ -280,22 +280,31 @@ class TestMatrix(TestCase):
             a = TestMatrix.get_random_array()
             b = TestMatrix.get_random_array(a.shape)
             c = TestMatrix.get_random_array(a.shape)
+            out = TestMatrix.get_random_array(a.shape)
             alpha = 2 * self.rng.rand(1)[0] - 1
 
             a_cpu = CpuMatrix.from_npa(a)
             b_cpu = CpuMatrix.from_npa(b)
             c_cpu = CpuMatrix.from_npa(c)
+            out_cpu = CpuMatrix.from_npa(out)
             a_gpu = GpuMatrix.from_npa(a)
             b_gpu = GpuMatrix.from_npa(b)
             c_gpu = GpuMatrix.from_npa(c)
+            out_gpu = GpuMatrix.from_npa(out)
 
-            a_cpu.add_hprod(self.cpu_context, b_cpu, c_cpu, alpha)
-            a_gpu.add_hprod(self.gpu_context, b_gpu, c_gpu, alpha)
+            out_cpu.add_hprod(self.cpu_context, a_cpu, b_cpu, alpha=alpha)
+            out_gpu.add_hprod(self.gpu_context, a_gpu, b_gpu, alpha=alpha)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
-        self.assertEqual(sum(r), self.N)
+            out_cpu.add_hprod(self.cpu_context, a_cpu, b_cpu, c_cpu, alpha)
+            out_gpu.add_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu, alpha)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
+
+        self.assertEqual(sum(r), self.N * 2)
 
     def test_assign_hprod(self):
         r = []
