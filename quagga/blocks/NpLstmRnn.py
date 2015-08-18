@@ -11,7 +11,7 @@ class NpLstmRnn(object):
         TODO
         """
         if W_init.nrows != R_init.nrows:
-            raise ValueError('W and R have to have the same number of rows!')
+            raise ValueError('W and R must have the same number of rows!')
         if R_init.nrows != R_init.ncols:
             raise ValueError('R must be a square matrix!')
 
@@ -215,7 +215,6 @@ class _NpLstmCell(object):
 
         if dL_dprev_h:
             # dL/dh[t-1] = R.T * dL/dpre_zifo[t]
-            dL_dprev_h.assign_dot(context, self.R, self.dL_dpre_zifo, 'T')
+            dL_dprev_h.add_dot(context, self.R, self.dL_dpre_zifo, 'T')
             # dL/dc[t-1] = f[t] .* dL/dc[t]
             dL_dprev_c.assign_hprod(context, self.f, self.dL_dc)
-            # dL_dprev_c and dL_dprev_h should be connector

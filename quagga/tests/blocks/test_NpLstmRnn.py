@@ -5,6 +5,7 @@ from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.blocks import NpLstmRnn
 from quagga.connector import Connector
+from quagga.blocks import LogisticRegressionCe
 
 
 class TestNpLstmRnn(TestCase):
@@ -21,6 +22,19 @@ class TestNpLstmRnn(TestCase):
         u, _, v = np.linalg.svd(a, full_matrices=False)
         a = u if u.shape == shape else v
         return a.astype(dtype=np.float32)
+
+    @classmethod
+    def get_orthogonal_initializer(cls, nrows, ncols):
+        shape = (nrows, ncols)
+        def initializer():
+            a = cls.rng.normal(0.0, 1.0, shape)
+            u, _, v = np.linalg.svd(a, full_matrices=False)
+            q = u if u.shape == shape else v
+            q = q.reshape(shape).astype(np.float32)
+            return q
+        initializer.nrows = shape[0]
+        initializer.ncols = shape[1]
+        return initializer
 
     def test_fprop(self):
         """
@@ -66,7 +80,7 @@ class TestNpLstmRnn(TestCase):
             np_lstm_rnn_cpu.context.synchronize()
             h_cpu = np_lstm_rnn_cpu.h.to_host()
 
-            r.append(np.allclose(h_gpu, h_cpu, atol=1e-3))
+            r.append(np.allclose(h_gpu, h_cpu, rtol=1e-7, atol=1e-3))
 
         self.assertEqual(sum(r), self.N)
 
@@ -127,8 +141,121 @@ class TestNpLstmRnn(TestCase):
             dL_dR_cpu = np_lstm_rnn_cpu.dL_dR.to_host()
             dL_dx_cpu = np_lstm_rnn_cpu.dL_dx.to_host()
 
-            r.append(np.allclose(dL_dW_gpu, dL_dW_cpu, atol=1e-3))
-            r.append(np.allclose(dL_dR_gpu, dL_dR_cpu, atol=1e-3))
-            r.append(np.allclose(dL_dx_gpu, dL_dx_cpu, atol=1e-3))
+            r.append(np.allclose(dL_dW_gpu, dL_dW_cpu, rtol=1e-7, atol=1e-3))
+            r.append(np.allclose(dL_dR_gpu, dL_dR_cpu, rtol=1e-7, atol=1e-3))
+            r.append(np.allclose(dL_dx_gpu, dL_dx_cpu, rtol=1e-7, atol=1e-3))
 
         self.assertEqual(sum(r), self.N * 3)
+
+    def test_finite_difference_x(self):
+        quagga.processor_type = 'gpu'
+        r = []
+        n = 10
+
+        for i in xrange(n):
+            k = self.rng.random_integers(10)
+            dim_x = self.rng.random_integers(50)
+            dim_h = self.rng.random_integers(20)
+
+            W_init = lambda: (np.random.rand(dim_h, dim_x) * 0.1).astype(np.float32)
+            W_init.nrows, W_init.ncols = dim_h, dim_x
+            R_init = lambda: (np.random.rand(dim_h, dim_h) * 0.1).astype(np.float32)
+            R_init.nrows, R_init.ncols = dim_h, dim_h
+            log_reg_init = lambda: (np.random.rand(1, dim_h) * 0.1).astype(np.float32)
+
+            x = Connector(Matrix.from_npa(np.random.rand(dim_x, k), 'float'), b_usage_context=Context())
+            true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
+            np_lstm_rnn = NpLstmRnn(W_init, R_init, x)
+            log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
+
+            x.fprop()
+            true_labels.fprop()
+            np_lstm_rnn.fprop()
+            log_reg.fprop()
+            log_reg.bprop()
+            np_lstm_rnn.bprop()
+
+            dL_dx = np_lstm_rnn.dL_dx.to_host()
+            numerical_grad = np.zeros_like(dL_dx)
+            cross_entropy = lambda l, p: -np.sum(l * np.log(p) + (1 - l) * np.log(1 - p))
+            x_np = x.to_host()
+            true_labels_np = true_labels.to_host()
+
+            epsilon = 1e-2
+            for i in xrange(x.nrows):
+                for j in xrange(x.ncols):
+                    x.__setitem__((i, j), x_np[i, j] + epsilon)
+                    np_lstm_rnn.fprop()
+                    log_reg.fprop()
+                    probs = log_reg.probs.to_host()
+                    plus_cost = cross_entropy(true_labels_np, probs)
+
+                    x.__setitem__((i, j), x_np[i, j] - epsilon)
+                    np_lstm_rnn.fprop()
+                    log_reg.fprop()
+                    probs = log_reg.probs.to_host()
+                    minus_cost = cross_entropy(true_labels_np, probs)
+
+                    numerical_grad[i, j] = (plus_cost - minus_cost) / (2 * epsilon)
+                    x.__setitem__((i, j), x_np[i, j])
+
+            r.append(np.allclose(dL_dx, numerical_grad, rtol=1e-7, atol=1e-4))
+
+        self.assertEqual(sum(r), n)
+
+    def test_finite_difference_w(self):
+        quagga.processor_type = 'gpu'
+        r = []
+        n = 10
+
+        for i in xrange(n):
+            k = self.rng.random_integers(3)
+            dim_x = self.rng.random_integers(50)
+            dim_h = self.rng.random_integers(20)
+
+            W_init = self.get_orthogonal_initializer(dim_h, dim_x)
+            R_init = self.get_orthogonal_initializer(dim_h, dim_h)
+            log_reg_init = lambda: (np.random.rand(1, dim_h) * 0.1).astype(np.float32)
+
+            x = Connector(Matrix.from_npa(np.random.rand(dim_x, k), 'float'))
+            true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
+            np_lstm_rnn = NpLstmRnn(W_init, R_init, x)
+            log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
+
+            x.fprop()
+            true_labels.fprop()
+            np_lstm_rnn.fprop()
+            log_reg.fprop()
+            log_reg.bprop()
+            np_lstm_rnn.bprop()
+
+            dL_d = {'W': np_lstm_rnn.dL_dW.to_host(),
+                    'R': np_lstm_rnn.dL_dR.to_host()}
+            cross_entropy = lambda l, p: -np.sum(l * np.log(p) + (1 - l) * np.log(1 - p))
+            true_labels_np = true_labels.to_host()
+            for variable in ['W', 'R']:
+                dL_dvariable = dL_d[variable]
+                numerical_grad = np.zeros_like(dL_d[variable])
+                variable = getattr(np_lstm_rnn, variable)
+                variable_np = variable.to_host()
+                epsilon = 1e-2
+                for i in xrange(variable.nrows):
+                    for j in xrange(variable.ncols):
+                        variable.__setitem__((i, j), variable_np[i, j] + epsilon)
+                        np_lstm_rnn.fprop()
+                        log_reg.fprop()
+                        probs = log_reg.probs.to_host()
+                        plus_cost = cross_entropy(true_labels_np, probs)
+
+                        variable.__setitem__((i, j), variable_np[i, j] - epsilon)
+                        np_lstm_rnn.fprop()
+                        log_reg.fprop()
+                        probs = log_reg.probs.to_host()
+                        minus_cost = cross_entropy(true_labels_np, probs)
+
+                        numerical_grad[i, j] = (plus_cost - minus_cost) / (2 * epsilon)
+                        variable.__setitem__((i, j), variable_np[i, j])
+
+                r.append(np.allclose(dL_dvariable, numerical_grad, rtol=1e-7, atol=1e-4))
+
+        self.assertEqual(sum(r), 2 * n)
