@@ -22,7 +22,7 @@ class VerticalStackBlock(object):
         nrows = [0]
         for matrix in matrices:
             nrows.append(nrows[-1] + matrix.nrows)
-            if matrix._b_usage_context:
+            if matrix.bpropagable:
                 matrix, dL_dmatrix = matrix.register_usage(self.context, self.context)
                 self.dL_dmatrices.append(dL_dmatrix)
                 row_slices.append((nrows[-2], nrows[-1]))

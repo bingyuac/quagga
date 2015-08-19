@@ -21,11 +21,9 @@ class LogisticRegressionCe(object):
         self.w = Matrix.from_npa(init(), device_id=device_id)
         self.dL_dw = Matrix.empty_like(self.w, device_id)
         self.context = Context(device_id)
-        if features._b_usage_context:
-            self.propagate_error = True
+        if features.bpropagable:
             self.features, self.dL_dfeatures = features.register_usage(self.context, self.context)
         else:
-            self.propagate_error = False
             self.features = features.register_usage(self.context)
         self.true_labels = true_labels.register_usage(self.context)
         self.probs = Matrix.empty(true_labels.nrows, true_labels.ncols, 'float', device_id)
@@ -60,7 +58,7 @@ class LogisticRegressionCe(object):
         # dL/dw = error * features.T
         self.dL_dw.assign_dot(self.context, self.probs, self.features, matrix_operation_b='T')
         # dL/dfeatures = w.T * error
-        if self.propagate_error:
+        if hasattr(self, 'dL_dfeatures'):
             self.dL_dfeatures.assign_dot(self.context, self.w, self.probs, matrix_operation_a='T')
 
     @property

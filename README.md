@@ -22,10 +22,11 @@
     - [x] Add function to nonlinearities
     - [x] Add tests
 - [ ] Add different types of rnn
-    - [ ] Implement NpLstmCell
-        - [ ] Implement NpLstmCell block
+    - [ ] Implement NpLstmBlock
+        - [ ] Implement NpLstmBlock block
         - [ ] Add cpu/gpu comparisons tests
         - [ ] Add finite difference tests
+        - [ ] Add theano grads tests
     - [ ] Implement NpLstmRnn
         - [x] Implement inner non autonomous NpLstmCell block
         - [x] Implement NpLstmRnn block
@@ -73,7 +74,7 @@
 - [ ] Add learning rate and momentum policies
     - [x] Implemented fixed learning policy
 - [ ] Add reduction kernels for mean value
-- [ ] Change checking for `_b_usage_context` on some function or property
+- [x] Change checking for `_b_usage_context` on some function or property
 - [ ] Review usage of `vsplit` and `hsplit` (python code instead of c) 
 - [x] check `.data` usage in the CpuMatrix probably one should replace `data` assignment with `[...]=` assignment
 - [ ] check that one need to have fortran array order in `CpuMatrix`

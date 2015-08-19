@@ -20,7 +20,7 @@ class HorizontalStackBlock(object):
         self.dL_dmatrices = []
         self.bpropagable = []
         for matrix in matrices:
-            if matrix._b_usage_context:
+            if matrix.bpropagable:
                 matrix, dL_dmatrix = matrix.register_usage(self.context, self.context)
                 self.dL_dmatrices.append(dL_dmatrix)
                 self.bpropagable.append(True)

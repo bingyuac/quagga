@@ -26,7 +26,7 @@ class MeanPoolingBlock(object):
         self._ones.fill(1.0)
         self.axis = axis
 
-        if matrix._b_usage_context:
+        if matrix.bpropagable:
             self.matrix, self.dL_dmatrix = matrix.register_usage(self.context, self.context)
             self.output = Connector(self.output, self.context, self.context)
         else:
@@ -46,4 +46,5 @@ class MeanPoolingBlock(object):
     def bprop(self):
         dL_doutput = self.output.backward_matrix
         dL_doutput.scale(self.context, self.alpha)
-        self.dL_dmatrix.tile(self.context, self.axis, dL_doutput)
+        if hasattr(self, 'dL_dmatrix'):
+            self.dL_dmatrix.tile(self.context, self.axis, dL_doutput)

@@ -31,12 +31,12 @@ class NpLstmRnn(object):
         if learning:
             self.dL_dR = Matrix.empty_like(self.R)
 
-        if learning and x._b_usage_context:
+        if learning and x.bpropagable:
             self.x, self.dL_dx = x.register_usage(self.context, self.context)
-            self.propagate_to_input = True
-        else:
+        elif not learning and not x.bpropagable:
             self.x = x.register_usage(self.context)
-            self.propagate_to_input = False
+        else:
+            raise ValueError('TODO write here proper message')
 
         h = Matrix.empty(nrows, self.max_input_sequence_len, x.dtype, device_id)
         if learning:
@@ -73,7 +73,7 @@ class NpLstmRnn(object):
         self.pre_zifo.ncols = n
         if self.learning:
             self.dL_dpre_zifo.ncols = n
-        if self.propagate_to_input:
+        if hasattr(self, 'dL_dx'):
             self.dL_dx.ncols = n
 
         self.pre_zifo.assign_dot(self.context, self.W, self.x)
@@ -97,7 +97,8 @@ class NpLstmRnn(object):
         # dL/dx = W.T * dL/dpre_zifo
         # dL_dW = dL/dpre_zifo * x.T
         # dL_dR = dL/dpre_zifo[:, 1:n] * h[:, :n-1].T
-        if self.propagate_to_input:
+        # http://stackoverflow.com/questions/14102407/implementing-getitem-in-new-style-classes
+        if hasattr(self, 'dL_dx'):
             self.dL_dx.assign_dot(self.context, self.W, self.dL_dpre_zifo, 'T')
         self.dL_dW.assign_dot(self.context, self.dL_dpre_zifo, self.x, 'N', 'T')
         self.dL_dR.assign_dot(self.context, self.dL_dpre_zifo[:, 1:n], self.h.__getitem__((slice(None), slice(n-1))), 'N', 'T')

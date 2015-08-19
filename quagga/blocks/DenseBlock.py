@@ -8,11 +8,9 @@ class DenseBlock(object):
         self.context = Context(device_id)
         self.w = Matrix.from_npa(init(), device_id=device_id)
         self.dL_dw = Matrix.empty_like(self.w, device_id)
-        if features._b_usage_context:
-            self.propagate_error = True
+        if features.bpropagable:
             self.features, self.dL_dfeatures = features.register_usage(self.context, self.context)
         else:
-            self.propagate_error = False
             self.features = features.register_usage(self.context)
         self.output = Connector(Matrix.empty(self.w.nrows, self.features.ncols, 'float', device_id), self.context, self.context)
         self._df_dpref = Matrix.empty(self.w.nrows, self.features.ncols, 'float', device_id)
@@ -50,7 +48,7 @@ class DenseBlock(object):
         # dL/dw = dL/dpref * features.T
         self.dL_dw.assign_dot(self.context, dL_dpref, self.features, matrix_operation_b='T')
         # dL/dfeatures = w.T * dL/dpref
-        if self.propagate_error:
+        if hasattr(self, 'dL_dfeatures'):
             self.dL_dfeatures.assign_dot(self.context, self.w, dL_dpref, matrix_operation_a='T')
 
     @property
