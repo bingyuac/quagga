@@ -31,7 +31,8 @@
         - [x] Implement NpLstmRnn block
         - [x] Add cpu/gpu comparisons tests for fprop
         - [x] Add cpu/gpu comparisons tests for bprop
-        - [ ] Add finite difference tests
+        - [x] Add finite difference tests
+        - [x] Add theano grads tests
     - [ ] Implement GruRnn
         - [ ] Implement GruCell
         - [ ] Add cpu/gpu comparisons tests

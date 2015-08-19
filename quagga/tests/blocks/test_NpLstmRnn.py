@@ -1,6 +1,8 @@
 import quagga
+import theano
 import numpy as np
 from unittest import TestCase
+from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.blocks import NpLstmRnn
@@ -120,7 +122,7 @@ class TestNpLstmRnn(TestCase):
             np_lstm_rnn_gpu = NpLstmRnn(W_init, R_init, x_gpu)
             h, dL_dh = np_lstm_rnn_gpu.h.register_usage(context, context)
             np_lstm_rnn_gpu.fprop()
-            random_matrix = np.random.rand(dL_dh.nrows, dL_dh.ncols)
+            random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
             Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
             np_lstm_rnn_gpu.bprop()
             np_lstm_rnn_gpu.context.synchronize()
@@ -157,13 +159,13 @@ class TestNpLstmRnn(TestCase):
             dim_x = self.rng.random_integers(50)
             dim_h = self.rng.random_integers(20)
 
-            W_init = lambda: (np.random.rand(dim_h, dim_x) * 0.1).astype(np.float32)
+            W_init = lambda: (self.rng.rand(dim_h, dim_x) * 0.1).astype(np.float32)
             W_init.nrows, W_init.ncols = dim_h, dim_x
-            R_init = lambda: (np.random.rand(dim_h, dim_h) * 0.1).astype(np.float32)
+            R_init = lambda: (self.rng.rand(dim_h, dim_h) * 0.1).astype(np.float32)
             R_init.nrows, R_init.ncols = dim_h, dim_h
-            log_reg_init = lambda: (np.random.rand(1, dim_h) * 0.1).astype(np.float32)
+            log_reg_init = lambda: (self.rng.rand(1, dim_h) * 0.1).astype(np.float32)
 
-            x = Connector(Matrix.from_npa(np.random.rand(dim_x, k), 'float'), b_usage_context=Context())
+            x = Connector(Matrix.from_npa(self.rng.rand(dim_x, k), 'float'), b_usage_context=Context())
             true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
             np_lstm_rnn = NpLstmRnn(W_init, R_init, x)
             log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
@@ -175,7 +177,7 @@ class TestNpLstmRnn(TestCase):
             log_reg.bprop()
             np_lstm_rnn.bprop()
 
-            dL_dx = np_lstm_rnn.dL_dx.to_host()
+            dL_dx = x.backward_matrix.to_host()
             numerical_grad = np.zeros_like(dL_dx)
             cross_entropy = lambda l, p: -np.sum(l * np.log(p) + (1 - l) * np.log(1 - p))
             x_np = x.to_host()
@@ -209,15 +211,15 @@ class TestNpLstmRnn(TestCase):
         n = 10
 
         for i in xrange(n):
-            k = self.rng.random_integers(3)
+            k = self.rng.random_integers(10)
             dim_x = self.rng.random_integers(50)
             dim_h = self.rng.random_integers(20)
 
             W_init = self.get_orthogonal_initializer(dim_h, dim_x)
             R_init = self.get_orthogonal_initializer(dim_h, dim_h)
-            log_reg_init = lambda: (np.random.rand(1, dim_h) * 0.1).astype(np.float32)
+            log_reg_init = lambda: (self.rng.rand(1, dim_h) * 0.1).astype(np.float32)
 
-            x = Connector(Matrix.from_npa(np.random.rand(dim_x, k), 'float'))
+            x = Connector(Matrix.from_npa(self.rng.rand(dim_x, k), 'float'))
             true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
             np_lstm_rnn = NpLstmRnn(W_init, R_init, x)
             log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
@@ -259,3 +261,93 @@ class TestNpLstmRnn(TestCase):
                 r.append(np.allclose(dL_dvariable, numerical_grad, rtol=1e-7, atol=1e-4))
 
         self.assertEqual(sum(r), 2 * n)
+
+    def test_theano_grad(self):
+        class LstmLayer(object):
+            def __init__(self, W_init, R_init):
+                W_init = np.vstack((W_init(), W_init(), W_init(), W_init()))
+                R_init = np.vstack((R_init(), R_init(), R_init(), R_init()))
+                self.W = theano.shared(W_init, name='W_zifo')
+                self.R = theano.shared(R_init, name='R_zifo')
+                self.n = W_init.shape[0] / 4
+
+            def get_output_expr(self, input_sequence):
+                h0 = T.zeros((self.n, ), dtype=np.float32)
+                c0 = T.zeros((self.n, ), dtype=np.float32)
+
+                [_, h], _ = theano.scan(fn=self.__get_lstm_step_expr,
+                                        sequences=input_sequence.T,
+                                        outputs_info=[c0, h0])
+                return h.T
+
+            def __get_lstm_step_expr(self, x_t, c_tm1, h_tm1):
+                sigm = T.nnet.sigmoid
+                tanh = T.tanh
+                dot = theano.dot
+
+                zifo_t = dot(self.W, x_t) + dot(self.R, h_tm1)
+                z_t = tanh(zifo_t[0*self.n:1*self.n])
+                i_t = sigm(zifo_t[1*self.n:2*self.n])
+                f_t = sigm(zifo_t[2*self.n:3*self.n])
+                o_t = sigm(zifo_t[3*self.n:4*self.n])
+
+                c_t = i_t * z_t + f_t * c_tm1
+                h_t = o_t * tanh(c_t)
+                return c_t, h_t
+
+        class LogisticRegression(object):
+            def __init__(self, W_init):
+                self.W = theano.shared(value=W_init(), name='W')
+
+            def get_output_expr(self, input_expr):
+                return T.nnet.sigmoid(T.dot(self.W, input_expr))
+
+        quagga.processor_type = 'gpu'
+        r = []
+        n = 10
+
+        for i in xrange(n):
+            k = self.rng.random_integers(10)
+            dim_x = self.rng.random_integers(50)
+            dim_h = self.rng.random_integers(20)
+
+            W_init = self.get_orthogonal_initializer(dim_h, dim_x)
+            R_init = self.get_orthogonal_initializer(dim_h, dim_h)
+            log_reg_init = lambda: (self.rng.rand(1, dim_h) * 0.1).astype(np.float32)
+
+            x = Connector(Matrix.from_npa(self.rng.rand(dim_x, k), 'float'), b_usage_context=Context())
+            true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
+
+            # Theano model
+            state = self.rng.get_state()
+            th_x = T.fmatrix('x')
+            th_true_labels = T.fvector('true_labels')
+            lstm_layer = LstmLayer(W_init, R_init)
+            lr_layer = LogisticRegression(log_reg_init)
+
+            output = lr_layer.get_output_expr(lstm_layer.get_output_expr(th_x))
+            loss = T.sum(T.nnet.binary_crossentropy(output, th_true_labels))
+            grad_W, grad_R, grad_x = T.grad(loss, wrt=[lstm_layer.W, lstm_layer.R, th_x])
+            get_theano_grads = theano.function([th_x, th_true_labels], [grad_W, grad_R, grad_x])
+            self.rng.set_state(state)
+
+            # quagga model
+            np_lstm_rnn = NpLstmRnn(W_init, R_init, x)
+            log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
+
+            x.fprop()
+            true_labels.fprop()
+            np_lstm_rnn.fprop()
+            log_reg.fprop()
+            log_reg.bprop()
+            np_lstm_rnn.bprop()
+
+            dL_d = {'W': np_lstm_rnn.dL_dW.to_host(),
+                    'R': np_lstm_rnn.dL_dR.to_host(),
+                    'x': x.backward_matrix.to_host()}
+            theano_grad = dict(zip(['W', 'R', 'x'], get_theano_grads(x.to_host(), true_labels.to_host()[0])))
+
+            for variable in ['W', 'R', 'x']:
+                r.append(np.allclose(dL_d[variable], theano_grad[variable], rtol=1e-7, atol=1.e-7))
+
+        self.assertEqual(sum(r), 3 * n)
