@@ -3,7 +3,7 @@ from quagga import Model
 from quagga.optimizers import SgdOptimizer
 from quagga.optimizers.policy import FixedLearningRatePolicy
 from quagga.optimizers.interruption import ValidationInterruption
-from quagga.blocks import GrammarDataBlock, EmbeddingBlock, NpLstmRnn, MergeBlock, MeanPoolingBlock, LogisticRegressionCe
+from quagga.blocks import GrammarDataBlock, EmbeddingBlock, NpLstmRnnM, MergeBlock, MeanPoolingBlock, LogisticRegressionCe
 
 
 if __name__ == '__main__':
@@ -15,8 +15,8 @@ if __name__ == '__main__':
     grammar_data_block = GrammarDataBlock(device_id=0)
     forward_embedding_block = EmbeddingBlock(embedding_init, grammar_data_block.data, device_id=0)
     backward_embedding_block = EmbeddingBlock(embedding_init, grammar_data_block.data, True, device_id=1)
-    forward_rnn = NpLstmRnn(W_init, R_init, forward_embedding_block.output, device_id=0)
-    backward_rnn = NpLstmRnn(W_init, R_init, backward_embedding_block.output, device_id=1)
+    forward_rnn = NpLstmRnnM(W_init, R_init, forward_embedding_block.output, device_id=0)
+    backward_rnn = NpLstmRnnM(W_init, R_init, backward_embedding_block.output, device_id=1)
     merge_block = MergeBlock(forward_rnn.h, backward_rnn.h, device_id=0)
     log_reg = LogisticRegressionCe(log_reg_init, merge_block.ouput, grammar_data_block.y, device_id=0)
 

@@ -5,7 +5,7 @@ from quagga.context import Context
 from quagga.connector import Connector
 
 
-class NpLstmRnn(object):
+class NpLstmRnnM(object):
     def __init__(self, W_init, R_init, x, learning=True, device_id=None):
         """
         TODO
@@ -26,7 +26,7 @@ class NpLstmRnn(object):
             self.dL_dW = Matrix.empty_like(self.W)
 
         R = [Matrix.from_npa(R_init(), device_id=device_id) for _ in xrange(4)]
-        self.R = Matrix.empty(4 * nrows, R_init.ncols, R[0].dtype, device_id)
+        self.R = Matrix.empty(4 * nrows, nrows, R[0].dtype, device_id)
         self.R.assign_vstack(self.context, R)
         if learning:
             self.dL_dR = Matrix.empty_like(self.R)
@@ -57,9 +57,9 @@ class NpLstmRnn(object):
                 prev_c = self.lstm_cells[-1].c
                 prev_h = self.lstm_cells[-1].h
             if learning:
-                cell = _NpLstmCell(self.R, h[:, k], self.pre_zifo[:, k], self.dL_dpre_zifo[:, k], prev_c, prev_h, self.context, learning)
+                cell = _NpLstmBlock(self.R, h[:, k], self.pre_zifo[:, k], self.dL_dpre_zifo[:, k], prev_c, prev_h, self.context, learning)
             else:
-                cell = _NpLstmCell(self.R, h[:, k], self.pre_zifo[:, k], None, prev_c, prev_h, self.context, learning)
+                cell = _NpLstmBlock(self.R, h[:, k], self.pre_zifo[:, k], None, prev_c, prev_h, self.context, learning)
             self.lstm_cells.append(cell)
         self.learning = learning
 
@@ -112,7 +112,7 @@ class NpLstmRnn(object):
         return [self.dL_dW, self.dL_dR]
 
 
-class _NpLstmCell(object):
+class _NpLstmBlock(object):
     def __init__(self, R, h, pre_zifo, dL_dpre_zifo, prev_c, prev_h, context, learning=True):
         """
         No peepholes LSTM cell block is used for building `NpLstmRnn` block.

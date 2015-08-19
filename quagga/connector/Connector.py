@@ -1,3 +1,4 @@
+import ctypes as ct
 from quagga.matrix import Matrix
 from quagga.context import Context
 from collections import defaultdict
@@ -45,6 +46,8 @@ class Connector(object):
         self._b_matrices = defaultdict(dict)
         self._b_obtaining_contexts = dict()
         self._b_usage_context = b_usage_context
+        self._usage_number = 0
+        self.zero_bmatrix = None
 
     def register_usage(self, f_usage_context, b_obtaining_context=None):
         """
@@ -55,12 +58,9 @@ class Connector(object):
                                     of the connector will be calculated
         """
         if not self._b_usage_context and b_obtaining_context:
-            raise ValueError('Previous block does not need backward step. '
-                             'You should not backward propagate!')
-        if self._b_usage_context and not b_obtaining_context:
-            raise ValueError('Previous block expect performing of backward '
-                             'step. You should backward propagate!')
-
+            raise ValueError('Nobody is going to use computation from backward '
+                             'step. You should not backward propagate!')
+        self._usage_number += 1
         u_device_id = f_usage_context.device_id
         o_device_id = self._f_obtaining_context.device_id
         if u_device_id != o_device_id and u_device_id not in self._f_matrices:
@@ -85,6 +85,15 @@ class Connector(object):
         self._f_obtaining_context.block(*self._f_usage_contexts)
 
     def bprop(self):
+        if not self._b_usage_context:
+            raise ValueError('Nobody was going to use computation from backward '
+                             'step. You should not backward propagate!')
+        if self._usage_number == 0:
+            if not self.zero_bmatrix:
+                self.zero_bmatrix = Matrix.empty_like(self, self._b_usage_context.device_id)
+            self.zero_bmatrix.scale(self._b_usage_context, ct.c_float(0.0))
+            return self.zero_bmatrix
+
         u_device_id = self._b_usage_context.device_id
         backward_matrices = []
         for b_obtaining_context, matrices in self._b_matrices.iteritems():
@@ -93,6 +102,7 @@ class Connector(object):
                 matrices[o_device_id].copy(b_obtaining_context, matrices[u_device_id])
             backward_matrices.append(matrices[u_device_id])
         self._b_usage_context.wait(*self._b_matrices.iterkeys())
+        # TODO rewrite with batch addition
         for backward_matrix in backward_matrices[1:]:
             backward_matrices[0].add(self._b_usage_context, backward_matrix)
         return backward_matrices[0]

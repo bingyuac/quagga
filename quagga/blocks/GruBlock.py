@@ -1,0 +1,2 @@
+class GruBlock(object):
+    pass

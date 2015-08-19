@@ -5,7 +5,7 @@ from unittest import TestCase
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.blocks import NpLstmRnn
+from quagga.blocks import NpLstmRnnM
 from quagga.connector import Connector
 from quagga.blocks import LogisticRegressionCe
 
@@ -70,14 +70,14 @@ class TestNpLstmRnn(TestCase):
 
             quagga.processor_type = 'gpu'
             x_gpu = Connector(Matrix.from_npa(x))
-            np_lstm_rnn_gpu = NpLstmRnn(W_init, R_init, x_gpu, learning=False)
+            np_lstm_rnn_gpu = NpLstmRnnM(W_init, R_init, x_gpu, learning=False)
             np_lstm_rnn_gpu.fprop()
             np_lstm_rnn_gpu.context.synchronize()
             h_gpu = np_lstm_rnn_gpu.h.to_host()
 
             quagga.processor_type = 'cpu'
             x_cpu = Connector(Matrix.from_npa(x))
-            np_lstm_rnn_cpu = NpLstmRnn(W_init, R_init, x_cpu, learning=False)
+            np_lstm_rnn_cpu = NpLstmRnnM(W_init, R_init, x_cpu, learning=False)
             np_lstm_rnn_cpu.fprop()
             np_lstm_rnn_cpu.context.synchronize()
             h_cpu = np_lstm_rnn_cpu.h.to_host()
@@ -119,7 +119,7 @@ class TestNpLstmRnn(TestCase):
             quagga.processor_type = 'gpu'
             context = Context()
             x_gpu = Connector(Matrix.from_npa(x), context, context)
-            np_lstm_rnn_gpu = NpLstmRnn(W_init, R_init, x_gpu)
+            np_lstm_rnn_gpu = NpLstmRnnM(W_init, R_init, x_gpu)
             h, dL_dh = np_lstm_rnn_gpu.h.register_usage(context, context)
             np_lstm_rnn_gpu.fprop()
             random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
@@ -133,7 +133,7 @@ class TestNpLstmRnn(TestCase):
             quagga.processor_type = 'cpu'
             context = Context()
             x_cpu = Connector(Matrix.from_npa(x), context, context)
-            np_lstm_rnn_cpu = NpLstmRnn(W_init, R_init, x_cpu)
+            np_lstm_rnn_cpu = NpLstmRnnM(W_init, R_init, x_cpu)
             h, dL_dh = np_lstm_rnn_cpu.h.register_usage(context, context)
             np_lstm_rnn_cpu.fprop()
             Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
@@ -167,7 +167,7 @@ class TestNpLstmRnn(TestCase):
 
             x = Connector(Matrix.from_npa(self.rng.rand(dim_x, k), 'float'), b_usage_context=Context())
             true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
-            np_lstm_rnn = NpLstmRnn(W_init, R_init, x)
+            np_lstm_rnn = NpLstmRnnM(W_init, R_init, x)
             log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
 
             x.fprop()
@@ -221,7 +221,7 @@ class TestNpLstmRnn(TestCase):
 
             x = Connector(Matrix.from_npa(self.rng.rand(dim_x, k), 'float'))
             true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
-            np_lstm_rnn = NpLstmRnn(W_init, R_init, x)
+            np_lstm_rnn = NpLstmRnnM(W_init, R_init, x)
             log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
 
             x.fprop()
@@ -332,7 +332,7 @@ class TestNpLstmRnn(TestCase):
             self.rng.set_state(state)
 
             # quagga model
-            np_lstm_rnn = NpLstmRnn(W_init, R_init, x)
+            np_lstm_rnn = NpLstmRnnM(W_init, R_init, x)
             log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
 
             x.fprop()

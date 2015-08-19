@@ -446,5 +446,5 @@ class GpuMatrix(object):
             k = b.nrows if matrix_operation_b == 'N' else b.ncols
             cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
 
-    def cross_entropy(self, context, p, q):
+    def assign_cross_entropy(self, context, p, q):
         gpu_matrix_kernels.binary_cross_entropy(context.cuda_stream, p.nelems, p.data, q.data, self.data)

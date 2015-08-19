@@ -79,3 +79,7 @@
 - [x] check `.data` usage in the CpuMatrix probably one should replace `data` assignment with `[...]=` assignment
 - [ ] check that one need to have fortran array order in `CpuMatrix`
 - [ ] Split DenseBlock into nonlinearity block and dense block
+- [ ] Add `Matrix` batch (assign_)addition I will use it into `Connector` bprop
+- [ ] Add fast dropout LSTM
+- [x] You should accept that your idea with precomputed W * x in LSTM work only for SGD and there is a very big consequences, You should revisit your ideas!
+- [ ] Add broadcasting to matrix addition

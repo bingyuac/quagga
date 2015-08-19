@@ -1,2 +1,0 @@
-class GruCell(object):
-    pass

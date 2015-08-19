@@ -63,7 +63,7 @@ class LogisticRegressionCe(object):
 
     @property
     def loss(self):
-        self.ce.cross_entropy(self.context, self.true_labels, self.probs)
+        self.ce.assign_cross_entropy(self.context, self.true_labels, self.probs)
         return self.ce.to_host()
 
     @property
