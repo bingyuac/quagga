@@ -16,18 +16,27 @@ def scale(stream, nelems, alpha, data, out_data):
     cudart.check_cuda_status(status)
 
 
-
-gpu_matrix_kernels._sum.restype = cudart.ct_cuda_error
-gpu_matrix_kernels._sum.argtypes = [cudart.ct_cuda_stream,
-                                    ct.c_int,
-                                    ct.POINTER(ct.c_float),
-                                    ct.POINTER(ct.c_float),
-                                    ct.POINTER(ct.c_float),
-                                    ct.POINTER(ct.c_float),
-                                    ct.POINTER(ct.c_float)]
-def sum(stream, nelems, a, b, c, d, e):
-    status = gpu_matrix_kernels._sum(stream, nelems, a, b, c, d, e)
+gpu_matrix_kernels._add_sum.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._add_sum.argtypes = [cudart.ct_cuda_stream,
+                                        ct.c_int,
+                                        ct.POINTER(ct.POINTER(ct.c_float)),
+                                        ct.c_int,
+                                        ct.POINTER(ct.c_float)]
+def add_sum(stream, nelems, matrices, n, s):
+    status = gpu_matrix_kernels._add_sum(stream, nelems, matrices, n, s)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._assign_sum.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assign_sum.argtypes = [cudart.ct_cuda_stream,
+                                           ct.c_int,
+                                           ct.POINTER(ct.POINTER(ct.c_float)),
+                                           ct.c_int,
+                                           ct.POINTER(ct.c_float)]
+def assign_sum(stream, nelems, matrices, n, s):
+    status = gpu_matrix_kernels._assign_sum(stream, nelems, matrices, n, s)
+    cudart.check_cuda_status(status)
+
 
 gpu_matrix_kernels._slicedInplaceAdd.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._slicedInplaceAdd.argtypes = [cudart.ct_cuda_stream,

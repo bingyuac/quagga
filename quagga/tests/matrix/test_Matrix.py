@@ -223,28 +223,41 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N * 2)
 
-    def test_add(self):
+    def test_add_sum(self):
         r = []
         for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = TestMatrix.get_random_array(a.shape)
-            c = TestMatrix.get_random_array(a.shape)
-            d = TestMatrix.get_random_array(a.shape)
+            a = [TestMatrix.get_random_array()]
+            for _ in xrange(self.rng.random_integers(10)):
+                a.append(TestMatrix.get_random_array(a[-1].shape))
 
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            c_cpu = CpuMatrix.from_npa(c)
-            d_cpu = CpuMatrix.from_npa(d)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-            c_gpu = GpuMatrix.from_npa(c)
-            d_gpu = GpuMatrix.from_npa(d)
+            a_cpu = [CpuMatrix.from_npa(each) for each in a]
+            a_gpu = [GpuMatrix.from_npa(each) for each in a]
 
-            a_cpu.add(self.cpu_context, b_cpu, c_cpu, d_cpu)
-            a_gpu.add(self.gpu_context, b_gpu, c_gpu, d_gpu)
+            a_cpu[0].add_sum(self.cpu_context, a_cpu[1:])
+            a_gpu[0].add_sum(self.gpu_context, a_gpu[1:])
+
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
+            r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_assign_sum(self):
+        r = []
+        for i in xrange(self.N):
+            a = [TestMatrix.get_random_array()]
+            for _ in xrange(self.rng.random_integers(10)):
+                a.append(TestMatrix.get_random_array(a[-1].shape))
+
+            a_cpu = [CpuMatrix.from_npa(each) for each in a]
+            a_gpu = [GpuMatrix.from_npa(each) for each in a]
+
+            a_cpu[0].assign_sum(self.cpu_context, a_cpu[1:])
+            a_gpu[0].assign_sum(self.gpu_context, a_gpu[1:])
+
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)
 

@@ -366,12 +366,26 @@ class GpuMatrix(object):
         context.activate()
         cublas.cublas_s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
 
-    def add(self, context, a, b=None, c=None):
-        if not b and not c:
-            self.add_scaled(context, ct.c_float(1.0), a)
-        else:
-            context.activate()
-            gpu_matrix_kernels.sum(context.cuda_stream, self.nelems, a.data, b.data, c.data, self.data, self.data)
+    def add(self, context, a):
+        self.add_scaled(context, ct.c_float(1.0), a)
+
+    def add_sum(self, context, matrices):
+        context.activate()
+        n = len(matrices)
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        device_pointer = _get_temp_memory(n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        gpu_matrix_kernels.add_sum(context.cuda_stream, self.nelems, device_pointer, n, self.data)
+
+    def assign_sum(self, context, matrices):
+        context.activate()
+        n = len(matrices)
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        device_pointer = _get_temp_memory(n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        gpu_matrix_kernels.assign_sum(context.cuda_stream, self.nelems, device_pointer, n, self.data)
 
     def sub(self, context, a):
         self.add_scaled(context, ct.c_float(-1.0), a)
@@ -448,3 +462,21 @@ class GpuMatrix(object):
 
     def assign_cross_entropy(self, context, p, q):
         gpu_matrix_kernels.binary_cross_entropy(context.cuda_stream, p.nelems, p.data, q.data, self.data)
+
+
+def _get_temp_memory(N):
+    global __temp_pointer
+    global __N
+    if N > __N:
+        if __temp_pointer:
+            atexit._exithandlers.remove((cudart.cuda_free, (__temp_pointer, ), {}))
+            cudart.cuda_free(__temp_pointer)
+        __N = N + 10
+        c_dtype = ct.POINTER(ct.c_float)
+        elem_size = ct.sizeof(c_dtype)
+        __temp_pointer = cudart.cuda_malloc(__N * elem_size, c_dtype)
+        atexit.register(cudart.cuda_free, __temp_pointer)
+    return __temp_pointer
+
+__temp_pointer = None
+__N = 0

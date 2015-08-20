@@ -1,10 +1,11 @@
+import ctypes as ct
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.connector import Connector
 from quagga.matrix import MatrixContainer
 
 
-class NpLstmRnnV(object):
+class LstmRnn(object):
     def __init__(self, W_init, R_init, x, learning=True, device_id=None):
         """
         TODO
@@ -41,7 +42,7 @@ class NpLstmRnnV(object):
             else:
                 prev_c = self.lstm_cells[-1].c
                 prev_h = self.lstm_cells[-1].h
-            cell = _NpLstmBlock(self.W, self.R, x[k], prev_c, prev_h, self.context, learning)
+            cell = _LstmBlock(self.W, self.R, x[k], prev_c, prev_h, self.context, learning)
             self.lstm_cells.append(cell)
             self.h.append(cell.h)
         self.h = MatrixContainer(self.h)
@@ -57,21 +58,18 @@ class NpLstmRnnV(object):
             self.lstm_cells[k].fprop()
 
     def bprop(self):
-        for k in reversed(xrange(len(self.x))):
-            self.lstm_cells[k].bprop()
-        # TODO sumup all dL_dW, dL_dR from lstm blocks
-
-        # dL/dx = W.T * dL/dpre_zifo
-        # dL_dW = dL/dpre_zifo * x.T
-        # dL_dR = dL/dpre_zifo[:, 1:n] * h[:, :n-1].T
-        # http://stackoverflow.com/questions/14102407/implementing-getitem-in-new-style-classes
-        self.dL_dx = [Matrix.empty()]
-        if hasattr(self, 'dL_dx'):
-            self.dL_dx.assign_dot(self.context, self.W, self.dL_dpre_zifo, 'T')
-
-        self.dL_dW.assign_dot(self.context, self.dL_dpre_zifo, self.x, 'N', 'T')
-        self.dL_dR.assign_dot(self.context, self.dL_dpre_zifo[:, 1:n], self.h.__getitem__((slice(None), slice(n-1))), 'N', 'T')
-
+        n = len(self.x)
+        for k in reversed(xrange(n)):
+            if k == n-1 and k == 0:
+                self.lstm_cells[k].bprop(True, True)
+            elif k == n-1:
+                self.lstm_cells[k].bprop(False, True)
+            elif k == 0:
+                self.lstm_cells[k].bprop(True, False)
+            else:
+                self.lstm_cells[k].bprop(False, False)
+        self.dL_dW.assign_batch_add(self.context, [e.dL_dW for e in self.lstm_cells])
+        self.dL_dR.assign_batch_add(self.context, [e.dL_dR for e in self.lstm_cells])
 
     @property
     def params(self):
@@ -82,7 +80,7 @@ class NpLstmRnnV(object):
         return [self.dL_dW, self.dL_dR]
 
 
-class _NpLstmBlock(object):
+class _LstmBlock(object):
     def __init__(self, W, R, x, prev_c, prev_h, context, learning=True):
         """
         TODO
@@ -144,10 +142,8 @@ class _NpLstmBlock(object):
 
         if learning and x.bpropagable:
             self.x, self.dL_dx = x.register_usage(self.context, self.context)
-        elif not learning and not x.bpropagable:
-            self.x = x.register_usage(self.context)
         else:
-            raise ValueError('TODO write here proper message!')
+            self.x = x.register_usage(self.context)
 
     @property
     def dzifo_dpre_zifo(self):
@@ -190,14 +186,15 @@ class _NpLstmBlock(object):
         self.c.assign_sum_hprod(self.context, self.i, self.z, self.f, self.prev_c)
         self.c.tanh(self.context, self.tanh_c, self.dtanh_c_dc)
         self.h.assign_hprod(self.context, self.o, self.tanh_c)
+        self.c.fprop()
         self.h.fprop()
 
-    def bprop(self, last, first):
+    def bprop(self, is_first, is_last):
         dL_dh = self.h.backward_matrix
         dL_dc = self.c.backward_matrix
 
         # dL/dc[t] += dL/dh[t] .* o[t] .* dtanh(c[t])/dc[t]
-        if last:
+        if is_last:
             dL_dc.assign_hprod(self.context, dL_dh, self.o, self.dtanh_c_dc)
         else:
             dL_dc.add_hprod(self.context, dL_dh, self.o, self.dtanh_c_dc)
@@ -211,14 +208,16 @@ class _NpLstmBlock(object):
         self.dL_dpre_i.assign_hprod(self.context, dL_dc, self.z, self.di_dpre_i)
         self.dL_dpre_z.assign_hprod(self.context, dL_dc, self.i, self.dz_dpre_z)
 
-        # dL_dW = x[t].T * dL/dpre_zifo[t]
-        # dL_dR = h[t-1].T * dL/dpre_zifo[t]
+        # dL_dW[t] = x[t].T * dL/dpre_zifo[t]
+        # dL_dR[t] = h[t-1].T * dL/dpre_zifo[t]
         self.dL_dW.assign_dot(self.context, self.x, self.dL_dpre_zifo, 'T')
-        if not first:
+        if is_first:
+            self.dL_dR.scale(self.context, ct.c_float(0.0))
+        else:
             self.dL_dR.assign_dot(self.context, self.dL_dpre_zifo, self.prev_h, 'T')
 
         if hasattr(self, 'dL_dx'):
-            # dL/dx = W.T * dL/dpre_zifo
+            # dL/dx[t] = W.T * dL/dpre_zifo[t]
             self.dL_dx.assign_dot(self.context, self.W, self.dL_dpre_zifo, 'T')
 
         if hasattr(self, 'dL_dprev_h'):

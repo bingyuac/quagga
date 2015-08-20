@@ -199,12 +199,16 @@ class CpuMatrix(object):
         """
         self.npa += alpha * a.npa
 
-    def add(self, context, a, b=None, c=None):
-        if not b and not c:
-            self.add_scaled(context, 1.0, a)
-        else:
-            for m in [a, b, c]:
-                self.npa += m.npa
+    def add(self, context, a):
+        self.add_scaled(context, 1.0, a)
+
+    def add_sum(self, context, matrices):
+        for m in matrices:
+            self.npa += m.npa
+
+    def assign_sum(self, context, matrices):
+        self.npa = 0.0
+        self.add_sum(context, matrices)
 
     def sliced_add_scaled(self, context, column_indxs, alpha, a):
         """

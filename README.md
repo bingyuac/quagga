@@ -83,3 +83,6 @@
 - [ ] Add fast dropout LSTM
 - [x] You should accept that your idea with precomputed W * x in LSTM work only for SGD and there is a very big consequences, You should revisit your ideas!
 - [ ] Add broadcasting to matrix addition
+- [ ] Add dropout block
+- [ ] Add sequential layer
+- [ ] Add compiler functionality for more flexible code generation

@@ -220,17 +220,33 @@ __global__  void slicedInplaceAdd(int nrows,
 }
 
 
-__global__ void sum(int nelems,
-					const float* __restrict__ a,
-					const float* __restrict__ b,
-					const float* __restrict__ c,
-					const float* __restrict__ d,
-					float* __restrict__ e) {
+__global__ void assignSum(int nelems,
+						  const float* matrices[],
+						  int n,
+						  float* __restrict__ s) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for (int i = start_i; i < nelems; i += nthreads) {
-		e[i] = a[i] + b[i] + c[i] + d[i];
+		s[i] = 0.0;
+		for (int k = 0; k < n; k++) {
+			s[i] += matrices[k][i];
+		}
+	}
+}
+
+
+__global__ void addSum(int nelems,
+					   const float* matrices[],
+					   int n,
+					   float* __restrict__ s) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		for (int k = 0; k < n; k++) {
+			s[i] += matrices[k][i];
+		}
 	}
 }
 
@@ -528,15 +544,25 @@ extern "C" {
         return cudaGetLastError();
 	}
 
-    cudaError_t _sum(cudaStream_t stream,
+
+    cudaError_t _add_sum(cudaStream_t stream,
                      int nelems,
-					 const float* __restrict__ a,
-					 const float* __restrict__ b,
-					 const float* __restrict__ c,
-					 const float* __restrict__ d,
-					 float* __restrict__ e) {
+                     const float* matrices[],
+                     int n,
+                     float* __restrict__ s) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-        sum<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, c, d, e);
+        addSum<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, matrices, n, s);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _assign_sum(cudaStream_t stream,
+                     		int nelems,
+                     		const float* matrices[],
+                     		int n,
+                     		float* __restrict__ s) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        assignSum<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, matrices, n, s);
         return cudaGetLastError();
 	}
 
