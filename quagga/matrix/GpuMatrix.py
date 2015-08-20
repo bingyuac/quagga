@@ -45,12 +45,15 @@ class GpuMatrix(object):
                 return GpuMatrix(data, k, 1, self.dtype, self.device_id, False)
             raise ValueError('This slice: {} is unsupported!'.format(key))
         if type(key[1]) is slice:
-            if key[1].start is None and type(key[1].stop) is int and key[1].step is None:
+
+            isinstance(key[1].stop, int)
+
+            if key[1].start is None and isinstance(key[1].stop, int) and key[1].step is None:
                 return GpuMatrix(self.data, self.nrows, key[1].stop, self.dtype, self.device_id, False)
-            if type(key[1].start) is int and key[1].stop is None and key[1].step is None:
+            if isinstance(key[1].start, int) and key[1].stop is None and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
                 return GpuMatrix(data, self.nrows, self.ncols - key[1].start, self.dtype, self.device_id, False)
-            if type(key[1].start) is int and type(key[1].stop) is int and key[1].step is None:
+            if isinstance(key[1].start, int) and isinstance(key[1].stop, int) and key[1].step is None:
                 data = self._get_pointer_to_column(key[1].start)
                 return GpuMatrix(data, self.nrows, key[1].stop - key[1].start, self.dtype, self.device_id, False)
             raise ValueError('This slice: {} is unsupported!'.format(key))

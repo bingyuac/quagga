@@ -22,25 +22,12 @@
     - [x] Add function to nonlinearities
     - [x] Add tests
 - [ ] Add different types of rnn
-    - [ ] Implement NpLstmBlock
-        - [ ] Implement NpLstmBlock block
-        - [ ] Add cpu/gpu comparisons tests
-        - [ ] Add finite difference tests
-        - [ ] Add theano grads tests
-    - [ ] Implement NpLstmRnn
-        - [x] Implement inner non autonomous NpLstmCell block
-        - [x] Implement NpLstmRnn block
+    - [ ] Implement LstmRnn
+        - [x] Implement LstmRnn block
         - [x] Add cpu/gpu comparisons tests for fprop
         - [x] Add cpu/gpu comparisons tests for bprop
         - [x] Add finite difference tests
-        - [x] Add theano grads tests
-    - [ ] Implement GruRnn
-        - [ ] Implement GruCell
-        - [ ] Add cpu/gpu comparisons tests
-        - [ ] Add finite difference tests     
-- [x] Connector improvement
-    - [x] Review `update` field usage in the Connector class
-    - [x] Adapt Connector for multi-gpu purpose
+        - [x] Add theano grads tests     
 - [ ] Cpu/GpuMatrix improvement    
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels

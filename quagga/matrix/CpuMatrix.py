@@ -70,6 +70,9 @@ class CpuMatrix(object):
         self.nelems = self.nrows * self.ncols
         self.npa = a
 
+    def fill(self, value):
+        self.npa[...] = value
+
     def to_host(self):
         return self.npa
 

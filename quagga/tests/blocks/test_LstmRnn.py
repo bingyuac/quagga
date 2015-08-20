@@ -1,16 +1,18 @@
 import quagga
 import theano
 import numpy as np
+from itertools import izip
 from unittest import TestCase
 from theano import tensor as T
 from quagga.matrix import Matrix
+from quagga.blocks import LstmRnn
 from quagga.context import Context
-from quagga.blocks import NpLstmRnnM
 from quagga.connector import Connector
+from quagga.matrix import MatrixContainer
 from quagga.blocks import LogisticRegressionCe
 
 
-class TestNpLstmRnn(TestCase):
+class TestLstmRnn(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rng = np.random.RandomState(seed=42)
@@ -44,45 +46,40 @@ class TestNpLstmRnn(TestCase):
         """
         r = []
         for i in xrange(self.N):
-            nrows, ncols = self.rng.random_integers(2000, size=2)
+            batch_size = self.rng.random_integers(512)
             max_input_sequence_len = self.rng.random_integers(1000)
-            x = 4 * self.rng.rand(ncols, max_input_sequence_len).astype(dtype=np.float32) - 2
+            input_dim, hidden_dim = self.rng.random_integers(2000, size=2)
+            x = [self.rng.rand(batch_size, input_dim).astype(dtype=np.float32) for _ in xrange(max_input_sequence_len)]
 
-            W = []
-            for k in xrange(4):
-                W.append(self.get_random_array((nrows, ncols)))
-            def W_init():
-                W_init.wk = (W_init.wk + 1) % 4
-                return W[W_init.wk]
-            W_init.wk = -1
-            W_init.nrows = nrows
-            W_init.ncols = ncols
+            W_init = self.get_orthogonal_initializer(input_dim, hidden_dim)
+            R_init = self.get_orthogonal_initializer(hidden_dim, hidden_dim)
 
-            R = []
-            for k in xrange(4):
-                R.append(self.get_random_array((nrows, nrows)))
-            def R_init():
-                R_init.rk = (R_init.rk + 1) % 4
-                return R[R_init.rk]
-            R_init.rk = -1
-            R_init.nrows = nrows
-            R_init.ncols = nrows
-
+            state = self.rng.get_state()
             quagga.processor_type = 'gpu'
-            x_gpu = Connector(Matrix.from_npa(x))
-            np_lstm_rnn_gpu = NpLstmRnnM(W_init, R_init, x_gpu, learning=False)
+            x_gpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
+            np_lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, learning=False)
             np_lstm_rnn_gpu.fprop()
             np_lstm_rnn_gpu.context.synchronize()
             h_gpu = np_lstm_rnn_gpu.h.to_host()
 
+            self.rng.set_state(state)
             quagga.processor_type = 'cpu'
-            x_cpu = Connector(Matrix.from_npa(x))
-            np_lstm_rnn_cpu = NpLstmRnnM(W_init, R_init, x_cpu, learning=False)
+            x_cpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
+            np_lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, learning=False)
             np_lstm_rnn_cpu.fprop()
             np_lstm_rnn_cpu.context.synchronize()
             h_cpu = np_lstm_rnn_cpu.h.to_host()
 
-            r.append(np.allclose(h_gpu, h_cpu, rtol=1e-7, atol=1e-3))
+            for h_gpu, h_cpu in izip(h_gpu, h_cpu):
+                if not np.allclose(h_gpu, h_cpu, rtol=1e-7, atol=1e-3):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+            del np_lstm_rnn_gpu
+            del np_lstm_rnn_cpu
+            del x_gpu
+            del x_cpu
 
         self.assertEqual(sum(r), self.N)
 

@@ -102,9 +102,9 @@ class Connector(object):
                 matrices[o_device_id].copy(b_obtaining_context, matrices[u_device_id])
             backward_matrices.append(matrices[u_device_id])
         self._b_usage_context.wait(*self._b_matrices.iterkeys())
-        # TODO rewrite with batch addition
-        for backward_matrix in backward_matrices[1:]:
-            backward_matrices[0].add(self._b_usage_context, backward_matrix)
+
+        if backward_matrices[1:]:
+            backward_matrices[0].add_sum(self._b_usage_context, backward_matrices[1:])
         return backward_matrices[0]
 
     backward_matrix = property(bprop)

@@ -12,5 +12,11 @@ class MatrixContainer(object):
         else:
             raise IndexError('MatrixContainer index out of range')
 
+    def __iter__(self):
+        return iter(self.matrices[:self.length])
+
     def __len__(self):
         return self.length
+
+    def to_host(self):
+        return [e.to_host() for e in self]

@@ -10,8 +10,8 @@ class LstmRnn(object):
         """
         TODO
         """
-        if W_init.nrows != R_init.nrows:
-            raise ValueError('W and R must have the same number of rows!')
+        if W_init.ncols != R_init.ncols:
+            raise ValueError('W and R must have the same number of columns!')
         if R_init.nrows != R_init.ncols:
             raise ValueError('R must be a square matrix!')
 
@@ -27,16 +27,17 @@ class LstmRnn(object):
             self.dL_dW = Matrix.empty_like(self.W)
 
         R = [Matrix.from_npa(R_init(), device_id=device_id) for _ in xrange(4)]
-        self.R = Matrix.empty(input_dim, 4 * hidden_dim, R[0].dtype, device_id)
-        self.R.assign_vstack(self.context, R)
+        self.R = Matrix.empty(hidden_dim, 4 * hidden_dim, R[0].dtype, device_id)
+        self.R.assign_hstack(self.context, R)
         if learning:
             self.dL_dR = Matrix.empty_like(self.R)
 
         self.h = []
         self.lstm_cells = []
+        batch_size = x[0].nrows
         for k in xrange(self.max_input_sequence_len):
             if k == 0:
-                prev_c = Matrix.empty_like(x[k], device_id)
+                prev_c = Matrix.empty(batch_size, hidden_dim, device_id=device_id)
                 prev_c.fill(0.0)
                 prev_h = prev_c
             else:
@@ -68,8 +69,8 @@ class LstmRnn(object):
                 self.lstm_cells[k].bprop(True, False)
             else:
                 self.lstm_cells[k].bprop(False, False)
-        self.dL_dW.assign_batch_add(self.context, [e.dL_dW for e in self.lstm_cells])
-        self.dL_dR.assign_batch_add(self.context, [e.dL_dR for e in self.lstm_cells])
+        self.dL_dW.assign_sum(self.context, [e.dL_dW for e in self.lstm_cells])
+        self.dL_dR.assign_sum(self.context, [e.dL_dR for e in self.lstm_cells[1:]])
 
     @property
     def params(self):
@@ -94,12 +95,13 @@ class _LstmBlock(object):
         """
 
         device_id = context.device_id
-        dim = prev_c.nrows
+        dim = R.nrows
+        batch_size = prev_c.nrows
         self.context = context
         self.W = W
         self.R = R
-        self.pre_zifo = Matrix.empty_like(prev_c, device_id)
-        self.zifo = Matrix.empty_like(prev_c, device_id)
+        self.pre_zifo = Matrix.empty(batch_size, 4 * dim, device_id=device_id)
+        self.zifo = Matrix.empty_like(self.pre_zifo, device_id)
         self.z = self.zifo[:, 0*dim:1*dim]
         self.i = self.zifo[:, 1*dim:2*dim]
         self.f = self.zifo[:, 2*dim:3*dim]
@@ -135,8 +137,13 @@ class _LstmBlock(object):
             self.dL_dW = Matrix.empty_like(W, device_id)
             self.dL_dR = Matrix.empty_like(R, device_id)
         else:
-            self.prev_c = prev_c.register_usage(self.context)
-            self.prev_h = prev_h.register_usage(self.context)
+            try:
+                self.prev_c = prev_c.register_usage(self.context)
+                self.prev_h = prev_h.register_usage(self.context)
+            except AttributeError:
+                self.prev_c = prev_c
+                self.prev_h = prev_h
+
             self.c = Connector(self.c, self.context)
             self.h = Connector(self.h, self.context)
 

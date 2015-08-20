@@ -11,7 +11,8 @@ class Matrix(object):
         return cls._get_matrix_class().from_npa(a, dtype, device_id)
 
     @classmethod
-    def empty(cls, nrows, ncols, dtype, device_id=None):
+    def empty(cls, nrows, ncols, dtype=None, device_id=None):
+        dtype = dtype if dtype else quagga.dtype
         return cls._get_matrix_class().empty(nrows, ncols, dtype, device_id)
 
     @classmethod
