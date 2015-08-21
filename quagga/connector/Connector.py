@@ -49,6 +49,10 @@ class Connector(object):
         self._usage_number = 0
         self.zero_bmatrix = None
 
+    @property
+    def bpropagable(self):
+        return bool(self._b_usage_context)
+
     def register_usage(self, f_usage_context, b_obtaining_context=None):
         """
         Register user of connector's forward_matrix.

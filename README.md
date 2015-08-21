@@ -73,3 +73,4 @@
 - [ ] Add dropout block
 - [ ] Add sequential layer
 - [ ] Add compiler functionality for more flexible code generation
+- [ ] Add max margin cost function

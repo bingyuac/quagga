@@ -46,9 +46,10 @@ class TestLstmRnn(TestCase):
         """
         r = []
         for i in xrange(self.N):
+            max_input_sequence_len = self.rng.random_integers(500)
+            sequence_len = max_input_sequence_len if i == 0 else self.rng.random_integers(max_input_sequence_len)
             batch_size = self.rng.random_integers(512)
-            max_input_sequence_len = self.rng.random_integers(1000)
-            input_dim, hidden_dim = self.rng.random_integers(2000, size=2)
+            input_dim, hidden_dim = self.rng.random_integers(1500, size=2)
             x = [self.rng.rand(batch_size, input_dim).astype(dtype=np.float32) for _ in xrange(max_input_sequence_len)]
 
             W_init = self.get_orthogonal_initializer(input_dim, hidden_dim)
@@ -57,6 +58,7 @@ class TestLstmRnn(TestCase):
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             x_gpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
+            x_gpu.set_length(sequence_len)
             np_lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, learning=False)
             np_lstm_rnn_gpu.fprop()
             np_lstm_rnn_gpu.context.synchronize()
@@ -65,6 +67,7 @@ class TestLstmRnn(TestCase):
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             x_cpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
+            x_cpu.set_length(sequence_len)
             np_lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, learning=False)
             np_lstm_rnn_cpu.fprop()
             np_lstm_rnn_cpu.context.synchronize()
@@ -89,60 +92,63 @@ class TestLstmRnn(TestCase):
         """
         r = []
         for i in xrange(self.N):
-            nrows, ncols = self.rng.random_integers(2000, size=2)
-            max_input_sequence_len = self.rng.random_integers(1000)
-            x = 4 * self.rng.rand(ncols, max_input_sequence_len).astype(dtype=np.float32) - 2
+            max_input_sequence_len = self.rng.random_integers(500)
+            sequence_len = max_input_sequence_len if i == 0 else self.rng.random_integers(max_input_sequence_len)
+            batch_size = self.rng.random_integers(512)
+            input_dim, hidden_dim = self.rng.random_integers(1500, size=2)
+            x = [self.rng.rand(batch_size, input_dim).astype(dtype=np.float32) for _ in xrange(max_input_sequence_len)]
 
-            W = []
-            for k in xrange(4):
-                W.append(self.get_random_array((nrows, ncols)))
-            def W_init():
-                W_init.wk = (W_init.wk + 1) % 4
-                return W[W_init.wk]
-            W_init.wk = -1
-            W_init.nrows = nrows
-            W_init.ncols = ncols
+            W_init = self.get_orthogonal_initializer(input_dim, hidden_dim)
+            R_init = self.get_orthogonal_initializer(hidden_dim, hidden_dim)
 
-            R = []
-            for k in xrange(4):
-                R.append(self.get_random_array((nrows, nrows)))
-            def R_init():
-                R_init.rk = (R_init.rk + 1) % 4
-                return R[R_init.rk]
-            R_init.rk = -1
-            R_init.nrows = nrows
-            R_init.ncols = nrows
-
+            state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             context = Context()
-            x_gpu = Connector(Matrix.from_npa(x), context, context)
-            np_lstm_rnn_gpu = NpLstmRnnM(W_init, R_init, x_gpu)
-            h, dL_dh = np_lstm_rnn_gpu.h.register_usage(context, context)
+            x_gpu = MatrixContainer([Connector(Matrix.from_npa(e), context, context) for e in x])
+            x_gpu.set_length(sequence_len)
+            np_lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu)
+            h, dL_dh = zip(*[h.register_usage(context, context) for h in np_lstm_rnn_gpu.h])
             np_lstm_rnn_gpu.fprop()
-            random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
-            Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
+            for dL_dh in dL_dh:
+                random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
+                Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
             np_lstm_rnn_gpu.bprop()
+            context.synchronize()
             np_lstm_rnn_gpu.context.synchronize()
             dL_dW_gpu = np_lstm_rnn_gpu.dL_dW.to_host()
             dL_dR_gpu = np_lstm_rnn_gpu.dL_dR.to_host()
-            dL_dx_gpu = np_lstm_rnn_gpu.dL_dx.to_host()
+            dL_dx_gpu = [e.backward_matrix.to_host() for e in x_gpu]
 
+            self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             context = Context()
-            x_cpu = Connector(Matrix.from_npa(x), context, context)
-            np_lstm_rnn_cpu = NpLstmRnnM(W_init, R_init, x_cpu)
-            h, dL_dh = np_lstm_rnn_cpu.h.register_usage(context, context)
+            x_cpu = MatrixContainer([Connector(Matrix.from_npa(e), context, context) for e in x])
+            x_cpu.set_length(sequence_len)
+            np_lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu)
+            h, dL_dh = zip(*[h.register_usage(context, context) for h in np_lstm_rnn_cpu.h])
             np_lstm_rnn_cpu.fprop()
-            Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
+            for dL_dh in dL_dh:
+                random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
+                Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
             np_lstm_rnn_cpu.bprop()
+            context.synchronize()
             np_lstm_rnn_cpu.context.synchronize()
             dL_dW_cpu = np_lstm_rnn_cpu.dL_dW.to_host()
             dL_dR_cpu = np_lstm_rnn_cpu.dL_dR.to_host()
-            dL_dx_cpu = np_lstm_rnn_cpu.dL_dx.to_host()
+            dL_dx_cpu = [e.backward_matrix.to_host() for e in x_cpu]
 
             r.append(np.allclose(dL_dW_gpu, dL_dW_cpu, rtol=1e-7, atol=1e-3))
             r.append(np.allclose(dL_dR_gpu, dL_dR_cpu, rtol=1e-7, atol=1e-3))
-            r.append(np.allclose(dL_dx_gpu, dL_dx_cpu, rtol=1e-7, atol=1e-3))
+            for dL_dx_gpu, dL_dx_cpu in izip(dL_dx_gpu, dL_dx_cpu):
+                if not np.allclose(dL_dx_gpu, dL_dx_cpu, rtol=1e-7, atol=1e-3):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+            del np_lstm_rnn_gpu
+            del np_lstm_rnn_cpu
+            del x_gpu
+            del x_cpu
 
         self.assertEqual(sum(r), self.N * 3)
 

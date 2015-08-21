@@ -24,13 +24,13 @@ class LstmRnn(object):
         self.W = Matrix.empty(input_dim, 4 * hidden_dim, W[0].dtype, device_id)
         self.W.assign_hstack(self.context, W)
         if learning:
-            self.dL_dW = Matrix.empty_like(self.W)
+            self.dL_dW = Matrix.empty_like(self.W, device_id)
 
         R = [Matrix.from_npa(R_init(), device_id=device_id) for _ in xrange(4)]
         self.R = Matrix.empty(hidden_dim, 4 * hidden_dim, R[0].dtype, device_id)
         self.R.assign_hstack(self.context, R)
         if learning:
-            self.dL_dR = Matrix.empty_like(self.R)
+            self.dL_dR = Matrix.empty_like(self.R, device_id)
 
         self.h = []
         self.lstm_cells = []
@@ -43,7 +43,10 @@ class LstmRnn(object):
             else:
                 prev_c = self.lstm_cells[-1].c
                 prev_h = self.lstm_cells[-1].h
-            cell = _LstmBlock(self.W, self.R, x[k], prev_c, prev_h, self.context, learning)
+            if learning:
+                cell = _LstmBlock(self.W, self.R, x[k], prev_c, prev_h, device_id, self.dL_dW, self.dL_dR)
+            else:
+                cell = _LstmBlock(self.W, self.R, x[k], prev_c, prev_h, device_id)
             self.lstm_cells.append(cell)
             self.h.append(cell.h)
         self.h = MatrixContainer(self.h)
@@ -59,18 +62,14 @@ class LstmRnn(object):
             self.lstm_cells[k].fprop()
 
     def bprop(self):
+        self.dL_dW.scale(self.context, ct.c_float(0.0))
+        self.dL_dR.scale(self.context, ct.c_float(0.0))
         n = len(self.x)
         for k in reversed(xrange(n)):
-            if k == n-1 and k == 0:
-                self.lstm_cells[k].bprop(True, True)
-            elif k == n-1:
-                self.lstm_cells[k].bprop(False, True)
-            elif k == 0:
-                self.lstm_cells[k].bprop(True, False)
+            if k == n-1:
+                self.lstm_cells[k].bprop(True)
             else:
-                self.lstm_cells[k].bprop(False, False)
-        self.dL_dW.assign_sum(self.context, [e.dL_dW for e in self.lstm_cells])
-        self.dL_dR.assign_sum(self.context, [e.dL_dR for e in self.lstm_cells[1:]])
+                self.lstm_cells[k].bprop(False)
 
     @property
     def params(self):
@@ -82,7 +81,7 @@ class LstmRnn(object):
 
 
 class _LstmBlock(object):
-    def __init__(self, W, R, x, prev_c, prev_h, context, learning=True):
+    def __init__(self, W, R, x, prev_c, prev_h, device_id, dL_dW=None, dL_dR=None):
         """
         TODO
 
@@ -94,11 +93,19 @@ class _LstmBlock(object):
         TODO
         """
 
-        device_id = context.device_id
         dim = R.nrows
         batch_size = prev_c.nrows
-        self.context = context
+        # we must have different context for each cell in order to achieve
+        # parallel execution os several gpu for multilayer LSTM
+        self.context = Context(device_id)
         self.W = W
+        learning = False
+        if dL_dW:
+            learning = True
+            self.dL_dW = dL_dW
+            self.dL_dR = dL_dR
+        self.learning = learning
+
         self.R = R
         self.pre_zifo = Matrix.empty(batch_size, 4 * dim, device_id=device_id)
         self.zifo = Matrix.empty_like(self.pre_zifo, device_id)
@@ -107,18 +114,30 @@ class _LstmBlock(object):
         self.f = self.zifo[:, 2*dim:3*dim]
         self.o = self.zifo[:, 3*dim:4*dim]
         self.c = Matrix.empty_like(prev_c, device_id)
+        self.c = Connector(self.c, self.context, self.context if learning else None)
         self.tanh_c = Matrix.empty_like(prev_c, device_id)
         self.h = Matrix.empty_like(prev_c, device_id)
+        self.h = Connector(self.h, self.context, self.context if learning else None)
 
-        self.learning = learning
-        if learning:
-            try:
+        if learning and x.bpropagable:
+            self.x, self.dL_dx = x.register_usage(self.context, self.context)
+        else:
+            self.x = x.register_usage(self.context)
+
+        try:
+            if learning:
                 self.prev_c, self.dL_dprev_c = prev_c.register_usage(self.context, self.context)
                 self.prev_h, self.dL_dprev_h = prev_h.register_usage(self.context, self.context)
-            except AttributeError:
-                self.prev_c = prev_c
-                self.prev_h = prev_h
+            else:
+                self.prev_c = prev_c.register_usage(self.context)
+                self.prev_h = prev_h.register_usage(self.context)
+            self.is_first = False
+        except AttributeError:
+            self.is_first = True
+            self.prev_c = prev_c
+            self.prev_h = prev_h
 
+        if learning:
             self._dzifo_dpre_zifo = Matrix.empty_like(self.pre_zifo, device_id)
             self._dz_dpre_z = self._dzifo_dpre_zifo[:, 0*dim:1*dim]
             self._di_dpre_i = self._dzifo_dpre_zifo[:, 1*dim:2*dim]
@@ -132,25 +151,6 @@ class _LstmBlock(object):
             self.dL_dpre_o = self.dL_dpre_zifo[:, 3*dim:4*dim]
 
             self._dtanh_c_dc = Matrix.empty_like(self.c, device_id)
-            self.c = Connector(self.c, self.context, self.context)
-            self.h = Connector(self.h, self.context, self.context)
-            self.dL_dW = Matrix.empty_like(W, device_id)
-            self.dL_dR = Matrix.empty_like(R, device_id)
-        else:
-            try:
-                self.prev_c = prev_c.register_usage(self.context)
-                self.prev_h = prev_h.register_usage(self.context)
-            except AttributeError:
-                self.prev_c = prev_c
-                self.prev_h = prev_h
-
-            self.c = Connector(self.c, self.context)
-            self.h = Connector(self.h, self.context)
-
-        if learning and x.bpropagable:
-            self.x, self.dL_dx = x.register_usage(self.context, self.context)
-        else:
-            self.x = x.register_usage(self.context)
 
     @property
     def dzifo_dpre_zifo(self):
@@ -196,7 +196,7 @@ class _LstmBlock(object):
         self.c.fprop()
         self.h.fprop()
 
-    def bprop(self, is_first, is_last):
+    def bprop(self, is_last):
         dL_dh = self.h.backward_matrix
         dL_dc = self.c.backward_matrix
 
@@ -217,11 +217,9 @@ class _LstmBlock(object):
 
         # dL_dW[t] = x[t].T * dL/dpre_zifo[t]
         # dL_dR[t] = h[t-1].T * dL/dpre_zifo[t]
-        self.dL_dW.assign_dot(self.context, self.x, self.dL_dpre_zifo, 'T')
-        if is_first:
-            self.dL_dR.scale(self.context, ct.c_float(0.0))
-        else:
-            self.dL_dR.assign_dot(self.context, self.dL_dpre_zifo, self.prev_h, 'T')
+        self.dL_dW.add_dot(self.context, self.x, self.dL_dpre_zifo, 'T')
+        if not self.is_first:
+            self.dL_dR.add_dot(self.context, self.dL_dpre_zifo, self.prev_h, 'T')
 
         if hasattr(self, 'dL_dx'):
             # dL/dx[t] = W.T * dL/dpre_zifo[t]
