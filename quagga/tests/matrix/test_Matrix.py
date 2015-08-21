@@ -202,15 +202,27 @@ class TestMatrix(TestCase):
         for i in xrange(self.N):
             a = TestMatrix.get_random_array()
             b = TestMatrix.get_random_array(a.shape)
-            alpha = 2 * self.rng.rand(1)[0] - 1
+            c = TestMatrix.get_random_array((1, a.shape[1]))
+            d = np.zeros((1, a.shape[1] + 1), dtype=np.float32)
+            alpha = ct.c_float(2 * self.rng.rand(1)[0] - 1)
 
             a_cpu = CpuMatrix.from_npa(a)
             b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            d_cpu = CpuMatrix.from_npa(d)
             a_gpu = GpuMatrix.from_npa(a)
             b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+            d_gpu = GpuMatrix.from_npa(d)
 
             a_cpu.add(self.cpu_context, b_cpu)
             a_gpu.add(self.gpu_context, b_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
+
+            a_cpu.add(self.cpu_context, c_cpu)
+            a_gpu.add(self.gpu_context, c_gpu)
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
@@ -221,7 +233,25 @@ class TestMatrix(TestCase):
             self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
-        self.assertEqual(sum(r), self.N * 2)
+            a_cpu.add_scaled(self.cpu_context, alpha, c_cpu)
+            a_gpu.add_scaled(self.gpu_context, alpha, c_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
+
+            r.append(True)
+            try:
+                a_cpu.add(self.cpu_context, d_cpu)
+                r[-1] &= False
+            except ValueError:
+                r[-1] &= True
+            try:
+                a_gpu.add(self.gpu_context, d_gpu)
+                r[-1] &= False
+            except ValueError:
+                r[-1] &= True
+
+        self.assertEqual(sum(r), self.N * 5)
 
     def test_add_sum(self):
         r = []

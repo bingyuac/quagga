@@ -264,3 +264,16 @@ gpu_matrix_kernels._horizontalSliceSplit.argtypes = [cudart.ct_cuda_stream,
 def horizontal_slice_split(stream, n, col_slices, nrows, matrices, stacked):
     status = gpu_matrix_kernels._horizontalSliceSplit(stream, n, col_slices, nrows, matrices, stacked)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._matrixVectorRowAddition.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._matrixVectorRowAddition.argtypes = [cudart.ct_cuda_stream,
+                                                        ct.c_int,
+                                                        ct.c_int,
+                                                        ct.POINTER(ct.c_float),
+                                                        ct.c_float,
+                                                        ct.POINTER(ct.c_float),
+                                                        ct.POINTER(ct.c_float)]
+def matrix_vector_row_addition(stream, nrows, ncols, matrix, alpha, vector, out):
+    status = gpu_matrix_kernels._matrixVectorRowAddition(stream, nrows, ncols, matrix, alpha, vector, out)
+    cudart.check_cuda_status(status)

@@ -264,6 +264,22 @@ __global__ void scale(int nelems,
 }
 
 
+__global__ void matrixVectorRowAddition(int nrows,
+							      		int ncols,
+							      		const float* matrix,
+							      		float alpha,
+							      		const float* vector,
+							      		float* out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = matrix[i] + alpha * vector[i / nrows];
+	}
+}
+
+
 extern "C" {
 	cudaError_t _horizontalSliceSplit(cudaStream_t stream,
 						   			  int n,
@@ -574,6 +590,18 @@ extern "C" {
                        float* __restrict__ out_data) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         scale<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, data, alpha, out_data);
+        return cudaGetLastError();
+    }
+
+    cudaError_t _matrixVectorRowAddition(cudaStream_t stream,
+    									 int nrows,
+							      		 int ncols,
+							      		 const float* matrix,
+							      		 float alpha,
+							      		 const float* vector,
+							      		 float* out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        matrixVectorRowAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrix, alpha, vector, out);
         return cudaGetLastError();
     }
 }

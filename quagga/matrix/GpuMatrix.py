@@ -366,8 +366,13 @@ class GpuMatrix(object):
         """
         self += alpha * a
         """
-        context.activate()
-        cublas.cublas_s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
+        if self.nrows != 1 and a.nrows == 1:
+            if self.ncols != a.ncols:
+                raise ValueError('Operands could not be broadcast together with shapes ({},{}) ({},{})!'.format(self.nrows, self.ncols, a.nrows, a.ncols))
+            gpu_matrix_kernels.matrix_vector_row_addition(context.cuda_stream, self.nrows, self.ncols, self.data, alpha, a.data, self.data)
+        else:
+            context.activate()
+            cublas.cublas_s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
 
     def add(self, context, a):
         self.add_scaled(context, ct.c_float(1.0), a)
