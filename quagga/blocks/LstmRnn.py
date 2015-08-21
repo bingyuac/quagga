@@ -58,6 +58,7 @@ class LstmRnn(object):
             raise ValueError('Sequence has length: {} that is too long. '
                              'The maximum is: {}'.
                              format(n, self.max_input_sequence_len))
+        self.h.set_length(n)
         for k in xrange(n):
             self.lstm_cells[k].fprop()
 
@@ -107,8 +108,7 @@ class _LstmBlock(object):
         self.learning = learning
 
         self.R = R
-        self.pre_zifo = Matrix.empty(batch_size, 4 * dim, device_id=device_id)
-        self.zifo = Matrix.empty_like(self.pre_zifo, device_id)
+        self.zifo = Matrix.empty(batch_size, 4 * dim, device_id=device_id)
         self.z = self.zifo[:, 0*dim:1*dim]
         self.i = self.zifo[:, 1*dim:2*dim]
         self.f = self.zifo[:, 2*dim:3*dim]
@@ -138,18 +138,16 @@ class _LstmBlock(object):
             self.prev_h = prev_h
 
         if learning:
-            self._dzifo_dpre_zifo = Matrix.empty_like(self.pre_zifo, device_id)
-            self._dz_dpre_z = self._dzifo_dpre_zifo[:, 0*dim:1*dim]
-            self._di_dpre_i = self._dzifo_dpre_zifo[:, 1*dim:2*dim]
-            self._df_dpre_f = self._dzifo_dpre_zifo[:, 2*dim:3*dim]
-            self._do_dpre_o = self._dzifo_dpre_zifo[:, 3*dim:4*dim]
-
-            self.dL_dpre_zifo = Matrix.empty_like(self.pre_zifo, device_id)
-            self.dL_dpre_z = self.dL_dpre_zifo[:, 0*dim:1*dim]
-            self.dL_dpre_i = self.dL_dpre_zifo[:, 1*dim:2*dim]
-            self.dL_dpre_f = self.dL_dpre_zifo[:, 2*dim:3*dim]
-            self.dL_dpre_o = self.dL_dpre_zifo[:, 3*dim:4*dim]
-
+            self._dzifo_dpre_zifo = Matrix.empty_like(self.zifo, device_id)
+            self.dz_dpre_z = self._dzifo_dpre_zifo[:, 0*dim:1*dim]
+            self.di_dpre_i = self._dzifo_dpre_zifo[:, 1*dim:2*dim]
+            self.df_dpre_f = self._dzifo_dpre_zifo[:, 2*dim:3*dim]
+            self.do_dpre_o = self._dzifo_dpre_zifo[:, 3*dim:4*dim]
+            self.dL_dpre_zifo = self._dzifo_dpre_zifo
+            self.dL_dpre_z = self.dz_dpre_z
+            self.dL_dpre_i = self.di_dpre_i
+            self.dL_dpre_f = self.df_dpre_f
+            self.dL_dpre_o = self.do_dpre_o
             self._dtanh_c_dc = Matrix.empty_like(self.c, device_id)
 
     @property
@@ -158,35 +156,15 @@ class _LstmBlock(object):
             return self._dzifo_dpre_zifo
 
     @property
-    def dz_dpre_z(self):
-        if self.learning:
-            return self._dz_dpre_z
-
-    @property
-    def di_dpre_i(self):
-        if self.learning:
-            return self._di_dpre_i
-
-    @property
-    def df_dpre_f(self):
-        if self.learning:
-            return self._df_dpre_f
-
-    @property
-    def do_dpre_o(self):
-        if self.learning:
-            return self._do_dpre_o
-
-    @property
     def dtanh_c_dc(self):
         if self.learning:
             return self._dtanh_c_dc
 
     def fprop(self):
         # zifo = tanh_sigm(x[t] * W + h[t-1] * R)
-        self.pre_zifo.assign_dot(self.context, self.x, self.W)
-        self.pre_zifo.add_dot(self.context, self.prev_h, self.R)
-        self.pre_zifo.tanh_sigm(self.context, self.zifo, self.dzifo_dpre_zifo)
+        self.zifo.assign_dot(self.context, self.x, self.W)
+        self.zifo.add_dot(self.context, self.prev_h, self.R)
+        self.zifo.tanh_sigm(self.context, self.zifo, self.dzifo_dpre_zifo)
 
         # c[t] = i[t] .* z[t] + f[t] .* c[t-1]
         # h[t] = o[t] .* tanh(c[t])

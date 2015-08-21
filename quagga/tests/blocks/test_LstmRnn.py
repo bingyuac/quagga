@@ -58,8 +58,8 @@ class TestLstmRnn(TestCase):
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             x_gpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
-            x_gpu.set_length(sequence_len)
             np_lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, learning=False)
+            x_gpu.set_length(sequence_len)
             np_lstm_rnn_gpu.fprop()
             np_lstm_rnn_gpu.context.synchronize()
             h_gpu = np_lstm_rnn_gpu.h.to_host()
@@ -67,8 +67,8 @@ class TestLstmRnn(TestCase):
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             x_cpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
-            x_cpu.set_length(sequence_len)
             np_lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, learning=False)
+            x_cpu.set_length(sequence_len)
             np_lstm_rnn_cpu.fprop()
             np_lstm_rnn_cpu.context.synchronize()
             h_cpu = np_lstm_rnn_cpu.h.to_host()
@@ -105,8 +105,8 @@ class TestLstmRnn(TestCase):
             quagga.processor_type = 'gpu'
             context = Context()
             x_gpu = MatrixContainer([Connector(Matrix.from_npa(e), context, context) for e in x])
-            x_gpu.set_length(sequence_len)
             np_lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu)
+            x_gpu.set_length(sequence_len)
             h, dL_dh = zip(*[h.register_usage(context, context) for h in np_lstm_rnn_gpu.h])
             np_lstm_rnn_gpu.fprop()
             for dL_dh in dL_dh:
@@ -123,8 +123,8 @@ class TestLstmRnn(TestCase):
             quagga.processor_type = 'cpu'
             context = Context()
             x_cpu = MatrixContainer([Connector(Matrix.from_npa(e), context, context) for e in x])
-            x_cpu.set_length(sequence_len)
             np_lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu)
+            x_cpu.set_length(sequence_len)
             h, dL_dh = zip(*[h.register_usage(context, context) for h in np_lstm_rnn_cpu.h])
             np_lstm_rnn_cpu.fprop()
             for dL_dh in dL_dh:
