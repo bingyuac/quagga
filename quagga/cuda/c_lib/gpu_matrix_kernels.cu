@@ -66,15 +66,6 @@ __global__  void reverseSliceColumns(int nrows,
 }
 
 
-__global__ void fill(int nelems, float val, float* __restrict__ A) {
-	const int nthreads = blockDim.x * gridDim.x;
-	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-
-	for (int i = start_i; i < nelems; i += nthreads) {
-		A[i] = val;
-	}
-}
-
 __global__ void hprodSum(int nelems,
 						 int nrows,
 						 const float* __restrict__ A,
@@ -260,6 +251,18 @@ __global__ void scale(int nelems,
 
 	for (int i = start_i; i < nelems; i += nthreads) {
 		out_data[i] = alpha * data[i];
+	}
+}
+
+
+__global__ void fill(int nelems,
+					 float value,
+					 float* __restrict__ out_data) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out_data[i] = value;
 	}
 }
 
@@ -592,6 +595,17 @@ extern "C" {
         scale<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, data, alpha, out_data);
         return cudaGetLastError();
     }
+
+
+    cudaError_t _fill(cudaStream_t stream,
+	                  int nelems,
+	                  float value,
+                      float* __restrict__ out_data) {
+        int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        fill<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, value, out_data);
+        return cudaGetLastError();
+    }
+
 
     cudaError_t _matrixVectorRowAddition(cudaStream_t stream,
     									 int nrows,

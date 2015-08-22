@@ -14,7 +14,7 @@ class NagOptimizer(object):
         for grad in self.grads:
             if type(grad) is not tuple:
                 velocity = Matrix.empty_like(grad)
-                velocity.fill(0.0)
+                velocity.sync_fill(0.0)
                 self.velocities.append(velocity)
             else:
                 self.velocities.append(None)

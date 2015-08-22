@@ -94,7 +94,7 @@ class TestLstmRnn(TestCase):
         for i in xrange(self.N):
             max_input_sequence_len = self.rng.random_integers(500)
             sequence_len = max_input_sequence_len if i == 0 else self.rng.random_integers(max_input_sequence_len)
-            batch_size = self.rng.random_integers(512)
+            batch_size = self.rng.random_integers(128)
             input_dim, hidden_dim = self.rng.random_integers(1500, size=2)
             x = [self.rng.rand(batch_size, input_dim).astype(dtype=np.float32) for _ in xrange(max_input_sequence_len)]
 
@@ -109,7 +109,7 @@ class TestLstmRnn(TestCase):
             x_gpu.set_length(sequence_len)
             h, dL_dh = zip(*[h.register_usage(context, context) for h in np_lstm_rnn_gpu.h])
             np_lstm_rnn_gpu.fprop()
-            for dL_dh in dL_dh:
+            for _, dL_dh in izip(h, dL_dh):
                 random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
                 Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
             np_lstm_rnn_gpu.bprop()
@@ -127,7 +127,7 @@ class TestLstmRnn(TestCase):
             x_cpu.set_length(sequence_len)
             h, dL_dh = zip(*[h.register_usage(context, context) for h in np_lstm_rnn_cpu.h])
             np_lstm_rnn_cpu.fprop()
-            for dL_dh in dL_dh:
+            for _, dL_dh in izip(h, dL_dh):
                 random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
                 Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
             np_lstm_rnn_cpu.bprop()
@@ -152,119 +152,6 @@ class TestLstmRnn(TestCase):
 
         self.assertEqual(sum(r), self.N * 3)
 
-    def test_finite_difference_x(self):
-        quagga.processor_type = 'gpu'
-        r = []
-        n = 10
-
-        for i in xrange(n):
-            k = self.rng.random_integers(10)
-            dim_x = self.rng.random_integers(50)
-            dim_h = self.rng.random_integers(20)
-
-            W_init = lambda: (self.rng.rand(dim_h, dim_x) * 0.1).astype(np.float32)
-            W_init.nrows, W_init.ncols = dim_h, dim_x
-            R_init = lambda: (self.rng.rand(dim_h, dim_h) * 0.1).astype(np.float32)
-            R_init.nrows, R_init.ncols = dim_h, dim_h
-            log_reg_init = lambda: (self.rng.rand(1, dim_h) * 0.1).astype(np.float32)
-
-            x = Connector(Matrix.from_npa(self.rng.rand(dim_x, k), 'float'), b_usage_context=Context())
-            true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
-            np_lstm_rnn = NpLstmRnnM(W_init, R_init, x)
-            log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
-
-            x.fprop()
-            true_labels.fprop()
-            np_lstm_rnn.fprop()
-            log_reg.fprop()
-            log_reg.bprop()
-            np_lstm_rnn.bprop()
-
-            dL_dx = x.backward_matrix.to_host()
-            numerical_grad = np.zeros_like(dL_dx)
-            cross_entropy = lambda l, p: -np.sum(l * np.log(p) + (1 - l) * np.log(1 - p))
-            x_np = x.to_host()
-            true_labels_np = true_labels.to_host()
-
-            epsilon = 1e-2
-            for i in xrange(x.nrows):
-                for j in xrange(x.ncols):
-                    x.__setitem__((i, j), x_np[i, j] + epsilon)
-                    np_lstm_rnn.fprop()
-                    log_reg.fprop()
-                    probs = log_reg.probs.to_host()
-                    plus_cost = cross_entropy(true_labels_np, probs)
-
-                    x.__setitem__((i, j), x_np[i, j] - epsilon)
-                    np_lstm_rnn.fprop()
-                    log_reg.fprop()
-                    probs = log_reg.probs.to_host()
-                    minus_cost = cross_entropy(true_labels_np, probs)
-
-                    numerical_grad[i, j] = (plus_cost - minus_cost) / (2 * epsilon)
-                    x.__setitem__((i, j), x_np[i, j])
-
-            r.append(np.allclose(dL_dx, numerical_grad, rtol=1e-7, atol=1e-4))
-
-        self.assertEqual(sum(r), n)
-
-    def test_finite_difference_w(self):
-        quagga.processor_type = 'gpu'
-        r = []
-        n = 10
-
-        for i in xrange(n):
-            k = self.rng.random_integers(10)
-            dim_x = self.rng.random_integers(50)
-            dim_h = self.rng.random_integers(20)
-
-            W_init = self.get_orthogonal_initializer(dim_h, dim_x)
-            R_init = self.get_orthogonal_initializer(dim_h, dim_h)
-            log_reg_init = lambda: (self.rng.rand(1, dim_h) * 0.1).astype(np.float32)
-
-            x = Connector(Matrix.from_npa(self.rng.rand(dim_x, k), 'float'))
-            true_labels = Connector(Matrix.from_npa(self.rng.choice(np.array([1, 0], dtype=np.float32), size=(1, k))))
-            np_lstm_rnn = NpLstmRnnM(W_init, R_init, x)
-            log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
-
-            x.fprop()
-            true_labels.fprop()
-            np_lstm_rnn.fprop()
-            log_reg.fprop()
-            log_reg.bprop()
-            np_lstm_rnn.bprop()
-
-            dL_d = {'W': np_lstm_rnn.dL_dW.to_host(),
-                    'R': np_lstm_rnn.dL_dR.to_host()}
-            cross_entropy = lambda l, p: -np.sum(l * np.log(p) + (1 - l) * np.log(1 - p))
-            true_labels_np = true_labels.to_host()
-            for variable in ['W', 'R']:
-                dL_dvariable = dL_d[variable]
-                numerical_grad = np.zeros_like(dL_d[variable])
-                variable = getattr(np_lstm_rnn, variable)
-                variable_np = variable.to_host()
-                epsilon = 1e-2
-                for i in xrange(variable.nrows):
-                    for j in xrange(variable.ncols):
-                        variable.__setitem__((i, j), variable_np[i, j] + epsilon)
-                        np_lstm_rnn.fprop()
-                        log_reg.fprop()
-                        probs = log_reg.probs.to_host()
-                        plus_cost = cross_entropy(true_labels_np, probs)
-
-                        variable.__setitem__((i, j), variable_np[i, j] - epsilon)
-                        np_lstm_rnn.fprop()
-                        log_reg.fprop()
-                        probs = log_reg.probs.to_host()
-                        minus_cost = cross_entropy(true_labels_np, probs)
-
-                        numerical_grad[i, j] = (plus_cost - minus_cost) / (2 * epsilon)
-                        variable.__setitem__((i, j), variable_np[i, j])
-
-                r.append(np.allclose(dL_dvariable, numerical_grad, rtol=1e-7, atol=1e-4))
-
-        self.assertEqual(sum(r), 2 * n)
-
     def test_theano_grad(self):
         class LstmLayer(object):
             def __init__(self, W_init, R_init):
@@ -275,11 +162,11 @@ class TestLstmRnn(TestCase):
                 self.n = W_init.shape[0] / 4
 
             def get_output_expr(self, input_sequence):
-                h0 = T.zeros((self.n, ), dtype=np.float32)
-                c0 = T.zeros((self.n, ), dtype=np.float32)
+                h0 = T.zeros((batch_size, self.n), dtype=np.float32)
+                c0 = T.zeros((batch_size, self.n), dtype=np.float32)
 
                 [_, h], _ = theano.scan(fn=self.__get_lstm_step_expr,
-                                        sequences=input_sequence.T,
+                                        sequences=input_sequence,
                                         outputs_info=[c0, h0])
                 return h.T
 

@@ -165,7 +165,10 @@ class GpuMatrix(object):
         context.activate()
         cudart.cuda_memcpy_async(self.data, a, self.nbytes, 'host_to_device', context.cuda_stream)
 
-    def fill(self, value):
+    def fill(self, context, value):
+        gpu_matrix_kernels.fill(context.cuda_stream, self.nelems, value, self.data)
+
+    def sync_fill(self, value):
         a = np.empty((self.nrows, self.ncols), self.np_dtype, 'F')
         a.fill(value)
         host_data = a.ctypes.data_as(ct.POINTER(self.c_dtype))

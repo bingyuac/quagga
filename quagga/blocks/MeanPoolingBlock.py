@@ -23,7 +23,7 @@ class MeanPoolingBlock(object):
             self.alpha = None
         else:
             raise ValueError('Invalid axis!')
-        self._ones.fill(1.0)
+        self._ones.sync_fill(1.0)
         self.axis = axis
 
         if matrix.bpropagable:

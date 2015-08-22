@@ -38,7 +38,7 @@ class LstmRnn(object):
         for k in xrange(self.max_input_sequence_len):
             if k == 0:
                 prev_c = Matrix.empty(batch_size, hidden_dim, device_id=device_id)
-                prev_c.fill(0.0)
+                prev_c.sync_fill(0.0)
                 prev_h = prev_c
             else:
                 prev_c = self.lstm_cells[-1].c
@@ -63,14 +63,14 @@ class LstmRnn(object):
             self.lstm_cells[k].fprop()
 
     def bprop(self):
-        self.dL_dW.scale(self.context, ct.c_float(0.0))
-        self.dL_dR.scale(self.context, ct.c_float(0.0))
+        self.dL_dW.fill(self.context, 0.0)
+        self.dL_dR.fill(self.context, 0.0)
         n = len(self.x)
         for k in reversed(xrange(n)):
-            if k == n-1:
-                self.lstm_cells[k].bprop(True)
+            if k == n-1 and n != self.max_input_sequence_len:
+                self.lstm_cells[k].bprop(self.lstm_cells[k+1].context)
             else:
-                self.lstm_cells[k].bprop(False)
+                self.lstm_cells[k].bprop()
 
     @property
     def params(self):
@@ -174,14 +174,14 @@ class _LstmBlock(object):
         self.c.fprop()
         self.h.fprop()
 
-    def bprop(self, is_last):
-        dL_dh = self.h.backward_matrix
+    def bprop(self, deregistered_hidden_state_b_obtaining_context=None):
         dL_dc = self.c.backward_matrix
-
         # dL/dc[t] += dL/dh[t] .* o[t] .* dtanh(c[t])/dc[t]
-        if is_last:
+        if deregistered_hidden_state_b_obtaining_context:
+            dL_dh = self.h.bprop({deregistered_hidden_state_b_obtaining_context})
             dL_dc.assign_hprod(self.context, dL_dh, self.o, self.dtanh_c_dc)
         else:
+            dL_dh = self.h.backward_matrix
             dL_dc.add_hprod(self.context, dL_dh, self.o, self.dtanh_c_dc)
 
         # dL/dpre_o[t] = dL/dh[t] .* tanh(c[t]) .* do[t]/dpre_o[t]
@@ -197,14 +197,14 @@ class _LstmBlock(object):
         # dL_dR[t] = h[t-1].T * dL/dpre_zifo[t]
         self.dL_dW.add_dot(self.context, self.x, self.dL_dpre_zifo, 'T')
         if not self.is_first:
-            self.dL_dR.add_dot(self.context, self.dL_dpre_zifo, self.prev_h, 'T')
+            self.dL_dR.add_dot(self.context, self.prev_h, self.dL_dpre_zifo, 'T')
 
         if hasattr(self, 'dL_dx'):
-            # dL/dx[t] = W.T * dL/dpre_zifo[t]
-            self.dL_dx.assign_dot(self.context, self.W, self.dL_dpre_zifo, 'T')
+            # dL/dx[t] = dL/dpre_zifo[t] * W.T
+            self.dL_dx.assign_dot(self.context, self.dL_dpre_zifo, self.W, 'N', 'T')
 
         if hasattr(self, 'dL_dprev_h'):
             # dL/dc[t-1] = f[t] .* dL/dc[t]
             self.dL_dprev_c.assign_hprod(self.context, self.f, dL_dc)
-            # dL/dh[t-1] = R.T * dL/dpre_zifo[t]
-            self.dL_dprev_h.assign_dot(self.context, self.R, self.dL_dpre_zifo, 'T')
+            # dL/dh[t-1] = dL/dpre_zifo[t] * R.T
+            self.dL_dprev_h.assign_dot(self.context, self.dL_dpre_zifo, self.R, 'N', 'T')

@@ -70,7 +70,10 @@ class CpuMatrix(object):
         self.nelems = self.nrows * self.ncols
         self.npa = a
 
-    def fill(self, value):
+    def fill(self, context, value):
+        self.npa[...] = value
+
+    def sync_fill(self, value):
         self.npa[...] = value
 
     def to_host(self):
@@ -239,8 +242,7 @@ class CpuMatrix(object):
         if not c:
             np.multiply(a.npa, b.npa, self.npa)
         else:
-            np.multiply(a.npa, b.npa, self.npa)
-            self.npa *= c.npa
+            self.npa[...] = a.npa * b.npa * c.npa
 
     def assign_sum_hprod(self, context, a, b, c, d, e=None, f=None, g=None, h=None, i=None, j=None, k=None):
         """

@@ -26,7 +26,6 @@
         - [x] Implement LstmRnn block
         - [x] Add cpu/gpu comparisons tests for fprop
         - [x] Add cpu/gpu comparisons tests for bprop
-        - [x] Add finite difference tests
         - [x] Add theano grads tests     
 - [ ] Cpu/GpuMatrix improvement    
     - [ ] Fix tests current tests

@@ -46,7 +46,6 @@ class Connector(object):
         self._b_matrices = defaultdict(dict)
         self._b_obtaining_contexts = dict()
         self._b_usage_context = b_usage_context
-        self._usage_number = 0
         self.zero_bmatrix = None
 
     @property
@@ -64,7 +63,6 @@ class Connector(object):
         if not self._b_usage_context and b_obtaining_context:
             raise ValueError('Nobody is going to use computation from backward '
                              'step. You should not backward propagate!')
-        self._usage_number += 1
         u_device_id = f_usage_context.device_id
         o_device_id = self._f_obtaining_context.device_id
         if u_device_id != o_device_id and u_device_id not in self._f_matrices:
@@ -88,30 +86,33 @@ class Connector(object):
                 self._f_matrices[o_device_id].copy(self._f_obtaining_context, forward_matrix)
         self._f_obtaining_context.block(*self._f_usage_contexts)
 
-    def bprop(self):
+    def bprop(self, deregistered_b_obtaining_contexts=set()):
         if not self._b_usage_context:
             raise ValueError('Nobody was going to use computation from backward '
                              'step. You should not backward propagate!')
-        if self._usage_number == 0:
-            if not self.zero_bmatrix:
-                self.zero_bmatrix = Matrix.empty_like(self, self._b_usage_context.device_id)
-            self.zero_bmatrix.scale(self._b_usage_context, ct.c_float(0.0))
-            return self.zero_bmatrix
-
         u_device_id = self._b_usage_context.device_id
         backward_matrices = []
+        b_obtaining_contexts = []
         for b_obtaining_context, matrices in self._b_matrices.iteritems():
+            if b_obtaining_context in deregistered_b_obtaining_contexts:
+                continue
+            b_obtaining_contexts.append(b_obtaining_context)
             o_device_id = b_obtaining_context.device_id
             if u_device_id != o_device_id:
                 matrices[o_device_id].copy(b_obtaining_context, matrices[u_device_id])
             backward_matrices.append(matrices[u_device_id])
-        self._b_usage_context.wait(*self._b_matrices.iterkeys())
+        self._b_usage_context.wait(*b_obtaining_contexts)
 
-        if backward_matrices[1:]:
-            backward_matrices[0].add_sum(self._b_usage_context, backward_matrices[1:])
-        return backward_matrices[0]
+        if backward_matrices:
+            if backward_matrices[1:]:
+                backward_matrices[0].add_sum(self._b_usage_context, backward_matrices[1:])
+            return backward_matrices[0]
+        if not self.zero_bmatrix:
+            self.zero_bmatrix = Matrix.empty_like(self, self._b_usage_context.device_id)
+        self.zero_bmatrix.fill(self._b_usage_context, 0.0)
+        return self.zero_bmatrix
 
-    backward_matrix = property(bprop)
+    backward_matrix = property(lambda self: self.bprop())
 
     def __getattr__(self, name):
         attribute = getattr(self._f_matrices[self._f_obtaining_context.device_id], name)
