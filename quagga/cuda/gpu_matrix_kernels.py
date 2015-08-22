@@ -192,17 +192,6 @@ def reverse_slice_columns(stream, nrows, ncols, embedding_column_indxs, embeddin
     cudart.check_cuda_status(status)
 
 
-gpu_matrix_kernels._binaryCrossEntropy.restype = cudart.ct_cuda_error
-gpu_matrix_kernels._binaryCrossEntropy.argtypes = [cudart.ct_cuda_stream,
-                                                   ct.c_int,
-                                                   ct.POINTER(ct.c_float),
-                                                   ct.POINTER(ct.c_float),
-                                                   ct.POINTER(ct.c_float)]
-def binary_cross_entropy(stream, nelems, p, q, ce):
-    status = gpu_matrix_kernels._binaryCrossEntropy(stream, nelems, p, q, ce)
-    cudart.check_cuda_status(status)
-
-
 gpu_matrix_kernels._verticalStack.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._verticalStack.argtypes = [cudart.ct_cuda_stream,
                                               ct.c_int,

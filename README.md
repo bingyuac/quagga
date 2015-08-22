@@ -26,16 +26,17 @@
         - [x] Implement LstmRnn block
         - [x] Add cpu/gpu comparisons tests for fprop
         - [x] Add cpu/gpu comparisons tests for bprop
-        - [x] Add theano grads tests     
+        - [ ] Add theano grads tests     
 - [ ] Cpu/GpuMatrix improvement    
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels
     - [ ] Synchronize Cpu/GpuMatrix classes
 - [x] Implement EmbeddingBlock
 - [ ] Implement LogisticRegressionCe
-    - [ ] Add reduction kernel for CE
     - [x] Implement LogisticRegressionCe block
-    - [x] Add finite difference tests
+    - [x] Add cpu/gpu comparisons tests for fprop
+    - [x] Add cpu/gpu comparisons tests for bprop
+    - [x] Add theano grad tests
 - [ ] Implement SoftmaxCe
     - [ ] Add reduction kernel for CE
     - [x] Implement SoftmaxCe block

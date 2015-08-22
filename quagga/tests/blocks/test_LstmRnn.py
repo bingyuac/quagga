@@ -19,15 +19,6 @@ class TestLstmRnn(TestCase):
         cls.N = 10
 
     @classmethod
-    def get_random_array(cls, shape=None):
-        if not shape:
-            shape = cls.rng.random_integers(7000, size=2)
-        a = cls.rng.normal(0, 1, shape)
-        u, _, v = np.linalg.svd(a, full_matrices=False)
-        a = u if u.shape == shape else v
-        return a.astype(dtype=np.float32)
-
-    @classmethod
     def get_orthogonal_initializer(cls, nrows, ncols):
         shape = (nrows, ncols)
         def initializer():
@@ -197,12 +188,14 @@ class TestLstmRnn(TestCase):
         n = 10
 
         for i in xrange(n):
-            k = self.rng.random_integers(10)
-            dim_x = self.rng.random_integers(50)
-            dim_h = self.rng.random_integers(20)
+            max_input_sequence_len = self.rng.random_integers(500)
+            sequence_len = max_input_sequence_len if i == 0 else self.rng.random_integers(max_input_sequence_len)
+            batch_size = self.rng.random_integers(128)
+            input_dim, hidden_dim = self.rng.random_integers(1500, size=2)
+            x = [self.rng.rand(batch_size, input_dim).astype(dtype=np.float32) for _ in xrange(max_input_sequence_len)]
 
-            W_init = self.get_orthogonal_initializer(dim_h, dim_x)
-            R_init = self.get_orthogonal_initializer(dim_h, dim_h)
+            W_init = self.get_orthogonal_initializer(input_dim, hidden_dim)
+            R_init = self.get_orthogonal_initializer(hidden_dim, hidden_dim)
             log_reg_init = lambda: (self.rng.rand(1, dim_h) * 0.1).astype(np.float32)
 
             x = Connector(Matrix.from_npa(self.rng.rand(dim_x, k), 'float'), b_usage_context=Context())

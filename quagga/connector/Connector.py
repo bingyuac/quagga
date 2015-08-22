@@ -128,6 +128,7 @@ class Connector(object):
 
     @nrows.setter
     def nrows(self, value):
+        raise ValueError('Why do you dou this?')
         for forward_matrix in self._f_matrices.itervalues():
             forward_matrix.nrows = value
         for matrices in self._b_matrices.itervalues():

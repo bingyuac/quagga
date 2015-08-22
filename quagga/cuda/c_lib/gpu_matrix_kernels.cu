@@ -6,22 +6,6 @@
 #define MAX_NUM_BLOCKS_PER_KERNEL 64
 
 
-__global__ void binaryCrossEntropy(int nelems,
-								   const float* p,
-								   const float* q,
-								   float* ce) {
-	const int nthreads = blockDim.x * gridDim.x;
-	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-	float v;
-	*ce = 0.0;
-
-	for (int i = start_i; i < nelems; i += nthreads) {
-		v = p[i] * logf(q[i]) + (1.0 - p[i]) * logf(1.0 - q[i]);
-		atomicAdd(ce, -v);
-	}
-}
-
-
 __global__  void sliceColumns(int nrows,
 							  int ncols,
 							  const int* __restrict__ embedding_column_indxs,
@@ -402,17 +386,6 @@ extern "C" {
 			}
 		}
 
-		return cudaGetLastError();
-	}
-
-
-	cudaError_t _binaryCrossEntropy(cudaStream_t stream,
-									int nelems,
-								    const float* p,
-								    const float* q,
-								    float* ce) {
-		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-		binaryCrossEntropy<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, p, q, ce);
 		return cudaGetLastError();
 	}
 

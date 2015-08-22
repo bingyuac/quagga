@@ -1,3 +1,5 @@
+import numpy as np
+import ctypes as ct
 from quagga.matrix import Matrix
 from quagga.context import Context
 
@@ -7,69 +9,64 @@ class LogisticRegressionCe(object):
     Logistic regression with cross entropy loss
     """
 
-    def __init__(self, init, features, true_labels, device_id=None):
+    def __init__(self, W_init, b_init, features, true_labels, learning=True, device_id=None):
         """
+        TODO
 
         :param init: initializer for logistic regression weights
         :param features: connector that contains feature matrix.
         :param device_id:
         :param true_labels: connector that contains labels
         """
-        if true_labels.ncols != features.ncols:
+        if true_labels.nrows != features.nrows:
             raise ValueError('TODO!')
 
-        self.w = Matrix.from_npa(init(), device_id=device_id)
-        self.dL_dw = Matrix.empty_like(self.w, device_id)
         self.context = Context(device_id)
-        if features.bpropagable:
+        device_id = self.context.device_id
+        self.W = Matrix.from_npa(W_init(), device_id=device_id)
+        self.b = Matrix.from_npa(b_init(), device_id=device_id)
+        if learning:
+            self.dL_dW = Matrix.empty_like(self.W, device_id)
+            self.dL_db = Matrix.empty_like(self.b, device_id)
+            self.ones = Matrix.from_npa(np.ones((features.nrows, 1), np.float32))
+        if learning and features.bpropagable:
             self.features, self.dL_dfeatures = features.register_usage(self.context, self.context)
         else:
             self.features = features.register_usage(self.context)
         self.true_labels = true_labels.register_usage(self.context)
-        self.probs = Matrix.empty(true_labels.nrows, true_labels.ncols, 'float', device_id)
-        self.ce = Matrix.empty(1, 1, 'float', device_id)
-
-    # def get_block(self, features, true_labels):
-    #     """
-    #     Return the same block, which is only fprop capable
-    #
-    #
-    #     :param features:
-    #     :param true_labels:
-    #     :return:
-    #     """
-    #     copy = object.__new__(LogisticRegressionCe)
-    #     copy.w = self.w
-    #     copy.context = self.context
-    #     copy.features = features.register_usage(copy.context)
-    #     copy.true_labels = true_labels.register_usage(copy.context)
-    #     copy.probs = self.probs
-    #     copy.ce = self.ce
-    #     return copy
+        self.probs = Matrix.empty(true_labels.nrows, 1, 'float', device_id)
 
     def fprop(self):
-        self.probs.ncols = self.features.ncols
-        self.probs.assign_dot(self.context, self.w, self.features)
+        self.probs.assign_dot(self.context, self.features, self.W)
+        self.probs.add(self.context, self.b)
         self.probs.sigmoid(self.context, self.probs)
 
     def bprop(self):
+        scale_constant = ct.c_float(1. / self.probs.nrows)
         # error = probs - true_labels
         self.probs.sub(self.context, self.true_labels)
-        # dL/dw = error * features.T
-        self.dL_dw.assign_dot(self.context, self.probs, self.features, matrix_operation_b='T')
-        # dL/dfeatures = w.T * error
+        # dL/dW = features.T * error / M
+        self.dL_dW.assign_dot(self.context, self.features, self.probs, 'T')
+        self.dL_dW.scale(self.context, scale_constant)
+        # dL/db = 1.T * error / M
+        self.dL_db.assign_dot(self.context, self.ones, self.probs, 'T')
+        self.dL_db.scale(self.context, scale_constant)
+        # dL/dfeatures = error * w.T / M
         if hasattr(self, 'dL_dfeatures'):
-            self.dL_dfeatures.assign_dot(self.context, self.w, self.probs, matrix_operation_a='T')
+            self.dL_dfeatures.assign_dot(self.context, self.probs, self.W, 'N', 'T')
+            self.dL_dfeatures.scale(self.context, scale_constant)
 
     @property
     def loss(self):
-        self.ce.assign_cross_entropy(self.context, self.true_labels, self.probs)
-        return self.ce.to_host()
+        true_labels = self.true_labels.to_host()
+        probs = self.probs.to_host()
+        return - (true_labels * np.log(probs + 1e-20) +
+                  (1.0 - true_labels) * np.log(1. - probs + 1e-20))
 
     @property
     def params(self):
-        return [(self.context, self.w)]
+        return [(self.context, self.W), (self.context, self.b)]
 
     @property
     def grads(self):
-        return [(self.context, self.dL_dw)]
+        return [(self.context, self.dL_dW), (self.context, self.dL_db)]

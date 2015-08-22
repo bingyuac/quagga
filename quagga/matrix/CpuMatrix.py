@@ -216,6 +216,9 @@ class CpuMatrix(object):
         self.npa = 0.0
         self.add_sum(context, matrices)
 
+    def sub(self, context, a):
+        np.negative(a.npa, a.npa)
+
     def sliced_add_scaled(self, context, column_indxs, alpha, a):
         """
         self[column_indxs] += alpha * a

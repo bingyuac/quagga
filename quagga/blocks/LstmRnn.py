@@ -18,6 +18,7 @@ class LstmRnn(object):
         input_dim = W_init.nrows
         hidden_dim = R_init.nrows
         self.context = Context(device_id)
+        device_id = self.context.device_id
         self.max_input_sequence_len = len(x)
 
         W = [Matrix.from_npa(W_init(), device_id=device_id) for _ in xrange(4)]
