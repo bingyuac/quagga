@@ -267,6 +267,25 @@ __global__ void matrixVectorRowAddition(int nrows,
 }
 
 
+__global__ void assignSequentialMeanPooling(int nrows,
+                     						int ncols,
+                     						const float* matrices[],
+                     						int n,
+                     						float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+	const int total_nelems = nelems * n;
+
+	int k, m;
+	for (int i = start_i; i < total_nelems; i += nthreads) {
+		k = i / nelems;
+		m = i % nelems;
+		atomicAdd(out + m, matrices[k][m] / n);
+	}
+}
+
+
 extern "C" {
 	cudaError_t _horizontalSliceSplit(cudaStream_t stream,
 						   			  int n,
@@ -591,4 +610,15 @@ extern "C" {
         matrixVectorRowAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrix, alpha, vector, out);
         return cudaGetLastError();
     }
+
+    cudaError_t _assignSequentialMeanPooling(cudaStream_t stream,
+                      						 int nrows,
+                      						 int ncols,
+                     						 const float* matrices[],
+                     						 int n,
+                     						 float* __restrict__ out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        assignSequentialMeanPooling<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrices, n, out);
+        return cudaGetLastError();
+	}
 }

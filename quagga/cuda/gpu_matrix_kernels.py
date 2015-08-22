@@ -276,3 +276,15 @@ gpu_matrix_kernels._matrixVectorRowAddition.argtypes = [cudart.ct_cuda_stream,
 def matrix_vector_row_addition(stream, nrows, ncols, matrix, alpha, vector, out):
     status = gpu_matrix_kernels._matrixVectorRowAddition(stream, nrows, ncols, matrix, alpha, vector, out)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._assignSequentialMeanPooling.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assignSequentialMeanPooling.argtypes = [cudart.ct_cuda_stream,
+                                                            ct.c_int,
+                                                            ct.c_int,
+                                                            ct.POINTER(ct.POINTER(ct.c_float)),
+                                                            ct.c_int,
+                                                            ct.POINTER(ct.c_float)]
+def assign_sequential_mean_pooling(stream, nrows, ncols, matrices, n, out):
+    status = gpu_matrix_kernels._assignSequentialMeanPooling(stream, nrows, ncols, matrices, n, out)
+    cudart.check_cuda_status(status)

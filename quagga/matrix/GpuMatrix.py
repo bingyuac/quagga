@@ -471,6 +471,16 @@ class GpuMatrix(object):
             k = b.nrows if matrix_operation_b == 'N' else b.ncols
             cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
 
+    def assign_sequential_mean_pooling(self, context, matrices):
+        context.activate()
+        n = len(matrices)
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        device_pointer = _get_temp_memory(n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        self.fill(context, 0.0)
+        gpu_matrix_kernels.assign_sequential_mean_pooling(context.cuda_stream, self.nrows, self.ncols, device_pointer, n, self.data)
+
 
 def _get_temp_memory(N):
     global __temp_pointer

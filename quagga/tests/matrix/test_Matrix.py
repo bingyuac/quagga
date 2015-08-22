@@ -15,11 +15,11 @@ class TestMatrix(TestCase):
         cls.N = 50
 
     @classmethod
-    def get_random_array(cls, shape=None):
+    def get_random_array(cls, shape=None, high=7000):
         if shape:
             a = 4 * cls.rng.rand(*shape) - 2
         else:
-            nrows, ncols = cls.rng.randint(low=1, high=7000, size=2)
+            nrows, ncols = cls.rng.random_integers(low=high, size=2)
             a = 4 * cls.rng.rand(nrows, ncols) - 2
         return a.astype(dtype=np.float32)
 
@@ -755,3 +755,22 @@ class TestMatrix(TestCase):
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
         self.assertEqual(sum(r), 2 * self.N)
+
+    def test_assign_sequential_mean_pooling(self):
+        r = []
+        for i in xrange(self.N):
+            a = [TestMatrix.get_random_array(high=1000)]
+            for _ in xrange(self.rng.random_integers(500)):
+                a.append(TestMatrix.get_random_array(a[-1].shape))
+
+            a_cpu = [CpuMatrix.from_npa(each) for each in a]
+            a_gpu = [GpuMatrix.from_npa(each) for each in a]
+
+            a_cpu[0].assign_sequential_mean_pooling(self.cpu_context, a_cpu[1:])
+            a_gpu[0].assign_sequential_mean_pooling(self.gpu_context, a_gpu[1:])
+
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
+
+        self.assertEqual(sum(r), self.N)

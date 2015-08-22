@@ -286,3 +286,7 @@ class CpuMatrix(object):
 
     def vdot(self, context, a):
         return ct.c_float(np.vdot(self.npa, a.npa))
+
+    def assign_sequential_mean_pooling(self, context, matrices):
+        for i in xrange(matrices[0].nrows):
+            self.npa[i] = np.mean([matrix.npa[i] for matrix in matrices], axis=0)
