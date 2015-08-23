@@ -1,3 +1,4 @@
+import quagga
 import atexit
 import numpy as np
 import ctypes as ct
@@ -119,7 +120,8 @@ class GpuMatrix(object):
         return cls(data, a.shape[0], a.shape[1], dtype, device_id, True)
 
     @classmethod
-    def empty(cls, nrows, ncols, dtype, device_id=None):
+    def empty(cls, nrows, ncols, dtype=None, device_id=None):
+        dtype = dtype if dtype else quagga.dtype
         c_dtype = cls.str_to_dtypes(dtype)[1]
         nbytes = nrows * ncols * ct.sizeof(c_dtype)
         with cudart.device(device_id):
@@ -213,7 +215,6 @@ class GpuMatrix(object):
             for i in xrange(self.nrows):
                 row = self._get_pointer_to_row(i)
                 cublas.cublas_s_copy(context.cublas_handle, self.ncols, a.data, 1, row, self.nrows)
-                context.synchronize()
         elif axis == 1:
             if a.ncols != 1:
                 raise ValueError('Invalid shape! `a` must have number of '
@@ -224,7 +225,6 @@ class GpuMatrix(object):
             for i in xrange(self.ncols):
                 column = self._get_pointer_to_column(i)
                 cublas.cublas_s_copy(context.cublas_handle, self.nrows, a.data, 1, column, 1)
-                context.synchronize()
         else:
             raise ValueError('Invalid axis!')
 
@@ -384,7 +384,7 @@ class GpuMatrix(object):
         context.activate()
         n = len(matrices)
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
-        device_pointer = _get_temp_memory(n)
+        device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
         gpu_matrix_kernels.add_sum(context.cuda_stream, self.nelems, device_pointer, n, self.data)
@@ -393,7 +393,7 @@ class GpuMatrix(object):
         context.activate()
         n = len(matrices)
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
-        device_pointer = _get_temp_memory(n)
+        device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
         gpu_matrix_kernels.assign_sum(context.cuda_stream, self.nelems, device_pointer, n, self.data)
@@ -475,26 +475,43 @@ class GpuMatrix(object):
         context.activate()
         n = len(matrices)
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
-        device_pointer = _get_temp_memory(n)
+        device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
         self.fill(context, 0.0)
         gpu_matrix_kernels.assign_sequential_mean_pooling(context.cuda_stream, self.nrows, self.ncols, device_pointer, n, self.data)
 
+    @staticmethod
+    def sequentially_tile(context, matrices, a):
+        for matrix in matrices:
+            if matrix.nrows != a.nrows or matrix.ncols != a.ncols:
+                raise ValueError('Invalid shape! `a` matrix must have the '
+                                 'same number of rows and columns as matrices '
+                                 'to be tiled!')
+        context.activate()
+        n = len(matrices)
+        matrices = (ct.POINTER(a.c_dtype) * n)(*(m.data for m in matrices))
+        device_pointer = _get_temp_memory(context, n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        gpu_matrix_kernels.sequentially_tile(context.cuda_stream, a.nelems, a.data, device_pointer, n)
 
-def _get_temp_memory(N):
+
+def _get_temp_memory(context, N):
     global __temp_pointer
     global __N
-    if N > __N:
-        if __temp_pointer:
-            atexit._exithandlers.remove((cudart.cuda_free, (__temp_pointer, ), {}))
-            cudart.cuda_free(__temp_pointer)
-        __N = N + 10
+    pointer = __temp_pointer.get(context)
+    if N > __N.get(context, -np.inf):
+        if pointer:
+            atexit._exithandlers.remove((cudart.cuda_free, (pointer, ), {}))
+            cudart.cuda_free(pointer)
+        __N[context] = N + 10
         c_dtype = ct.POINTER(ct.c_float)
         elem_size = ct.sizeof(c_dtype)
-        __temp_pointer = cudart.cuda_malloc(__N * elem_size, c_dtype)
-        atexit.register(cudart.cuda_free, __temp_pointer)
-    return __temp_pointer
+        pointer = cudart.cuda_malloc(__N[context] * elem_size, c_dtype)
+        atexit.register(cudart.cuda_free, pointer)
+        __temp_pointer[context] = pointer
+    return pointer
 
-__temp_pointer = None
-__N = 0
+__temp_pointer = {}
+__N = {}

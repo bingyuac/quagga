@@ -1,3 +1,4 @@
+import quagga
 import numpy as np
 import ctypes as ct
 from itertools import izip
@@ -47,7 +48,8 @@ class CpuMatrix(object):
         return cls(a, a.shape[0], a.shape[1], dtype, device_id)
 
     @classmethod
-    def empty(cls, nrows, ncols, dtype, device_id=None):
+    def empty(cls, nrows, ncols, dtype=None, device_id=None):
+        dtype = dtype if dtype else quagga.dtype
         np_dtype = cls.str_to_dtype(dtype) if type(dtype) is str else dtype
         return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype)), device_id=device_id)
 
@@ -290,3 +292,8 @@ class CpuMatrix(object):
     def assign_sequential_mean_pooling(self, context, matrices):
         for i in xrange(matrices[0].nrows):
             self.npa[i] = np.mean([matrix.npa[i] for matrix in matrices], axis=0)
+
+    @staticmethod
+    def sequentially_tile(context, matrices, a):
+        for m in matrices:
+            m.npa[...] = a.npa

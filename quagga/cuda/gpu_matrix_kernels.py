@@ -288,3 +288,14 @@ gpu_matrix_kernels._assignSequentialMeanPooling.argtypes = [cudart.ct_cuda_strea
 def assign_sequential_mean_pooling(stream, nrows, ncols, matrices, n, out):
     status = gpu_matrix_kernels._assignSequentialMeanPooling(stream, nrows, ncols, matrices, n, out)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._sequentiallyTile.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._sequentiallyTile.argtypes = [cudart.ct_cuda_stream,
+                                                 ct.c_int,
+                                                 ct.POINTER(ct.c_float),
+                                                 ct.POINTER(ct.POINTER(ct.c_float)),
+                                                 ct.c_int]
+def sequentially_tile(stream, nelems, a, matrices, n):
+    status = gpu_matrix_kernels._sequentiallyTile(stream, nelems, a, matrices, n)
+    cudart.check_cuda_status(status)

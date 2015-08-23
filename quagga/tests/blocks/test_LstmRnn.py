@@ -49,20 +49,20 @@ class TestLstmRnn(TestCase):
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             x_gpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
-            np_lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, learning=False)
+            lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, learning=False)
             x_gpu.set_length(sequence_len)
-            np_lstm_rnn_gpu.fprop()
-            np_lstm_rnn_gpu.context.synchronize()
-            h_gpu = np_lstm_rnn_gpu.h.to_host()
+            lstm_rnn_gpu.fprop()
+            lstm_rnn_gpu.context.synchronize()
+            h_gpu = lstm_rnn_gpu.h.to_host()
 
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             x_cpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
-            np_lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, learning=False)
+            lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, learning=False)
             x_cpu.set_length(sequence_len)
-            np_lstm_rnn_cpu.fprop()
-            np_lstm_rnn_cpu.context.synchronize()
-            h_cpu = np_lstm_rnn_cpu.h.to_host()
+            lstm_rnn_cpu.fprop()
+            lstm_rnn_cpu.context.synchronize()
+            h_cpu = lstm_rnn_cpu.h.to_host()
 
             for h_gpu, h_cpu in izip(h_gpu, h_cpu):
                 if not np.allclose(h_gpu, h_cpu, rtol=1e-7, atol=1e-3):
@@ -70,8 +70,8 @@ class TestLstmRnn(TestCase):
                     break
             else:
                 r.append(True)
-            del np_lstm_rnn_gpu
-            del np_lstm_rnn_cpu
+            del lstm_rnn_gpu
+            del lstm_rnn_cpu
             del x_gpu
             del x_cpu
 
@@ -96,36 +96,36 @@ class TestLstmRnn(TestCase):
             quagga.processor_type = 'gpu'
             context = Context()
             x_gpu = MatrixContainer([Connector(Matrix.from_npa(e), context, context) for e in x])
-            np_lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu)
+            lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu)
             x_gpu.set_length(sequence_len)
-            h, dL_dh = zip(*[h.register_usage(context, context) for h in np_lstm_rnn_gpu.h])
-            np_lstm_rnn_gpu.fprop()
+            h, dL_dh = zip(*[h.register_usage(context, context) for h in lstm_rnn_gpu.h])
+            lstm_rnn_gpu.fprop()
             for _, dL_dh in izip(h, dL_dh):
                 random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
                 Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
-            np_lstm_rnn_gpu.bprop()
+            lstm_rnn_gpu.bprop()
             context.synchronize()
-            np_lstm_rnn_gpu.context.synchronize()
-            dL_dW_gpu = np_lstm_rnn_gpu.dL_dW.to_host()
-            dL_dR_gpu = np_lstm_rnn_gpu.dL_dR.to_host()
+            lstm_rnn_gpu.context.synchronize()
+            dL_dW_gpu = lstm_rnn_gpu.dL_dW.to_host()
+            dL_dR_gpu = lstm_rnn_gpu.dL_dR.to_host()
             dL_dx_gpu = [e.backward_matrix.to_host() for e in x_gpu]
 
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             context = Context()
             x_cpu = MatrixContainer([Connector(Matrix.from_npa(e), context, context) for e in x])
-            np_lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu)
+            lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu)
             x_cpu.set_length(sequence_len)
-            h, dL_dh = zip(*[h.register_usage(context, context) for h in np_lstm_rnn_cpu.h])
-            np_lstm_rnn_cpu.fprop()
+            h, dL_dh = zip(*[h.register_usage(context, context) for h in lstm_rnn_cpu.h])
+            lstm_rnn_cpu.fprop()
             for _, dL_dh in izip(h, dL_dh):
                 random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
                 Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
-            np_lstm_rnn_cpu.bprop()
+            lstm_rnn_cpu.bprop()
             context.synchronize()
-            np_lstm_rnn_cpu.context.synchronize()
-            dL_dW_cpu = np_lstm_rnn_cpu.dL_dW.to_host()
-            dL_dR_cpu = np_lstm_rnn_cpu.dL_dR.to_host()
+            lstm_rnn_cpu.context.synchronize()
+            dL_dW_cpu = lstm_rnn_cpu.dL_dW.to_host()
+            dL_dR_cpu = lstm_rnn_cpu.dL_dR.to_host()
             dL_dx_cpu = [e.backward_matrix.to_host() for e in x_cpu]
 
             r.append(np.allclose(dL_dW_gpu, dL_dW_cpu, rtol=1e-7, atol=1e-3))
@@ -136,8 +136,8 @@ class TestLstmRnn(TestCase):
                     break
             else:
                 r.append(True)
-            del np_lstm_rnn_gpu
-            del np_lstm_rnn_cpu
+            del lstm_rnn_gpu
+            del lstm_rnn_cpu
             del x_gpu
             del x_cpu
 
@@ -215,18 +215,18 @@ class TestLstmRnn(TestCase):
             self.rng.set_state(state)
 
             # quagga model
-            np_lstm_rnn = NpLstmRnnM(W_init, R_init, x)
-            log_reg = LogisticRegressionCe(log_reg_init, np_lstm_rnn.h, true_labels)
+            lstm_rnn = NpLstmRnnM(W_init, R_init, x)
+            log_reg = LogisticRegressionCe(log_reg_init, lstm_rnn.h, true_labels)
 
             x.fprop()
             true_labels.fprop()
-            np_lstm_rnn.fprop()
+            lstm_rnn.fprop()
             log_reg.fprop()
             log_reg.bprop()
-            np_lstm_rnn.bprop()
+            lstm_rnn.bprop()
 
-            dL_d = {'W': np_lstm_rnn.dL_dW.to_host(),
-                    'R': np_lstm_rnn.dL_dR.to_host(),
+            dL_d = {'W': lstm_rnn.dL_dW.to_host(),
+                    'R': lstm_rnn.dL_dR.to_host(),
                     'x': x.backward_matrix.to_host()}
             theano_grad = dict(zip(['W', 'R', 'x'], get_theano_grads(x.to_host(), true_labels.to_host()[0])))
 

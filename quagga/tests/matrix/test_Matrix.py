@@ -774,3 +774,27 @@ class TestMatrix(TestCase):
             r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)
+
+    def test_sequentially_tile(self):
+        r = []
+        for i in xrange(self.N):
+            a = [TestMatrix.get_random_array(high=1000)]
+            for _ in xrange(self.rng.random_integers(500)):
+                a.append(np.empty_like(a[0]))
+
+            a_cpu = [CpuMatrix.from_npa(each) for each in a]
+            a_gpu = [GpuMatrix.from_npa(each) for each in a]
+
+            CpuMatrix.sequentially_tile(self.cpu_context, a_cpu[1:], a_cpu[0])
+            GpuMatrix.sequentially_tile(self.gpu_context, a_gpu[1:], a_gpu[0])
+
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            for a_cpu, a_gpu in izip(a_cpu[1:], a_gpu[1:]):
+                if not np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), self.N)
