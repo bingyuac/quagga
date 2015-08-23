@@ -11,7 +11,7 @@ class SequentialMeanPoolingBlock(object):
         elif all(not m.bpropagable for m in matrices):
             learning = False
         else:
-            raise ValueError('All elements of MatrixContainer should be '
+            raise ValueError('All elements of matrices should be '
                              'bpropagable or non-bpropagable. '
                              'Mixed state is not allowed!')
         self.max_input_sequence_len = len(matrices)

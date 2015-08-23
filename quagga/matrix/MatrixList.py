@@ -1,4 +1,4 @@
-class MatrixContainer(object):
+class MatrixList(object):
     def __init__(self, matrices):
         self.matrices = matrices
         self.length = len(matrices)

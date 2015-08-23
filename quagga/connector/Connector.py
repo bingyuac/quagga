@@ -124,6 +124,7 @@ class Connector(object):
 
     @property
     def nrows(self):
+        raise ValueError('Why do you dou this?')
         return self._f_matrices[self._f_obtaining_context.device_id].nrows
 
     @nrows.setter

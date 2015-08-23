@@ -2,7 +2,7 @@ import ctypes as ct
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.connector import Connector
-from quagga.matrix import MatrixContainer
+from quagga.matrix import MatrixList
 
 
 class LstmRnn(object):
@@ -50,7 +50,7 @@ class LstmRnn(object):
                 cell = _LstmBlock(self.W, self.R, x[k], prev_c, prev_h, device_id)
             self.lstm_cells.append(cell)
             self.h.append(cell.h)
-        self.h = MatrixContainer(self.h)
+        self.h = MatrixList(self.h)
         self.x = x
 
     def fprop(self):

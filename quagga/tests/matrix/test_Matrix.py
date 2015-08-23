@@ -791,7 +791,39 @@ class TestMatrix(TestCase):
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             for a_cpu, a_gpu in izip(a_cpu[1:], a_gpu[1:]):
-                if not np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6):
+                if not np.allclose(a_cpu.to_host(), a_gpu.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_slice_rows_batch(self):
+        r = []
+        for _ in xrange(self.N):
+            embd_matrix = TestMatrix.get_random_array(high=1000)
+            nrows, k = self.rng.random_integers(1000, size=2)
+            dense_matrices = []
+            for _ in xrange(k):
+                matrix = np.empty((nrows, embd_matrix.shape[1]), dtype=np.float32)
+                dense_matrices.append(matrix)
+            embd_rows_indxs = self.rng.randint(embd_matrix.shape[0], size=(nrows, k)).astype(np.int32)
+
+            embd_matrix_cpu = CpuMatrix.from_npa(embd_matrix)
+            embd_rows_indxs_cpu = CpuMatrix.from_npa(embd_rows_indxs)
+            dense_matrices_cpu = [CpuMatrix.from_npa(each) for each in dense_matrices]
+            embd_matrix_gpu = GpuMatrix.from_npa(embd_matrix)
+            embd_rows_indxs_gpu = GpuMatrix.from_npa(embd_rows_indxs)
+            dense_matrices_gpu = [GpuMatrix.from_npa(each) for each in dense_matrices]
+
+            embd_matrix_cpu.slice_rows_batch(self.cpu_context, embd_rows_indxs_cpu, dense_matrices_cpu)
+            embd_matrix_gpu.slice_rows_batch(self.gpu_context, embd_rows_indxs_gpu, dense_matrices_gpu)
+
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            for m_cpu, m_gpu in izip(dense_matrices_cpu, dense_matrices_gpu):
+                if not np.allclose(m_cpu.to_host(), m_gpu.to_host()):
                     r.append(False)
                     break
             else:

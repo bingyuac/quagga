@@ -297,3 +297,7 @@ class CpuMatrix(object):
     def sequentially_tile(context, matrices, a):
         for m in matrices:
             m.npa[...] = a.npa
+
+    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
+        for i in xrange(embd_rows_indxs.ncols):
+            dense_matrices[i].npa = self.npa[embd_rows_indxs.npa[:, i]]

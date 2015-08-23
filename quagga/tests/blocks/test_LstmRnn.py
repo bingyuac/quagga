@@ -8,7 +8,7 @@ from quagga.matrix import Matrix
 from quagga.blocks import LstmRnn
 from quagga.context import Context
 from quagga.connector import Connector
-from quagga.matrix import MatrixContainer
+from quagga.matrix import MatrixList
 from quagga.blocks import LogisticRegressionCe
 
 
@@ -48,7 +48,7 @@ class TestLstmRnn(TestCase):
 
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
-            x_gpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
+            x_gpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
             lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, learning=False)
             x_gpu.set_length(sequence_len)
             lstm_rnn_gpu.fprop()
@@ -57,7 +57,7 @@ class TestLstmRnn(TestCase):
 
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
-            x_cpu = MatrixContainer([Connector(Matrix.from_npa(e)) for e in x])
+            x_cpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
             lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, learning=False)
             x_cpu.set_length(sequence_len)
             lstm_rnn_cpu.fprop()
@@ -95,7 +95,7 @@ class TestLstmRnn(TestCase):
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             context = Context()
-            x_gpu = MatrixContainer([Connector(Matrix.from_npa(e), context, context) for e in x])
+            x_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
             lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu)
             x_gpu.set_length(sequence_len)
             h, dL_dh = zip(*[h.register_usage(context, context) for h in lstm_rnn_gpu.h])
@@ -113,7 +113,7 @@ class TestLstmRnn(TestCase):
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             context = Context()
-            x_cpu = MatrixContainer([Connector(Matrix.from_npa(e), context, context) for e in x])
+            x_cpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
             lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu)
             x_cpu.set_length(sequence_len)
             h, dL_dh = zip(*[h.register_usage(context, context) for h in lstm_rnn_cpu.h])
