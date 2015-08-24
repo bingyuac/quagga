@@ -6,7 +6,7 @@ from quagga.matrix import MatrixList
 
 
 class LstmRnn(object):
-    def __init__(self, W_init, R_init, x, learning=True, device_id=None):
+    def __init__(self, W_init, R_init, x, reverse=False, learning=True, device_id=None):
         """
         TODO
         """
@@ -20,6 +20,7 @@ class LstmRnn(object):
         self.context = Context(device_id)
         device_id = self.context.device_id
         self.max_input_sequence_len = len(x)
+        self.reverse = reverse
 
         W = [Matrix.from_npa(W_init(), device_id=device_id) for _ in xrange(4)]
         self.W = Matrix.empty(input_dim, 4 * hidden_dim, W[0].dtype, device_id)
@@ -44,13 +45,14 @@ class LstmRnn(object):
             else:
                 prev_c = self.lstm_cells[-1].c
                 prev_h = self.lstm_cells[-1].h
+            k = self.max_input_sequence_len - 1 - k if reverse else k
             if learning:
                 cell = _LstmBlock(self.W, self.R, x[k], prev_c, prev_h, device_id, self.dL_dW, self.dL_dR)
             else:
                 cell = _LstmBlock(self.W, self.R, x[k], prev_c, prev_h, device_id)
             self.lstm_cells.append(cell)
             self.h.append(cell.h)
-        self.h = MatrixList(self.h)
+        self.h = MatrixList(self.h[::-1] if reverse else self.h)
         self.x = x
 
     def fprop(self):
@@ -60,18 +62,30 @@ class LstmRnn(object):
                              'The maximum is: {}'.
                              format(n, self.max_input_sequence_len))
         self.h.set_length(n)
-        for k in xrange(n):
-            self.lstm_cells[k].fprop()
+        if self.reverse:
+            if n != self.max_input_sequence_len:
+                k = self.max_input_sequence_len - n
+                self.lstm_cells[k].prev_c.fill(self.lstm_cells[k].context, 0.0)
+                self.lstm_cells[k].prev_h.fill(self.lstm_cells[k].context, 0.0)
+            for k in xrange(self.max_input_sequence_len - n, n):
+                self.lstm_cells[k].fprop()
+        else:
+            for k in xrange(n):
+                self.lstm_cells[k].fprop()
 
     def bprop(self):
         self.dL_dW.fill(self.context, 0.0)
         self.dL_dR.fill(self.context, 0.0)
         n = len(self.x)
-        for k in reversed(xrange(n)):
-            if k == n-1 and n != self.max_input_sequence_len:
-                self.lstm_cells[k].bprop(self.lstm_cells[k+1].context)
-            else:
+        if self.reverse:
+            for k in reversed(xrange(self.max_input_sequence_len - n, n)):
                 self.lstm_cells[k].bprop()
+        else:
+            for k in reversed(xrange(n)):
+                if k == n-1 and n != self.max_input_sequence_len:
+                    self.lstm_cells[k].bprop(self.lstm_cells[k+1].context)
+                else:
+                    self.lstm_cells[k].bprop()
 
     @property
     def params(self):

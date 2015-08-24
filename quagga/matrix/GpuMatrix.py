@@ -496,14 +496,17 @@ class GpuMatrix(object):
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
         gpu_matrix_kernels.sequentially_tile(context.cuda_stream, a.nelems, a.data, device_pointer, n)
 
-    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
+    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices, reverse=False):
         context.activate()
         n = len(dense_matrices)
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in dense_matrices))
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
-        gpu_matrix_kernels.slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
+        if reverse:
+            gpu_matrix_kernels.reverse_slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
+        else:
+            gpu_matrix_kernels.slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
 
 
 def _get_temp_memory(context, N):

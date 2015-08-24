@@ -16,20 +16,20 @@ class SequentialEmbeddingBlock(object):
             self.output.append(output)
         self.output = MatrixList(self.output)
         if learning:
-            self.dL_doutput = None
+            self.dL_embedding = Matrix.empty(indexes.nelems, self.embedding.ncols, device_id=device_id)
         self.indexes = indexes.register_usage(self.context)
         self.reverse = reverse
 
     def fprop(self):
         self.output.set_length(self.indexes.ncols)
-        self.embedding.slice_columns(self.context, self.indexes, self.output, self.reverse)
+        self.embedding.slice_rows_batch(self.context, self.indexes, self.output, self.reverse)
         for output in self.output:
             output.fprop()
 
     def bprop(self):
-        for output in self.output:
-            output.bprop()
-            # gather derivatives
+        self.dL_embedding.nrows = self.indexes.nelems
+        matrices = [e.backward_matrix for e in self.output][::(-1 if self.reverse else 1)]
+        self.dL_embedding.assign_vstack(self.context, matrices)
 
     @property
     def params(self):
@@ -37,4 +37,4 @@ class SequentialEmbeddingBlock(object):
 
     @property
     def grads(self):
-        return [(self.context, (self.indexes, self.output.backward_matrix))]
+        return [(self.context, (self.indexes, self.dL_embedding))]

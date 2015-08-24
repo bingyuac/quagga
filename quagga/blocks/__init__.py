@@ -11,4 +11,5 @@ from quagga.blocks.FakeDataBlock import FakeDataBlock
 from quagga.blocks.Ravel import Ravel
 from quagga.blocks.DenseBlock import DenseBlock
 from quagga.blocks.GrammarDataBlock import GrammarDataBlock
+from quagga.blocks.SequentialEmbeddingBlock import SequentialEmbeddingBlock
 from quagga.blocks.SequentialMeanPoolingBlock import SequentialMeanPoolingBlock

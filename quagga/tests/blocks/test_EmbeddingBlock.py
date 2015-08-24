@@ -6,7 +6,7 @@ from quagga.connector import Connector
 from quagga.blocks import EmbeddingBlock
 
 
-class testEmbeddingBlock(TestCase):
+class TestEmbeddingBlock(TestCase):
     def test_fprop(self):
         r = []
         n = 100

@@ -7,11 +7,48 @@ from itertools import izip
 class CpuMatrix(object):
     def __init__(self, npa, nrows, ncols, dtype, device_id):
         self.npa = npa
-        self.nrows = nrows
-        self.ncols = ncols
-        self.nelems = nrows * ncols
+        self._nrows = nrows
+        self._ncols = ncols
         self.dtype = dtype
         self.device_id = device_id
+
+    @property
+    def nelems(self):
+        return self._nrows * self._ncols
+
+    @property
+    def nrows(self):
+        return self._nrows
+
+    @nrows.setter
+    def nrows(self, value):
+        base = self.npa.base
+        if base is None:
+            base = self.npa
+        if value > base.shape[0]:
+            raise ValueError('There is no so many preallocated memory! '
+                             'Maximum for `nrows` is {}'.format(base.shape[0]))
+        self._nrows = value
+        self.npa = base[:value]
+        if self.npa.base is None:
+            raise ValueError('Oops!')
+
+    @property
+    def ncols(self):
+        return self._ncols
+
+    @ncols.setter
+    def ncols(self, value):
+        base = self.npa.base
+        if base is None:
+            base = self.npa
+        if value > base.shape[1]:
+            raise ValueError('There is no so many preallocated memory! '
+                             'Maximum for `ncols` is {}'.format(base.shape[1]))
+        self._ncols = value
+        self.npa = base[:, :value]
+        if self.npa.base is None:
+            raise ValueError('Oops!')
 
     def __getitem__(self, key):
         if type(key[1]) == int:
@@ -69,7 +106,6 @@ class CpuMatrix(object):
         if not np.isfortran(a):
             a = np.asfortranarray(a)
         self.nrows, self.ncols = a.shape
-        self.nelems = self.nrows * self.ncols
         self.npa = a
 
     def fill(self, context, value):
@@ -298,6 +334,10 @@ class CpuMatrix(object):
         for m in matrices:
             m.npa[...] = a.npa
 
-    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
-        for i in xrange(embd_rows_indxs.ncols):
-            dense_matrices[i].npa = self.npa[embd_rows_indxs.npa[:, i]]
+    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices, reverse=False):
+        n = embd_rows_indxs.ncols
+        for i in xrange(n):
+            if reverse:
+                dense_matrices[i].npa[...] = self.npa[embd_rows_indxs.npa[:, n-1-i]]
+            else:
+                dense_matrices[i].npa[...] = self.npa[embd_rows_indxs.npa[:, i]]

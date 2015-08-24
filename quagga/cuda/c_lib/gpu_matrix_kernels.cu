@@ -74,6 +74,30 @@ __global__  void sliceRowsBatch(const int* embd_rows_indxs,
 }
 
 
+__global__  void reverseSliceRowsBatch(const int* embd_rows_indxs,
+									   int nrows,
+									   int ncols,
+							    	   const float* __restrict__ embd_matrix,
+							    	   int embd_nrows,
+							    	   int embd_ncols,
+							    	   float* __restrict__ dense_matrices[]) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * embd_ncols;
+	const int total_nelems = nelems * ncols;
+
+	int k, dense_offset, embd_row_idx, embd_col_idx, embd_offset;
+	for (int i = start_i; i < total_nelems; i += nthreads) {
+		k = i / nelems;
+		dense_offset = i % nelems;
+		embd_row_idx = embd_rows_indxs[(ncols - 1 - k) * nrows + i % nrows];
+		embd_col_idx = dense_offset / nrows;
+		embd_offset = embd_col_idx * embd_nrows + embd_row_idx;
+		dense_matrices[k][dense_offset] = embd_matrix[embd_offset];
+	}
+}
+
+
 __global__ void hprodSum(int nelems,
 						 int nrows,
 						 const float* __restrict__ A,
@@ -484,6 +508,20 @@ extern "C" {
 							    float* __restrict__ dense_matrices[]) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * embd_ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         sliceRowsBatch<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _reverseSliceRowsBatch(cudaStream_t stream,
+									   const int* embd_rows_indxs,
+									   int nrows,
+									   int ncols,
+								       const float* __restrict__ embd_matrix,
+								       int embd_nrows,
+								       int embd_ncols,
+								       float* __restrict__ dense_matrices[]) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * embd_ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        reverseSliceRowsBatch<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices);
         return cudaGetLastError();
 	}
 

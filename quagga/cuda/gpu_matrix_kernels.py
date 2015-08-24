@@ -313,3 +313,17 @@ gpu_matrix_kernels._sliceRowsBatch.argtypes = [cudart.ct_cuda_stream,
 def slice_rows_batch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices):
     status = gpu_matrix_kernels._sliceRowsBatch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._reverseSliceRowsBatch.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._reverseSliceRowsBatch.argtypes = [cudart.ct_cuda_stream,
+                                                      ct.POINTER(ct.c_int),
+                                                      ct.c_int,
+                                                      ct.c_int,
+                                                      ct.POINTER(ct.c_float),
+                                                      ct.c_int,
+                                                      ct.c_int,
+                                                      ct.POINTER(ct.POINTER(ct.c_float))]
+def reverse_slice_rows_batch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices):
+    status = gpu_matrix_kernels._reverseSliceRowsBatch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices)
+    cudart.check_cuda_status(status)

@@ -74,3 +74,4 @@
 - [ ] Add sequential layer
 - [ ] Add compiler functionality for more flexible code generation
 - [ ] Add max margin cost function
+- [ ] Rewrite `_verticalStack` and `_horizontalStack` using kernels instead of cudamemcopy

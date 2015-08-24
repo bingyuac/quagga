@@ -7,8 +7,8 @@ from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.blocks import LstmRnn
 from quagga.context import Context
-from quagga.connector import Connector
 from quagga.matrix import MatrixList
+from quagga.connector import Connector
 from quagga.blocks import LogisticRegressionCe
 
 
