@@ -8,9 +8,10 @@ from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.blocks import LstmRnn
 from quagga.context import Context
+from quagga.blocks import DotBlock
 from quagga.matrix import MatrixList
 from quagga.connector import Connector
-from quagga.blocks import LogisticRegressionCe
+from quagga.blocks import SigmoidCeBlock
 from quagga.blocks import SequentialMeanPoolingBlock
 
 
@@ -260,7 +261,7 @@ class TestLstmRnn(TestCase):
             def get_output_expr(self, input_sequence):
                 return T.mean(input_sequence, axis=0)
 
-        class LogisticRegression(object):
+        class LogisticRegressionLayer(object):
             def __init__(self, W_init, b_init):
                 self.W = theano.shared(value=W_init())
                 self.b = theano.shared(value=b_init())
@@ -291,7 +292,7 @@ class TestLstmRnn(TestCase):
                 th_true_labels = T.fmatrix()
                 lstm_layer = LstmLayer(W_init, R_init, reverse)
                 smp_layer = SequentialMeanPoolingLayer()
-                lr_layer = LogisticRegression(lr_W_init, lambda: lr_b_init()[0])
+                lr_layer = LogisticRegressionLayer(lr_W_init, lambda: lr_b_init()[0])
                 probs = th_x
                 for layer in [lstm_layer, smp_layer, lr_layer]:
                     probs = layer.get_output_expr(probs)
@@ -308,20 +309,23 @@ class TestLstmRnn(TestCase):
                 true_labels_gpu = Connector(Matrix.from_npa(true_labels))
                 lstm_block = LstmRnn(W_init, R_init, x_gpu, reverse)
                 smp_block = SequentialMeanPoolingBlock(lstm_block.h)
-                lr_block = LogisticRegressionCe(lr_W_init, lr_b_init, smp_block.output, true_labels_gpu)
+                dot_block = DotBlock(lr_W_init, lr_b_init, smp_block.output)
+                sce_block = SigmoidCeBlock(dot_block.output, true_labels_gpu)
                 x_gpu.set_length(sequence_len)
                 for e in x_gpu:
                     e.fprop()
                 true_labels_gpu.fprop()
                 lstm_block.fprop()
                 smp_block.fprop()
-                lr_block.fprop()
-                lr_block.bprop()
+                dot_block.fprop()
+                sce_block.fprop()
+                sce_block.bprop()
+                dot_block.bprop()
                 smp_block.bprop()
                 lstm_block.bprop()
                 cudart.cuda_device_synchronize()
-                quagga_grads = [lr_block.dL_dW.to_host(),
-                                lr_block.dL_db.to_host(),
+                quagga_grads = [dot_block.dL_dW.to_host(),
+                                dot_block.dL_db.to_host(),
                                 lstm_block.dL_dW.to_host(),
                                 lstm_block.dL_dR.to_host(),
                                 [e.backward_matrix.to_host() for e in x_gpu]]
@@ -336,8 +340,8 @@ class TestLstmRnn(TestCase):
                     r.append(True)
 
                 del lstm_block
+                del dot_block
                 del smp_block
-                del lr_block
-                print r[-5:]
+                del sce_block
 
         self.assertEqual(sum(r), self.N * 10)

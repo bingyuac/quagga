@@ -3,12 +3,14 @@ import theano
 import numpy as np
 from itertools import izip
 from unittest import TestCase
+from quagga.cuda import cudart
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
+from quagga.blocks import DotBlock
 from quagga.connector import Connector
 from quagga.matrix import MatrixList
-from quagga.blocks import LogisticRegressionCe
+from quagga.blocks import SigmoidCeBlock
 from quagga.blocks import SequentialMeanPoolingBlock
 
 
@@ -121,7 +123,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             def get_output_expr(self, input_sequence):
                 return T.mean(input_sequence, axis=2)
 
-        class LogisticRegression(object):
+        class LogisticRegressionLayer(object):
             def __init__(self, W_init, b_init):
                 self.W = theano.shared(value=W_init())
                 self.b = theano.shared(value=b_init())
@@ -147,7 +149,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             th_x = T.ftensor3()
             th_true_labels = T.fmatrix()
             smp_layer = SequentialMeanPoolingLayer()
-            lr_layer = LogisticRegression(W_init, lambda: b_init()[0])
+            lr_layer = LogisticRegressionLayer(W_init, lambda: b_init()[0])
             probs = lr_layer.get_output_expr(smp_layer.get_output_expr(th_x))
             loss = T.mean(T.nnet.binary_crossentropy(probs, th_true_labels))
             grad_x = T.grad(loss, wrt=th_x)
@@ -159,14 +161,16 @@ class TestSequentialMeanPoolingBlock(TestCase):
             x = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
             true_labels = Connector(Matrix.from_npa(true_labels))
             smp_block = SequentialMeanPoolingBlock(x)
-            lr_block = LogisticRegressionCe(W_init, b_init, smp_block.output, true_labels)
+            dot_block = DotBlock(W_init, b_init, smp_block.output)
+            sce_block = SigmoidCeBlock(dot_block.output, true_labels)
             x.set_length(sequence_len)
             smp_block.fprop()
-            lr_block.fprop()
-            lr_block.bprop()
+            dot_block.fprop()
+            sce_block.fprop()
+            sce_block.bprop()
+            dot_block.bprop()
             smp_block.bprop()
-            lr_block.context.synchronize()
-            smp_block.context.synchronize()
+            cudart.cuda_device_synchronize()
             context.synchronize()
 
             dL_dx = [e.to_host() for e in smp_block.dL_dmatrices]
