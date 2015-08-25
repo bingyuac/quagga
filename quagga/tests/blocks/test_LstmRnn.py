@@ -131,10 +131,10 @@ class TestLstmRnn(TestCase):
                 dL_dR_cpu = lstm_rnn_cpu.dL_dR.to_host()
                 dL_dx_cpu = [e.backward_matrix.to_host() for e in x_cpu]
 
-                r.append(np.allclose(dL_dW_gpu, dL_dW_cpu, rtol=1e-7, atol=1e-3))
-                r.append(np.allclose(dL_dR_gpu, dL_dR_cpu, rtol=1e-7, atol=1e-3))
+                r.append(np.allclose(dL_dW_gpu, dL_dW_cpu, rtol=1e-7, atol=2e-3))
+                r.append(np.allclose(dL_dR_gpu, dL_dR_cpu, rtol=1e-7, atol=2e-3))
                 for dL_dx_gpu, dL_dx_cpu in izip(dL_dx_gpu, dL_dx_cpu):
-                    if not np.allclose(dL_dx_gpu, dL_dx_cpu, rtol=1e-7, atol=1e-3):
+                    if not np.allclose(dL_dx_gpu, dL_dx_cpu, rtol=1e-7, atol=2e-3):
                         r.append(False)
                         break
                 else:
@@ -157,13 +157,13 @@ class TestLstmRnn(TestCase):
             def get_output_expr(self, input_sequence):
                 h0 = T.zeros((batch_size, self.n), dtype=np.float32)
                 c0 = T.zeros((batch_size, self.n), dtype=np.float32)
-                if reverse:
-                    input_sequence = input_sequence[:, :, ::-1]
                 input_sequence = input_sequence.transpose(2, 0, 1)
+                if reverse:
+                    input_sequence = input_sequence[::-1]
                 [_, h], _ = theano.scan(fn=self.__get_lstm_step_expr,
                                         sequences=input_sequence,
                                         outputs_info=[c0, h0])
-                return h
+                return h[::-1] if reverse else h
 
             def __get_lstm_step_expr(self, x_t, c_tm1, h_tm1):
                 sigm = T.nnet.sigmoid
@@ -211,7 +211,7 @@ class TestLstmRnn(TestCase):
                 q_h = lstm_rnn_gpu.h.to_host()
 
                 for i in xrange(th_h.shape[0]):
-                    if not np.allclose(q_h[i], th_h[i], rtol=1e-7, atol=1e-5):
+                    if not np.allclose(q_h[i], th_h[i]):
                         r.append(False)
                         break
                 else:
@@ -219,7 +219,7 @@ class TestLstmRnn(TestCase):
                 del lstm_rnn_gpu
                 del q_x
 
-        self.assertEqual(sum(r), self.N)
+        self.assertEqual(sum(r), self.N * 2)
 
     def test_theano_grad(self):
         class LstmLayer(object):
@@ -234,13 +234,13 @@ class TestLstmRnn(TestCase):
             def get_output_expr(self, input_sequence):
                 h0 = T.zeros((batch_size, self.n), dtype=np.float32)
                 c0 = T.zeros((batch_size, self.n), dtype=np.float32)
-                if reverse:
-                    input_sequence = input_sequence[:, :, ::-1]
                 input_sequence = input_sequence.transpose(2, 0, 1)
+                if reverse:
+                    input_sequence = input_sequence[::-1]
                 [_, h], _ = theano.scan(fn=self.__get_lstm_step_expr,
                                         sequences=input_sequence,
                                         outputs_info=[c0, h0])
-                return h
+                return h[::-1] if reverse else h
 
             def __get_lstm_step_expr(self, x_t, c_tm1, h_tm1):
                 sigm = T.nnet.sigmoid
