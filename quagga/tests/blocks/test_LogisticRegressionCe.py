@@ -2,6 +2,7 @@ import quagga
 import theano
 import numpy as np
 from unittest import TestCase
+from quagga.cuda import cudart
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
@@ -37,7 +38,7 @@ class TestLogisticRegressionCe(TestCase):
             batch_size = self.rng.random_integers(512)
             features_dim = self.rng.random_integers(2000)
             features = self.rng.rand(batch_size, features_dim).astype(dtype=np.float32)
-            true_labels = self.rng.randint(1, size=(batch_size, 1)).astype(dtype=np.float32)
+            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
 
             W_init = self.get_orthogonal_initializer(features_dim, 1)
             b_init = lambda: self.rng.rand(1, 1).astype(dtype=np.float32)
@@ -48,7 +49,7 @@ class TestLogisticRegressionCe(TestCase):
             true_labels_gpu = Connector(Matrix.from_npa(true_labels))
             lr_gpu = LogisticRegressionCe(W_init, b_init, features_gpu, true_labels_gpu, learning=False)
             lr_gpu.fprop()
-            lr_gpu.context.synchronize()
+            cudart.cuda_device_synchronize()
             probs_gpu = lr_gpu.probs.to_host()
 
             self.rng.set_state(state)
@@ -57,10 +58,9 @@ class TestLogisticRegressionCe(TestCase):
             true_labels_cpu = Connector(Matrix.from_npa(true_labels))
             lr_cpu = LogisticRegressionCe(W_init, b_init, features_cpu, true_labels_cpu, learning=False)
             lr_cpu.fprop()
-            lr_cpu.context.synchronize()
             probs_cpu = lr_gpu.probs.to_host()
 
-            r.append(np.allclose(probs_gpu, probs_cpu, rtol=1e-7, atol=1e-3))
+            r.append(np.allclose(probs_gpu, probs_cpu))
 
         self.assertEqual(sum(r), self.N)
 
@@ -73,7 +73,7 @@ class TestLogisticRegressionCe(TestCase):
             batch_size = self.rng.random_integers(512)
             features_dim = self.rng.random_integers(2000)
             features = self.rng.rand(batch_size, features_dim).astype(dtype=np.float32)
-            true_labels = self.rng.randint(1, size=(batch_size, 1)).astype(dtype=np.float32)
+            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
 
             W_init = self.get_orthogonal_initializer(features_dim, 1)
             b_init = lambda: self.rng.rand(1, 1).astype(dtype=np.float32)
@@ -86,8 +86,7 @@ class TestLogisticRegressionCe(TestCase):
             lr_gpu = LogisticRegressionCe(W_init, b_init, features_gpu, true_labels_gpu)
             lr_gpu.fprop()
             lr_gpu.bprop()
-            lr_gpu.context.synchronize()
-            context.synchronize()
+            cudart.cuda_device_synchronize()
             dL_dW_gpu = lr_gpu.dL_dW.to_host()
             dL_db_gpu = lr_gpu.dL_db.to_host()
             dL_dfeatures_gpu = lr_gpu.dL_dfeatures.to_host()
@@ -100,15 +99,13 @@ class TestLogisticRegressionCe(TestCase):
             lr_cpu = LogisticRegressionCe(W_init, b_init, features_cpu, true_labels_cpu)
             lr_cpu.fprop()
             lr_cpu.bprop()
-            lr_cpu.context.synchronize()
-            context.synchronize()
             dL_dW_cpu = lr_cpu.dL_dW.to_host()
             dL_db_cpu = lr_cpu.dL_db.to_host()
             dL_dfeatures_cpu = lr_cpu.dL_dfeatures.to_host()
 
-            r.append(np.allclose(dL_dW_gpu, dL_dW_cpu, rtol=1e-7, atol=1e-3))
-            r.append(np.allclose(dL_db_gpu, dL_db_cpu, rtol=1e-7, atol=1e-3))
-            r.append(np.allclose(dL_dfeatures_gpu, dL_dfeatures_cpu, rtol=1e-7, atol=1e-3))
+            r.append(np.allclose(dL_dW_gpu, dL_dW_cpu))
+            r.append(np.allclose(dL_db_gpu, dL_db_cpu))
+            r.append(np.allclose(dL_dfeatures_gpu, dL_dfeatures_cpu))
 
         self.assertEqual(sum(r), self.N * 3)
 
@@ -127,7 +124,7 @@ class TestLogisticRegressionCe(TestCase):
             batch_size = self.rng.random_integers(512)
             features_dim = self.rng.random_integers(2000)
             features = self.rng.rand(batch_size, features_dim).astype(dtype=np.float32)
-            true_labels = self.rng.randint(1, size=(batch_size, 1)).astype(dtype=np.float32)
+            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
 
             W_init = self.get_orthogonal_initializer(features_dim, 1)
             b_init = lambda: self.rng.rand(1, 1).astype(dtype=np.float32)
@@ -150,16 +147,15 @@ class TestLogisticRegressionCe(TestCase):
             lr_block = LogisticRegressionCe(W_init, b_init, features, true_labels)
             lr_block.fprop()
             lr_block.bprop()
-            lr_block.context.synchronize()
-            context.synchronize()
+            cudart.cuda_device_synchronize()
 
             dL_dW_q = lr_block.dL_dW.to_host()
             dL_db_q = lr_block.dL_db.to_host()
             dL_dfeatures_q = lr_block.dL_dfeatures.to_host()
             dL_dW_th, dL_db_th, dL_dfeatures_th = get_theano_grads(features.to_host(), true_labels.to_host())
 
-            r.append(np.allclose(dL_dW_q, dL_dW_th, rtol=1e-7, atol=1e-3))
-            r.append(np.allclose(dL_db_q, dL_db_th, rtol=1e-7, atol=1e-3))
-            r.append(np.allclose(dL_dfeatures_q, dL_dfeatures_th, rtol=1e-7, atol=1e-3))
+            r.append(np.allclose(dL_dW_q, dL_dW_th))
+            r.append(np.allclose(dL_db_q, dL_db_th))
+            r.append(np.allclose(dL_dfeatures_q, dL_dfeatures_th))
 
         self.assertEqual(sum(r), self.N * 3)

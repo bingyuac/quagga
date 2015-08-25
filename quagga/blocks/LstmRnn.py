@@ -1,4 +1,3 @@
-import ctypes as ct
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.connector import Connector
@@ -67,7 +66,7 @@ class LstmRnn(object):
                 k = self.max_input_sequence_len - n
                 self.lstm_cells[k].prev_c.fill(self.lstm_cells[k].context, 0.0)
                 self.lstm_cells[k].prev_h.fill(self.lstm_cells[k].context, 0.0)
-            for k in xrange(self.max_input_sequence_len - n, n):
+            for k in xrange(self.max_input_sequence_len - n, self.max_input_sequence_len):
                 self.lstm_cells[k].fprop()
         else:
             for k in xrange(n):
@@ -78,7 +77,7 @@ class LstmRnn(object):
         self.dL_dR.fill(self.context, 0.0)
         n = len(self.x)
         if self.reverse:
-            for k in reversed(xrange(self.max_input_sequence_len - n, n)):
+            for k in reversed(xrange(self.max_input_sequence_len - n, self.max_input_sequence_len)):
                 self.lstm_cells[k].bprop()
         else:
             for k in reversed(xrange(n)):
@@ -93,7 +92,8 @@ class LstmRnn(object):
 
     @property
     def grads(self):
-        return [self.dL_dW, self.dL_dR]
+        n = len(self.x)
+        return [(self.lstm_cells[n].context, self.dL_dW), (self.lstm_cells[n].context, self.dL_dR)]
 
 
 class _LstmBlock(object):
@@ -179,7 +179,7 @@ class _LstmBlock(object):
         # zifo = tanh_sigm(x[t] * W + h[t-1] * R)
         self.zifo.assign_dot(self.context, self.x, self.W)
         self.zifo.add_dot(self.context, self.prev_h, self.R)
-        self.zifo.tanh_sigm(self.context, self.zifo, self.dzifo_dpre_zifo)
+        self.zifo.tanh_sigm(self.context, self.zifo, self.dzifo_dpre_zifo, axis=1)
 
         # c[t] = i[t] .* z[t] + f[t] .* c[t-1]
         # h[t] = o[t] .* tanh(c[t])

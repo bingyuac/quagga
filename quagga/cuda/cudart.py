@@ -408,6 +408,13 @@ def cuda_pointer_get_attributes(ptr):
     return memory_type, attributes.device, bool(attributes.isManaged)
 
 
+_libcudart.cudaDeviceSynchronize.restype = ct_cuda_error
+_libcudart.cudaDeviceSynchronize.argtypes = []
+def cuda_device_synchronize():
+    status = _libcudart.cudaDeviceSynchronize()
+    check_cuda_status(status)
+
+
 _libcudart.cudaStreamCreate.restype = ct_cuda_error
 _libcudart.cudaStreamCreate.argtypes = [ct.POINTER(ct_cuda_stream)]
 def cuda_stream_create(stream):

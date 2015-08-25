@@ -342,17 +342,19 @@ class GpuMatrix(object):
         else:
             nonlinearities.sigmoid(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data)
 
-    def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None):
+    def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None, axis=0):
         """
         This is a fancy function that is used during forward propagation into
-        lstm cell. It calculates for the first 1/4 rows tanh function and
-        sigmoid for the 3/4 remaining rows.
+        lstm cell. It calculates for the first 1/4 elements along the axis
+        tanh function and sigmoid for the 3/4 remaining elements.
         """
+        if axis not in {0, 1}:
+            raise ValueError('TODO!')
         context.activate()
         if derivative_matrix:
-            nonlinearities.tanh_sigm_der(context.cuda_stream, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data, derivative_matrix.data)
+            nonlinearities.tanh_sigm_der(context.cuda_stream, axis, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data, derivative_matrix.data)
         else:
-            nonlinearities.tanh_sigm(context.cuda_stream, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data)
+            nonlinearities.tanh_sigm(context.cuda_stream, axis, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data)
 
     def relu(self, context, relu_matrix, derivative_matrix=None):
         context.activate()

@@ -43,7 +43,7 @@ class TestSequentialEmbeddingBlock(TestCase):
                 x_gpu.fprop()
                 seq_embd_block.fprop()
                 seq_embd_block.context.synchronize()
-                output_gpu = seq_embd_block.output
+                output_gpu = seq_embd_block.output.to_host()
 
                 self.rng.set_state(state)
                 quagga.processor_type = 'cpu'
@@ -53,10 +53,10 @@ class TestSequentialEmbeddingBlock(TestCase):
                 x_cpu.fprop()
                 seq_embd_block.fprop()
                 seq_embd_block.context.synchronize()
-                output_cpu = seq_embd_block.output
+                output_cpu = seq_embd_block.output.to_host()
 
                 for output_gpu, output_cpu in izip(output_gpu, output_cpu):
-                    if not np.allclose(output_gpu.to_host(), output_cpu.to_host()):
+                    if not np.allclose(output_gpu, output_cpu):
                         r.append(False)
                         break
                 else:

@@ -141,31 +141,31 @@ class TestMatrix(TestCase):
         r = []
         for i in xrange(self.N):
             a = TestMatrix.get_random_array()
+            for axis in [0, 1]:
+                a_cpu = CpuMatrix.from_npa(a)
+                tanh_sigm_matrix_cpu = CpuMatrix.empty_like(a_cpu)
+                derivative_matrix_cpu = CpuMatrix.empty_like(a_cpu)
+                a_gpu = GpuMatrix.from_npa(a)
+                tanh_sigm_matrix_gpu = GpuMatrix.empty_like(a_gpu)
+                derivative_matrix_gpu = GpuMatrix.empty_like(a_gpu)
 
-            a_cpu = CpuMatrix.from_npa(a)
-            tanh_sigm_matrix_cpu = CpuMatrix.empty_like(a_cpu)
-            derivative_matrix_cpu = CpuMatrix.empty_like(a_cpu)
-            a_gpu = GpuMatrix.from_npa(a)
-            tanh_sigm_matrix_gpu = GpuMatrix.empty_like(a_gpu)
-            derivative_matrix_gpu = GpuMatrix.empty_like(a_gpu)
+                a_cpu.tanh_sigm(self.cpu_context, tanh_sigm_matrix_cpu, axis=axis)
+                a_gpu.tanh_sigm(self.gpu_context, tanh_sigm_matrix_gpu, axis=axis)
+                self.cpu_context.synchronize()
+                self.gpu_context.synchronize()
+                r.append(np.allclose(tanh_sigm_matrix_cpu.to_host(),
+                                     tanh_sigm_matrix_gpu.to_host()))
 
-            a_cpu.tanh_sigm(self.cpu_context, tanh_sigm_matrix_cpu)
-            a_gpu.tanh_sigm(self.gpu_context, tanh_sigm_matrix_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
-            r.append(np.allclose(tanh_sigm_matrix_cpu.to_host(),
-                                 tanh_sigm_matrix_gpu.to_host()))
+                a_cpu.tanh_sigm(self.cpu_context, tanh_sigm_matrix_cpu, derivative_matrix_cpu, axis=axis)
+                a_gpu.tanh_sigm(self.gpu_context, tanh_sigm_matrix_gpu, derivative_matrix_gpu, axis=axis)
+                self.cpu_context.synchronize()
+                self.gpu_context.synchronize()
+                r.append(np.allclose(tanh_sigm_matrix_cpu.to_host(),
+                                     tanh_sigm_matrix_gpu.to_host()))
+                r.append(np.allclose(derivative_matrix_cpu.to_host(),
+                                     derivative_matrix_gpu.to_host()))
 
-            a_cpu.tanh_sigm(self.cpu_context, tanh_sigm_matrix_cpu, derivative_matrix_cpu)
-            a_gpu.tanh_sigm(self.gpu_context, tanh_sigm_matrix_gpu, derivative_matrix_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
-            r.append(np.allclose(tanh_sigm_matrix_cpu.to_host(),
-                                 tanh_sigm_matrix_gpu.to_host()))
-            r.append(np.allclose(derivative_matrix_cpu.to_host(),
-                                 derivative_matrix_gpu.to_host()))
-
-        self.assertEqual(sum(r), self.N * 3)
+        self.assertEqual(sum(r), self.N * 6)
 
     def test_relu(self):
         r = []

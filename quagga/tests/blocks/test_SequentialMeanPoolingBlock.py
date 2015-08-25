@@ -61,7 +61,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             smean_pooling_block_cpu.context.synchronize()
             output_cpu = smean_pooling_block_cpu.output.to_host()
 
-            r.append(np.allclose(output_gpu, output_cpu, rtol=1e-7, atol=1e-3))
+            r.append(np.allclose(output_gpu, output_cpu))
 
         self.assertEqual(sum(r), self.N)
 
@@ -108,7 +108,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             dL_dmatrices_cpu = smean_pooling_block_cpu.dL_dmatrices
 
             for dL_dmatrix_gpu, dL_dmatrix_cpu in izip(dL_dmatrices_gpu, dL_dmatrices_cpu):
-                if not np.allclose(dL_dmatrix_gpu.to_host(), dL_dmatrix_cpu.to_host(), rtol=1e-7, atol=1e-3):
+                if not np.allclose(dL_dmatrix_gpu.to_host(), dL_dmatrix_cpu.to_host()):
                     r.append(False)
                     break
             else:
@@ -172,7 +172,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             dL_dx = [e.to_host() for e in smp_block.dL_dmatrices]
             dL_dx_th = get_grad_x(np.dstack([e.to_host() for e in x]), true_labels.to_host())
             for i in xrange(dL_dx_th.shape[-1]):
-                if not np.allclose(dL_dx[i], dL_dx_th[..., i], rtol=1e-7, atol=1e-3):
+                if not np.allclose(dL_dx[i], dL_dx_th[..., i]):
                     r.append(False)
                     break
             else:

@@ -216,21 +216,28 @@ class CpuMatrix(object):
         if derivative_matrix:
             derivative_matrix.npa[...] = sigmoid_matrix.npa * (1.0 - sigmoid_matrix.npa)
 
-    def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None):
+    def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None, axis=0):
         """
         This is a fancy function that is used during forward propagation into
-        lstm cell. It calculates for the first 1/4 rows tanh function and
-        sigmoid for the 3/4 remaining rows.
+        lstm cell. It calculates for the first 1/4 elements along the axis
+        tanh function and sigmoid for the 3/4 remaining elements.
         """
-        n = self.npa.shape[0] / 4
-        tanh_npa = np.tanh(self.npa[:n])
-        sigmoid_npa = 1.0 / (1.0 + np.exp(-self.npa[n:]))
-        tanh_sigm_matrix.npa[...] = np.asfortranarray(np.vstack((tanh_npa, sigmoid_npa)))
-
+        n = self.npa.shape[axis] / 4
+        if axis == 0:
+            tanh_npa = np.tanh(self.npa[:n])
+            sigmoid_npa = 1.0 / (1.0 + np.exp(-self.npa[n:]))
+            tanh_sigm_matrix.npa[...] = np.vstack((tanh_npa, sigmoid_npa))
+        elif axis == 1:
+            tanh_npa = np.tanh(self.npa[:, :n])
+            sigmoid_npa = 1.0 / (1.0 + np.exp(-self.npa[:, n:]))
+            tanh_sigm_matrix.npa[...] = np.hstack((tanh_npa, sigmoid_npa))
+        else:
+            raise ValueError('TODO')
         if derivative_matrix:
             tanh_der_npa = 1.0 - tanh_npa ** 2
             sigmoid_der_npa = sigmoid_npa * (1.0 - sigmoid_npa)
-            derivative_matrix.npa[...] = np.asfortranarray(np.vstack((tanh_der_npa, sigmoid_der_npa)))
+            f = np.hstack if axis else np.vstack
+            derivative_matrix.npa[...] = f((tanh_der_npa, sigmoid_der_npa))
 
     def relu(self, context, relu_matrix, derivative_matrix=None):
         relu_matrix.npa[...] = np.maximum(self.npa, 0.0)
@@ -255,7 +262,7 @@ class CpuMatrix(object):
         self.add_sum(context, matrices)
 
     def sub(self, context, a):
-        np.negative(a.npa, a.npa)
+        self.add_scaled(context, -1.0, a)
 
     def sliced_add_scaled(self, context, column_indxs, alpha, a):
         """
