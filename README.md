@@ -39,7 +39,6 @@
 - [ ] Add reduction kernels for mean value
 - [ ] Review usage of `vsplit` and `hsplit` (python code instead of c) 
 - [ ] check that one need to have fortran array order in `CpuMatrix`
-- [ ] Split DenseBlock into nonlinearity block and dense block
 - [ ] Add fast dropout LSTM
 - [ ] Add dropout block
 - [ ] Add compiler functionality for more flexible code generation
