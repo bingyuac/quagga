@@ -315,6 +315,34 @@ __global__ void matrixVectorRowAddition(int nrows,
 }
 
 
+__global__ void assignScaledAddition(int nelems,
+							      	 float alpha,
+							      	 const float* a,
+							      	 const float* b,
+							      	 float* out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = alpha * (a[i] + b[i]);
+	}
+}
+
+
+__global__ void assignScaledSubtraction(int nelems,
+							      	    float alpha,
+							      	 	const float* a,
+							      	 	const float* b,
+							      	 	float* out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = alpha * (a[i] - b[i]);
+	}
+}
+
+
 __global__ void assignSequentialMeanPooling(int nrows,
                      						int ncols,
                      						const float* matrices[],
@@ -724,6 +752,29 @@ extern "C" {
                      			  int n) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         sequentiallyTile<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, matrices, n);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _assignScaledAddition(cudaStream_t stream,
+                      		   	  	  int nelems,
+							      	  float alpha,
+							      	  const float* a,
+							      	  const float* b,
+							      	  float* out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        assignScaledAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
+        return cudaGetLastError();
+	}
+
+	cudaError_t _assignScaledSubtraction(cudaStream_t stream,
+                      		   	  	  	 int nelems,
+							      	  	 float alpha,
+							      	  	 const float* a,
+							      	  	 const float* b,
+							      	  	 float* out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        assignScaledSubtraction<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
         return cudaGetLastError();
 	}
 }

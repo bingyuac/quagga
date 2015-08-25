@@ -831,3 +831,32 @@ class TestMatrix(TestCase):
                 r.append(True)
 
         self.assertEqual(sum(r), self.N)
+
+    def test_scaled_addition_subtraction(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array(a.shape)
+            c = TestMatrix.get_random_array(a.shape)
+            alpha = 2 * self.rng.rand(1)[0] - 1
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+
+            c_cpu.assign_scaled_addition(self.cpu_context, alpha, a_cpu, b_cpu)
+            c_gpu.assign_scaled_addition(self.gpu_context, alpha, a_gpu, b_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
+
+            c_cpu.assign_scaled_subtraction(self.cpu_context, alpha, a_cpu, b_cpu)
+            c_gpu.assign_scaled_subtraction(self.gpu_context, alpha, a_gpu, b_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
+
+        self.assertEqual(sum(r), self.N * 2)

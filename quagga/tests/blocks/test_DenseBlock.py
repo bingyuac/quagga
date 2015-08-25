@@ -3,7 +3,7 @@ from unittest import TestCase
 from quagga.context import Context
 from quagga.matrix import GpuMatrix
 from quagga.connector import Connector
-from quagga.blocks import DenseBlock, LogisticRegressionCe
+from quagga.blocks import DotBlock, LogisticRegressionCe
 
 
 class TestDenseBlock(TestCase):
@@ -20,7 +20,7 @@ class TestDenseBlock(TestCase):
                 log_reg_init = lambda: (np.random.rand(1, dim) * 0.1).astype(np.float32)
                 features = Connector(GpuMatrix.from_npa(np.random.rand(dim, k), 'float'))
                 true_labels = Connector(GpuMatrix.from_npa(np.array([[0, 1, 0]], np.float32)))
-                dense_block = DenseBlock(dense_init, features, activation_fun)
+                dense_block = DotBlock(dense_init, features, activation_fun)
                 dense_block.set_training_mode()
                 log_reg = LogisticRegressionCe(log_reg_init, dense_block.output, true_labels)
                 w_np = dense_block.w.to_host()
@@ -69,7 +69,7 @@ class TestDenseBlock(TestCase):
                 log_reg_init = lambda: (np.random.rand(1, dim) * 0.1).astype(np.float32)
                 features = Connector(GpuMatrix.from_npa(np.random.rand(dim, k), 'float'), b_usage_context=Context())
                 true_labels = Connector(GpuMatrix.from_npa(np.array([[0, 1, 0]], np.float32)))
-                dense_block = DenseBlock(dense_init, features, activation_fun)
+                dense_block = DotBlock(dense_init, features, activation_fun)
                 dense_block.set_training_mode()
                 log_reg = LogisticRegressionCe(log_reg_init, dense_block.output, true_labels)
 
@@ -120,7 +120,7 @@ class TestDenseBlock(TestCase):
                 log_reg_init = lambda: (np.random.rand(1, dim) * 0.1).astype(np.float32)
                 features = Connector(GpuMatrix.from_npa(np.random.rand(dim, k), 'float'))
                 true_labels = Connector(GpuMatrix.from_npa(np.array([[0, 1, 0]], np.float32)))
-                dense_block = DenseBlock(dense_init, features, activation_fun)
+                dense_block = DotBlock(dense_init, features, activation_fun)
                 dense_block.set_training_mode()
                 log_reg = LogisticRegressionCe(log_reg_init, dense_block.output, true_labels)
 

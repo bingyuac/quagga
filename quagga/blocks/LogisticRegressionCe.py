@@ -9,7 +9,11 @@ class LogisticRegressionCe(object):
     Logistic regression with cross entropy loss
     """
 
+
     def __init__(self, W_init, b_init, features, true_labels, learning=True, device_id=None):
+        # TODO Rewrite this ass loss layer
+
+
         """
         TODO
 
@@ -28,7 +32,7 @@ class LogisticRegressionCe(object):
         if learning:
             self.dL_dW = Matrix.empty_like(self.W, device_id)
             self.dL_db = Matrix.empty_like(self.b, device_id)
-            self.ones = Matrix.from_npa(np.ones((features.nrows, 1), np.float32))
+            self.ones = Matrix.from_npa(np.ones((features.nrows, 1), np.float32), device_id=device_id)
         if learning and features.bpropagable:
             self.features, self.dL_dfeatures = features.register_usage(self.context, self.context)
         else:
@@ -42,19 +46,16 @@ class LogisticRegressionCe(object):
         self.probs.sigmoid(self.context, self.probs)
 
     def bprop(self):
-        scale_constant = ct.c_float(1. / self.probs.nrows)
-        # error = probs - true_labels
+        # error = (probs - true_labels) / M
         self.probs.sub(self.context, self.true_labels)
-        # dL/dW = features.T * error / M
+        self.probs.scale(self.context, ct.c_float(1. / self.probs.nrows))
+        # dL/dW = features.T * error
         self.dL_dW.assign_dot(self.context, self.features, self.probs, 'T')
-        self.dL_dW.scale(self.context, scale_constant)
-        # dL/db = 1.T * error / M
+        # dL/db = 1.T * error
         self.dL_db.assign_dot(self.context, self.ones, self.probs, 'T')
-        self.dL_db.scale(self.context, scale_constant)
-        # dL/dfeatures = error * w.T / M
+        # dL/dfeatures = error * w.T
         if hasattr(self, 'dL_dfeatures'):
             self.dL_dfeatures.assign_dot(self.context, self.probs, self.W, 'N', 'T')
-            self.dL_dfeatures.scale(self.context, scale_constant)
 
     @property
     def loss(self):

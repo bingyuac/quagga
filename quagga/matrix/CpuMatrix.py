@@ -244,6 +244,24 @@ class CpuMatrix(object):
         if derivative_matrix:
             derivative_matrix.npa[...] = (self.npa > 0).astype(np.float32, order='F')
 
+    def assign_scaled_addition(self, context, alpha, a, b):
+        """
+        self = alpha * (a + b)
+        """
+        self.npa[...] = alpha * (a.npa + b.npa)
+
+    def assign_add(self, context, a, b):
+        self.assign_scaled_addition(context, 1.0, a, b)
+
+    def assign_scaled_subtraction(self, context, alpha, a, b):
+        """
+        self = alpha * (a - b)
+        """
+        self.npa[...] = alpha * (a.npa - b.npa)
+
+    def assign_sub(self, context, a, b):
+        self.assign_scaled_addition(context, 1.0, a, b)
+
     def add_scaled(self, context, alpha, a):
         """
         self += alpha * a

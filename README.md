@@ -40,9 +40,9 @@
 - [ ] Review usage of `vsplit` and `hsplit` (python code instead of c) 
 - [ ] check that one need to have fortran array order in `CpuMatrix`
 - [ ] Split DenseBlock into nonlinearity block and dense block
-- [ ] Add `Matrix` batch (assign_)addition I will use it into `Connector` bprop
 - [ ] Add fast dropout LSTM
 - [ ] Add dropout block
 - [ ] Add compiler functionality for more flexible code generation
 - [ ] Add max margin cost function
 - [ ] Rewrite `_verticalStack` and `_horizontalStack` using kernels instead of cudamemcopy
+- [ ] Change logic into empty like with default device_id borrow it from like matrix

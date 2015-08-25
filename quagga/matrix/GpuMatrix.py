@@ -367,16 +367,40 @@ class GpuMatrix(object):
         # TODO
         context.activate()
 
+    def assign_scaled_addition(self, context, alpha, a, b):
+        """
+        self = alpha * (a + b)
+        """
+        context.activate()
+        if a.nrows != b.nrows and a.ncols == b.ncols:
+            raise ValueError('TODO!')
+        gpu_matrix_kernels.assign_scaled_addition(context.cuda_stream, self.nelems, alpha, a.data, b.data, self.data)
+
+    def assign_add(self, context, a, b):
+        self.assign_scaled_addition(context, 1.0, a, b)
+
+    def assign_scaled_subtraction(self, context, alpha, a, b):
+        """
+        self = alpha * (a - b)
+        """
+        context.activate()
+        if a.nrows != b.nrows and a.ncols == b.ncols:
+            raise ValueError('TODO!')
+        gpu_matrix_kernels.assign_scaled_subtraction(context.cuda_stream, self.nelems, alpha, a.data, b.data, self.data)
+
+    def assign_sub(self, context, a, b):
+        self.assign_scaled_addition(context, 1.0, a, b)
+
     def add_scaled(self, context, alpha, a):
         """
         self += alpha * a
         """
+        context.activate()
         if self.nrows != 1 and a.nrows == 1:
             if self.ncols != a.ncols:
                 raise ValueError('Operands could not be broadcast together with shapes ({},{}) ({},{})!'.format(self.nrows, self.ncols, a.nrows, a.ncols))
             gpu_matrix_kernels.matrix_vector_row_addition(context.cuda_stream, self.nrows, self.ncols, self.data, alpha, a.data, self.data)
         else:
-            context.activate()
             cublas.cublas_s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
 
     def add(self, context, a):

@@ -327,3 +327,27 @@ gpu_matrix_kernels._reverseSliceRowsBatch.argtypes = [cudart.ct_cuda_stream,
 def reverse_slice_rows_batch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices):
     status = gpu_matrix_kernels._reverseSliceRowsBatch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._assignScaledAddition.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assignScaledAddition.argtypes = [cudart.ct_cuda_stream,
+                                                     ct.c_int,
+                                                     ct.c_float,
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float)]
+def assign_scaled_addition(stream, nelems, alpha, a, b, out):
+    status = gpu_matrix_kernels._assignScaledAddition(stream, nelems, alpha, a, b, out)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._assignScaledSubtraction.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assignScaledSubtraction.argtypes = [cudart.ct_cuda_stream,
+                                                     ct.c_int,
+                                                     ct.c_float,
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float)]
+def assign_scaled_subtraction(stream, nelems, alpha, a, b, out):
+    status = gpu_matrix_kernels._assignScaledSubtraction(stream, nelems, alpha, a, b, out)
+    cudart.check_cuda_status(status)

@@ -1,7 +1,7 @@
 import numpy as np
 from quagga import Model
 from quagga.blocks import Ravel
-from quagga.blocks import DenseBlock
+from quagga.blocks import DotBlock
 from quagga.blocks import FakeDataBlock
 from quagga.blocks import EmbeddingBlock
 from quagga.blocks import LogisticRegressionCe
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     data_block = FakeDataBlock(device_id=0)
     embd_block = EmbeddingBlock(embedding_init, data_block.data, device_id=1)
     ravel_block = Ravel(embd_block.output, device_id=0)
-    dense_block = DenseBlock(dense_init, ravel_block.output, 'tanh', device_id=1)
+    dense_block = DotBlock(dense_init, ravel_block.output, 'tanh', device_id=1)
     log_reg = LogisticRegressionCe(log_reg_init, dense_block.output, data_block.y, device_id=0)
 
     model = Model(data_block, embd_block, ravel_block, dense_block, log_reg)
