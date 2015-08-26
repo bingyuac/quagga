@@ -2,16 +2,17 @@ import quagga
 import atexit
 import numpy as np
 import ctypes as ct
-from quagga.cuda import cudart, cublas, gpu_matrix_kernels, nonlinearities
+from quagga.cuda import cudart, cublas, cudnn, gpu_matrix_kernels, nonlinearities
 
 
 class GpuMatrix(object):
     def __init__(self, data, nrows, ncols, dtype, device_id, is_owner):
         self.data = data
-        self.nrows = nrows
-        self.ncols = ncols
+        self._nrows = nrows
+        self._ncols = ncols
         self.dtype = dtype
         self.np_dtype, self.c_dtype = self.str_to_dtypes(dtype)
+        self._cudnn_tensor_descriptor = None
         self.device_id = device_id
         self.is_owner = is_owner
         if is_owner:
@@ -22,14 +23,50 @@ class GpuMatrix(object):
         return self.nrows * self.ncols
 
     @property
+    def nrows(self):
+        return self._nrows
+
+    @nrows.setter
+    def nrows(self, value):
+        self._nrows = value
+        if self._cudnn_tensor_descriptor:
+            cudnn.cudnn_destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
+            self._cudnn_tensor_descriptor = None
+
+    @property
+    def ncols(self):
+        return self._ncols
+
+    @ncols.setter
+    def ncols(self, value):
+        self._ncols = value
+        if self._cudnn_tensor_descriptor:
+            cudnn.cudnn_destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
+            self._cudnn_tensor_descriptor = None
+
+    @property
     def nbytes(self):
         return self.nelems * ct.sizeof(self.c_dtype)
+
+    @property
+    def cudnn_tensor_descriptor(self):
+        if not self._cudnn_tensor_descriptor:
+            self._cudnn_tensor_descriptor = cudnn.ct_cudnn_tensor_descriptor()
+            cudnn.cudnn_create_tensor_descriptor(self._cudnn_tensor_descriptor)
+            # CUDNN uses C-order, but CUBLAS uses F-order
+            cudnn.cudnn_set_tensor_4d_descriptor_ex(self._cudnn_tensor_descriptor,
+                                                    cudnn.cudnn_data_type['CUDNN_DATA_FLOAT'],
+                                                    self.nrows, self.ncols, 1, 1,
+                                                    1, self.nrows, 1, 1)
+        return self._cudnn_tensor_descriptor
 
     def __del__(self):
         if self.is_owner:
             try:
                 atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
                 cudart.cuda_free(self.data)
+                if self._cudnn_tensor_descriptor:
+                    cudnn.cudnn_destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
             except ValueError:
                 pass
 
@@ -364,8 +401,16 @@ class GpuMatrix(object):
             nonlinearities.relu(context.cuda_stream, self.nelems, self.data, relu_matrix.data)
 
     def softmax(self, context, softmax_matrix):
-        # TODO
         context.activate()
+        cudnn.cudnn_softmax_forward(context.cudnn_handle,
+                                    cudnn.cudnn_softmax_algorithm['CUDNN_SOFTMAX_ACCURATE'],
+                                    cudnn.cudnn_softmax_mode['CUDNN_SOFTMAX_MODE_INSTANCE'],
+                                    ct.c_float(1.0),
+                                    self.cudnn_tensor_descriptor,
+                                    self.data,
+                                    ct.c_float(0.0),
+                                    softmax_matrix.cudnn_tensor_descriptor,
+                                    softmax_matrix.data)
 
     def assign_scaled_addition(self, context, alpha, a, b):
         """

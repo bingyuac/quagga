@@ -13,5 +13,6 @@ from quagga.blocks.GrammarDataBlock import GrammarDataBlock
 from quagga.blocks.SequentialEmbeddingBlock import SequentialEmbeddingBlock
 from quagga.blocks.SequentialMeanPoolingBlock import SequentialMeanPoolingBlock
 from quagga.blocks.SigmoidCeBlock import SigmoidCeBlock
+from quagga.blocks.SoftmaxCeBlock import SoftmaxCeBlock
 from quagga.blocks.NonlinearityBlock import NonlinearityBlock
 from quagga.blocks.SseBlock import SseBlock

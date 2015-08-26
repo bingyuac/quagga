@@ -3,9 +3,9 @@ from quagga.matrix import Matrix
 from quagga.context import Context
 
 
-class SigmoidCeBlock(object):
+class SoftmaxCeBlock(object):
     """
-    Sigmoid nonlinearity with mean cross entropy loss
+    Softmax nonlinearity with mean cross entropy loss
     """
 
     def __init__(self, x, true_labels, device_id=None):
@@ -21,7 +21,7 @@ class SigmoidCeBlock(object):
         self.probs = Matrix.empty_like(true_labels, device_id=device_id)
 
     def fprop(self):
-        self.x.sigmoid(self.context, self.probs)
+        self.x.softmax(self.context, self.probs)
 
     def bprop(self):
         # error = (probs - true_labels) / M
@@ -29,6 +29,8 @@ class SigmoidCeBlock(object):
 
     @property
     def loss(self):
+        # TODO softmax
+
         true_labels = self.true_labels.to_host()
         probs = self.probs.to_host()
         return - (true_labels * np.log(probs + 1e-20) +

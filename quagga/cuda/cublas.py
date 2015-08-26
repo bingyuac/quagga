@@ -78,8 +78,7 @@ def cublas_set_stream(handle, stream):
 
 
 _libcublas.cublasGetStream_v2.restype = ct_cublas_status
-_libcublas.cublasGetStream_v2.argtypes = [ct_cublas_handle, ct.POINTER(
-    cudart.ct_cuda_stream)]
+_libcublas.cublasGetStream_v2.argtypes = [ct_cublas_handle, ct.POINTER(cudart.ct_cuda_stream)]
 def cublas_get_stream(handle, stream):
     status = _libcublas.cublasGetStream_v2(handle, ct.byref(stream))
     check_cublas_status(status)

@@ -244,6 +244,13 @@ class CpuMatrix(object):
         if derivative_matrix:
             derivative_matrix.npa[...] = (self.npa > 0).astype(np.float32, order='F')
 
+    def softmax(self, context, softmax_matrix):
+        maximums = np.max(self.npa, axis=1, keepdims=True)
+        softmax_matrix.npa[...] = self.npa - maximums
+        np.exp(softmax_matrix.npa, softmax_matrix.npa)
+        z = np.sum(softmax_matrix.npa, axis=1, keepdims=True)
+        softmax_matrix.npa[...] /= z
+
     def assign_scaled_addition(self, context, alpha, a, b):
         """
         self = alpha * (a + b)

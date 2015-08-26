@@ -19,12 +19,7 @@
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels
     - [ ] Synchronize Cpu/GpuMatrix classes
-- [x] Implement EmbeddingBlock
-- [ ] Implement SoftmaxCe
-    - [ ] Add reduction kernel for CE
-    - [x] Implement SoftmaxCe block
-    - [ ] Add finite difference tests   
-- [ ] Merge softmax and logreg    
+- [x] Implement EmbeddingBlock    
 - [x] Implement MeanPoolingBlock
     - [x] Implement `tile` method
     - [x] Add `tile` test

@@ -1,6 +1,6 @@
 import atexit
 from collections import defaultdict
-from quagga.cuda import cudart, cublas
+from quagga.cuda import cudart, cublas, cudnn
 
 
 def _create_disabled_timing_event():
@@ -12,6 +12,7 @@ def _create_disabled_timing_event():
 class GpuContext(object):
     _events = defaultdict(_create_disabled_timing_event)
     _cublas_handle = None
+    _cudnn_handle = None
 
     def __init__(self, device_id=None):
         with cudart.device(device_id):
@@ -32,6 +33,12 @@ class GpuContext(object):
         cublas_handle = GpuContext._cublas_handle[self.device_id]
         cublas.cublas_set_stream(cublas_handle, self.cuda_stream)
         return cublas_handle
+
+    @property
+    def cudnn_handle(self):
+        cudnn_handle = GpuContext._cudnn_handle[self.device_id]
+        cudnn.cudnn_set_stream(cudnn_handle, self.cuda_stream)
+        return cudnn_handle
 
     def synchronize(self):
         cudart.cuda_stream_synchronize(self.cuda_stream)
@@ -68,13 +75,22 @@ class GpuContext(object):
 
     @staticmethod
     @atexit.register
+    def __destroy_cudnn_handle():
+        for device_id in xrange(cudart.cuda_get_device_count()):
+            cudnn.cudnn_destroy(GpuContext._cudnn_handle[device_id])
+
+    @staticmethod
+    @atexit.register
     def __destroy_events():
         for event in GpuContext._events.itervalues():
             cudart.cuda_event_destroy(event)
 
 
 GpuContext._cublas_handle = []
+GpuContext._cudnn_handle = []
 for device_id in xrange(cudart.cuda_get_device_count()):
     with cudart.device(device_id):
         GpuContext._cublas_handle.append(cublas.ct_cublas_handle())
         cublas.cublas_create(GpuContext._cublas_handle[-1])
+        GpuContext._cudnn_handle.append(cudnn.ct_cudnn_handle())
+        cudnn.cudnn_create(GpuContext._cudnn_handle[-1])

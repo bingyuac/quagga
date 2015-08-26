@@ -860,3 +860,26 @@ class TestMatrix(TestCase):
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N * 2)
+
+    def test_softmax(self):
+        r = []
+        for i in xrange(self.N):
+            nrows = self.rng.random_integers(10000)
+            ncols = self.rng.random_integers(1000)
+            a = 4 * self.rng.rand(nrows, ncols).astype(np.float32) - 2
+            b = np.empty_like(a)
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+
+            a_cpu.softmax(self.cpu_context, b_cpu)
+            a_gpu.softmax(self.gpu_context, b_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+            if not r[-1]:
+                pass
+
+        self.assertEqual(sum(r), self.N)
