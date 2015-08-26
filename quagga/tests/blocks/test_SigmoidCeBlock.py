@@ -29,7 +29,7 @@ class TestSigmoidCeBlock(TestCase):
             quagga.processor_type = 'gpu'
             x_gpu = Connector(Matrix.from_npa(x))
             true_labels_gpu = Connector(Matrix.from_npa(true_labels))
-            sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu, learning=False)
+            sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
             sigmoid_ce_block.fprop()
             cudart.cuda_device_synchronize()
             probs_gpu = sigmoid_ce_block.probs.to_host()
@@ -37,7 +37,7 @@ class TestSigmoidCeBlock(TestCase):
             quagga.processor_type = 'cpu'
             x_cpu = Connector(Matrix.from_npa(x))
             true_labels_cpu = Connector(Matrix.from_npa(true_labels))
-            sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu, learning=False)
+            sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu)
             sigmoid_ce_block.fprop()
             cudart.cuda_device_synchronize()
             probs_cpu = sigmoid_ce_block.probs.to_host()
@@ -106,4 +106,4 @@ class TestSigmoidCeBlock(TestCase):
 
             r.append(np.allclose(th_dL_dx, q_dL_dx))
 
-        self.assertEqual(sum(r), self.N )
+        self.assertEqual(sum(r), self.N)

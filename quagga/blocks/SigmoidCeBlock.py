@@ -7,13 +7,13 @@ class SigmoidCeBlock(object):
     """
     Sigmoid nonlinearity with mean cross entropy loss
     """
-    def __init__(self, x, true_labels, learning=True, device_id=None):
+    def __init__(self, x, true_labels, device_id=None):
         if x.nrows != true_labels.nrows:
             raise ValueError('TODO!')
         self.context = Context(device_id)
         device_id = self.context.device_id
-        if learning and x.bpropagable:
-            self.x, self.dL_x = x.register_usage(self.context, self.context)
+        if x.bpropagable:
+            self.x, self.dL_dx = x.register_usage(self.context, self.context)
         else:
             self.x = x.register_usage(self.context)
         self.true_labels = true_labels.register_usage(self.context)
@@ -24,8 +24,7 @@ class SigmoidCeBlock(object):
 
     def bprop(self):
         # error = (probs - true_labels) / M
-        if hasattr(self, 'dL_x'):
-            self.dL_x.assign_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
+        self.dL_dx.assign_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
 
     @property
     def loss(self):
