@@ -317,6 +317,27 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
+    def test_hprod(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            if self.rng.randint(2):
+                b = TestMatrix.get_random_array(a.shape)
+            else:
+                b = TestMatrix.get_random_array((a.shape[0], 1))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+
+            a_cpu.hprod(self.cpu_context, b_cpu)
+            a_gpu.hprod(self.gpu_context, b_gpu)
+
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_add_hprod(self):
         r = []
         for i in xrange(self.N):
@@ -907,7 +928,7 @@ class TestMatrix(TestCase):
     def test_dropout(self):
         r = []
         for i in xrange(self.N):
-            a = TestMatrix.get_random_array((2, 3))
+            a = TestMatrix.get_random_array()
             b = np.empty_like(a)
             dropout_prob = self.rng.uniform()
             seed = self.rng.randint(1000)

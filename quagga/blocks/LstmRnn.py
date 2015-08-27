@@ -5,7 +5,7 @@ from quagga.matrix import MatrixList
 
 
 class LstmRnn(object):
-    def __init__(self, W_init, R_init, x, reverse=False, learning=True, device_id=None):
+    def __init__(self, W_init, R_init, x, mask=None, reverse=False, learning=True, device_id=None):
         """
         TODO
         """

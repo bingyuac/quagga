@@ -406,6 +406,21 @@ __global__ void maskZeros(int nelems,
 }
 
 
+__global__ void matrixVectorColumnHprod(int nrows,
+							      		int ncols,
+							      		const float* matrix,
+							      		const float* vector,
+							      		float* out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = matrix[i] * vector[i % nrows];
+	}
+}
+
+
 extern "C" {
 	cudaError_t _maskZeros(cudaStream_t stream,
                            int nelems,
@@ -825,6 +840,18 @@ extern "C" {
 							      	  	 float* out) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignScaledSubtraction<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _matrixVectorColumnHprod(cudaStream_t stream,
+    									 int nrows,
+							      		 int ncols,
+							      		 const float* matrix,
+							      		 const float* vector,
+							      		 float* out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        matrixVectorColumnHprod<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrix, vector, out);
         return cudaGetLastError();
 	}
 }

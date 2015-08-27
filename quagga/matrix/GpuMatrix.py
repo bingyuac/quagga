@@ -483,9 +483,21 @@ class GpuMatrix(object):
         """
         self[column_indxs] += a
         """
-        self.sliced_add_scaled(context, column_indxs, ct.c_float(1.0), a)
+        self.sliced_add_scaled(context, column_indxs, 1.0, a)
 
-    def add_hprod(self, context, a, b, c=None, alpha=ct.c_float(1.0)):
+    def hprod(self, context, a):
+        """
+        self = self .* a
+        """
+        if self.ncols != 1 and a.ncols == 1:
+            if self.nrows != a.nrows:
+                raise ValueError('Operands could not be broadcast together with shapes ({},{}) ({},{})!'.format(self.nrows, self.ncols, a.nrows, a.ncols))
+            context.activate()
+            gpu_matrix_kernels.matrix_vector_column_hprod(context.cuda_stream, self.nrows, self.ncols, self.data, a.data, self.data)
+        else:
+            self.add_hprod(context, self, a, alpha=0.0)
+
+    def add_hprod(self, context, a, b, c=None, alpha=1.0):
         """
         self = a .* b + alpha * self        or
         self = a .* b .* c + alpha * self

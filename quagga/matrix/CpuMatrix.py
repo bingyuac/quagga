@@ -296,16 +296,21 @@ class CpuMatrix(object):
         for i, idx in enumerate(column_indxs.npa.flatten()):
             self.npa[:, idx] += alpha * a.npa[:, i]
 
+    def hprod(self, context, a):
+        """
+        self = self .* a
+        """
+        self.add_hprod(context, self, a, alpha=0.0)
+
     def add_hprod(self, context, a, b, c=None, alpha=1.0):
         """
         self = a .* b + alpha * self        or
         self = a .* b .* c + alpha * self
         """
-        self.npa *= alpha
         if not c:
-            self.npa += a.npa * b.npa
+            self.npa[...] = a.npa * b.npa + alpha * self.npa
         else:
-            self.npa += a.npa * b.npa * c.npa
+            self.npa[...] = a.npa * b.npa * c.npa + alpha * self.npa
 
     def assign_hprod(self, context, a, b, c=None):
         """

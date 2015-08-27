@@ -353,7 +353,6 @@ def assign_scaled_subtraction(stream, nelems, alpha, a, b, out):
     cudart.check_cuda_status(status)
 
 
-
 gpu_matrix_kernels._dropout.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._dropout.argtypes = [cudart.ct_cuda_stream,
                                         ct.c_int,
@@ -374,4 +373,16 @@ gpu_matrix_kernels._maskZeros.argtypes = [cudart.ct_cuda_stream,
                                           ct.POINTER(ct.c_float)]
 def mask_zeros(stream, nelems, a, b, out):
     status = gpu_matrix_kernels._maskZeros(stream, nelems, a, b, out)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._matrixVectorColumnHprod.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._matrixVectorColumnHprod.argtypes = [cudart.ct_cuda_stream,
+                                                        ct.c_int,
+                                                        ct.c_int,
+                                                        ct.POINTER(ct.c_float),
+                                                        ct.POINTER(ct.c_float),
+                                                        ct.POINTER(ct.c_float)]
+def matrix_vector_column_hprod(stream, nrows, ncols, matrix, vector, out):
+    status = gpu_matrix_kernels._matrixVectorColumnHprod(stream, nrows, ncols, matrix, vector, out)
     cudart.check_cuda_status(status)
