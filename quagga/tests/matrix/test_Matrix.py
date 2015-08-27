@@ -879,7 +879,55 @@ class TestMatrix(TestCase):
             self.cpu_context.synchronize()
             self.gpu_context.synchronize()
             r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
-            if not r[-1]:
-                pass
 
         self.assertEqual(sum(r), self.N)
+
+    def test_mask_zeros(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = (self.rng.randint(2, size=a.shape) * self.rng.rand(*a.shape)).astype(np.float32)
+            c = np.empty_like(b)
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+
+            a_cpu.mask_zeros(self.cpu_context, b_cpu, c_cpu)
+            a_gpu.mask_zeros(self.gpu_context, b_gpu, c_gpu)
+            self.cpu_context.synchronize()
+            self.gpu_context.synchronize()
+            r.append(np.allclose(c_cpu.to_host(), c_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_dropout(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array((2, 3))
+            b = np.empty_like(a)
+            dropout_prob = self.rng.uniform()
+            seed = self.rng.randint(1000)
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            generator_cpu = CpuMatrix.get_random_generator(seed)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            generator_gpu = GpuMatrix.get_random_generator(seed)
+
+            a_cpu.dropout(self.cpu_context, generator_cpu, dropout_prob, b_cpu)
+            a_gpu.dropout(self.gpu_context, generator_gpu, dropout_prob, b_gpu)
+
+            b_cpu = b_cpu.to_host()
+            b_gpu = b_gpu.to_host()
+            dropout_prob_cpu = 1.0 - np.count_nonzero(b_cpu) / float(b_cpu.size)
+            dropout_prob_gpu = 1.0 - np.count_nonzero(b_gpu) / float(b_gpu.size)
+
+            r.append(np.isclose(dropout_prob_cpu, dropout_prob_gpu, atol=1e-03) and
+                     np.isclose(dropout_prob_gpu, dropout_prob, atol=1e-03))
+
+        self.assertGreater(sum(r), int(0.9 * self.N))

@@ -16,3 +16,5 @@ from quagga.blocks.SigmoidCeBlock import SigmoidCeBlock
 from quagga.blocks.SoftmaxCeBlock import SoftmaxCeBlock
 from quagga.blocks.NonlinearityBlock import NonlinearityBlock
 from quagga.blocks.SseBlock import SseBlock
+from quagga.blocks.DropoutBlock import DropoutBlock
+from quagga.blocks.ScaleBlock import ScaleBlock

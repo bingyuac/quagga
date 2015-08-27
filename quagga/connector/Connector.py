@@ -1,4 +1,3 @@
-import ctypes as ct
 from quagga.matrix import Matrix
 from quagga.context import Context
 from collections import defaultdict

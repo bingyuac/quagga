@@ -373,3 +373,16 @@ class CpuMatrix(object):
                 dense_matrices[i].npa[...] = self.npa[embd_rows_indxs.npa[:, n-1-i]]
             else:
                 dense_matrices[i].npa[...] = self.npa[embd_rows_indxs.npa[:, i]]
+
+    @staticmethod
+    def get_random_generator(seed):
+        return np.random.RandomState(seed)
+
+    def dropout(self, context, generator, dropout_prob, out):
+        out.npa[...] = generator.binomial(n=1, p=1-dropout_prob, size=self.npa.shape) * self.npa
+
+    def mask_zeros(self, context, mask, out):
+        """
+        out = self * (mask != 0)
+        """
+        out.npa[...] = self.npa * (mask.npa != 0)

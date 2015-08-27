@@ -40,3 +40,5 @@
 - [ ] Add max margin cost function
 - [ ] Rewrite `_verticalStack` and `_horizontalStack` using kernels instead of cudamemcopy
 - [ ] Change logic into empty like with default device_id borrow it from like matrix
+- [ ] use device api for dropout instead of host api
+- [ ] Think about dropout and mask layer It should not take to many memory, you should write a mechanism for this

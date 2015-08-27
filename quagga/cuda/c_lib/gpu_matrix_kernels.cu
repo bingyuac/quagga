@@ -379,7 +379,57 @@ __global__ void sequentiallyTile(int nelems,
 }
 
 
+__global__ void dropout(int nelems,
+						float dropout_prob,
+						const float* __restrict__ data,
+						const float* __restrict__ uniform_data,
+						float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = data[i] * (uniform_data[i] > dropout_prob);
+	}
+}
+
+
+__global__ void maskZeros(int nelems,
+					 	  const float* __restrict__ a,
+					 	  const float* __restrict__ b,
+					 	  float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = a[i] * (b[i] != 0.0);
+	}
+}
+
+
 extern "C" {
+	cudaError_t _maskZeros(cudaStream_t stream,
+                           int nelems,
+			               const float* __restrict__ a,
+			               const float* __restrict__ b,
+			               float* __restrict__ out) {
+	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        maskZeros<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, out);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _dropout(cudaStream_t stream,
+                         int nelems,
+                         float dropout_prob,
+			             const float* __restrict__ data,
+						 const float* __restrict__ uniform_data,
+						 float* __restrict__ out) {
+	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        dropout<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, dropout_prob, data, uniform_data, out);
+        return cudaGetLastError();
+	}
+
+
 	cudaError_t _horizontalSliceSplit(cudaStream_t stream,
 						   			  int n,
 						   			  int* col_slices,

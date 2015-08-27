@@ -2,7 +2,7 @@ import quagga
 import atexit
 import numpy as np
 import ctypes as ct
-from quagga.cuda import cudart, cublas, cudnn, gpu_matrix_kernels, nonlinearities
+from quagga.cuda import cudart, cublas, cudnn, curand, gpu_matrix_kernels, nonlinearities
 
 
 class GpuMatrix(object):
@@ -578,6 +578,26 @@ class GpuMatrix(object):
             gpu_matrix_kernels.reverse_slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
         else:
             gpu_matrix_kernels.slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
+
+    @staticmethod
+    def get_random_generator(seed):
+        generator = curand.ct_curand_generator()
+        curand.curand_create_generator(generator, curand.curand_rng_type['CURAND_RNG_PSEUDO_DEFAULT'])
+        curand.curand_set_pseudo_random_generator_seed(generator, seed)
+        return generator
+
+    def dropout(self, context, generator, dropout_prob, out):
+        context.activate()
+        curand.curand_set_stream(generator, context.cuda_stream)
+        curand.curand_generate_uniform(generator, out.data, self.nelems)
+        gpu_matrix_kernels.dropout(context.cuda_stream, self.nelems, dropout_prob, self.data, out.data, out.data)
+
+    def mask_zeros(self, context, mask, out):
+        """
+        out = self * (mask != 0)
+        """
+        context.activate()
+        gpu_matrix_kernels.mask_zeros(context.cuda_stream, self.nelems, self.data, mask.data, out.data)
 
 
 def _get_temp_memory(context, N):

@@ -12,13 +12,12 @@ class SoftmaxCeBlock(object):
         if x.nrows != true_labels.nrows:
             raise ValueError('TODO!')
         self.context = Context(device_id)
-        device_id = self.context.device_id
         if x.bpropagable:
             self.x, self.dL_dx = x.register_usage(self.context, self.context)
         else:
             self.x = x.register_usage(self.context)
         self.true_labels = true_labels.register_usage(self.context)
-        self.probs = Matrix.empty_like(true_labels, device_id=device_id)
+        self.probs = Matrix.empty_like(true_labels, device_id=self.context.device_id)
 
     def fprop(self):
         self.x.softmax(self.context, self.probs)
@@ -29,12 +28,9 @@ class SoftmaxCeBlock(object):
 
     @property
     def loss(self):
-        # TODO softmax
-
         true_labels = self.true_labels.to_host()
         probs = self.probs.to_host()
-        return - (true_labels * np.log(probs + 1e-20) +
-                  (1.0 - true_labels) * np.log(1. - probs + 1e-20))
+        return - np.mean(np.sum(true_labels * np.log(probs + 1e-20), axis=1))
 
     @property
     def params(self):

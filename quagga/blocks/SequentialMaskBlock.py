@@ -1,0 +1,2 @@
+class SequentialMaskBlock(object):
+    pass
