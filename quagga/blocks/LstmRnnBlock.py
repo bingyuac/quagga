@@ -4,7 +4,7 @@ from quagga.matrix import MatrixList
 from quagga.connector import Connector
 
 
-class LstmRnn(object):
+class LstmRnnBlock(object):
     def __init__(self, W_init, R_init, x, mask=None, reverse=False, learning=True, device_id=None):
         """
         TODO
@@ -71,13 +71,13 @@ class LstmRnn(object):
             if self.mask:
                 # waiting for mask
                 k = self.max_input_sequence_len - n
-                self.context.block(self.lstm_cells[k].context)
+                self.lstm_cells[k].context.wait(self.context)
             for k in xrange(self.max_input_sequence_len - n, self.max_input_sequence_len):
                 self.lstm_cells[k].fprop()
         else:
             if self.mask:
                 # waiting for mask
-                self.context.block(self.lstm_cells[0].context)
+                self.lstm_cells[0].context.wait(self.context)
             for k in xrange(n):
                 self.lstm_cells[k].fprop()
 
@@ -87,12 +87,12 @@ class LstmRnn(object):
         n = len(self.x)
         if self.reverse:
             # waiting for filling dL_dW and dL_dR
-            self.context.block(self.lstm_cells[-1].context)
+            self.lstm_cells[-1].context.wait(self.context)
             for k in reversed(xrange(self.max_input_sequence_len - n, self.max_input_sequence_len)):
                 self.lstm_cells[k].bprop()
         else:
             # waiting for filling dL_dW and dL_dR
-            self.context.block(self.lstm_cells[n - 1].context)
+            self.lstm_cells[n - 1].context.wait(self.context)
             if n != self.max_input_sequence_len:
                 h, c = self.lstm_cells[n-1].h, self.lstm_cells[n-1].c
                 h.deregistere_b_obtaining_context(self.lstm_cells[n].context)
@@ -205,6 +205,7 @@ class _LstmBlock(object):
         self.c.tanh(self.context, self.tanh_c, self.dtanh_c_dc)
         self.h.assign_hprod(self.context, self.o, self.tanh_c)
         if self.mask:
+            self.c.hprod(self.context, self.mask)
             self.h.hprod(self.context, self.mask)
         self.c.fprop()
         self.h.fprop()
@@ -214,7 +215,8 @@ class _LstmBlock(object):
         dL_dc = self.c.backward_matrix
         dL_dh = self.h.backward_matrix
         if self.mask:
-            self.h.hprod(self.context, self.mask)
+            dL_dc.hprod(self.context, self.mask)
+            dL_dh.hprod(self.context, self.mask)
         dL_dc.add_hprod(self.context, dL_dh, self.o, self.dtanh_c_dc)
 
         # dL/dpre_o[t] = dL/dh[t] .* tanh(c[t]) .* do[t]/dpre_o[t]

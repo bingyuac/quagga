@@ -1,20 +1,21 @@
 import quagga
 import theano
 import numpy as np
-from itertools import izip
 from unittest import TestCase
 from theano import tensor as T
 from quagga.matrix import Matrix
-from quagga.blocks import LstmRnn
 from quagga.context import Context
 from quagga.blocks import DotBlock
+from itertools import izip, product
 from quagga.matrix import MatrixList
 from quagga.connector import Connector
+from quagga.blocks import LstmRnnBlock
+from quagga.blocks import SelectorBlock
 from quagga.blocks import SigmoidCeBlock
 from quagga.blocks import SequentialMeanPoolingBlock
 
 
-class TestLstmRnn(TestCase):
+class TestLstmRnnBlock(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rng = np.random.RandomState(seed=42)
@@ -53,7 +54,7 @@ class TestLstmRnn(TestCase):
                 self.rng.set_state(state)
                 quagga.processor_type = 'gpu'
                 x_gpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
-                lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, reverse=reverse, learning=False)
+                lstm_rnn_gpu = LstmRnnBlock(W_init, R_init, x_gpu, reverse=reverse, learning=False)
                 x_gpu.set_length(sequence_len)
                 lstm_rnn_gpu.fprop()
                 h_gpu = lstm_rnn_gpu.h.to_host()
@@ -61,7 +62,7 @@ class TestLstmRnn(TestCase):
                 self.rng.set_state(state)
                 quagga.processor_type = 'cpu'
                 x_cpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
-                lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, reverse=reverse, learning=False)
+                lstm_rnn_cpu = LstmRnnBlock(W_init, R_init, x_cpu, reverse=reverse, learning=False)
                 x_cpu.set_length(sequence_len)
                 lstm_rnn_cpu.fprop()
                 h_cpu = lstm_rnn_cpu.h.to_host()
@@ -98,7 +99,7 @@ class TestLstmRnn(TestCase):
                 quagga.processor_type = 'gpu'
                 context = Context()
                 x_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
-                lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, reverse=reverse)
+                lstm_rnn_gpu = LstmRnnBlock(W_init, R_init, x_gpu, reverse=reverse)
                 x_gpu.set_length(sequence_len)
                 h, dL_dh = zip(*[h.register_usage(context, context) for h in lstm_rnn_gpu.h])
                 lstm_rnn_gpu.fprop()
@@ -114,7 +115,7 @@ class TestLstmRnn(TestCase):
                 quagga.processor_type = 'cpu'
                 context = Context()
                 x_cpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
-                lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, reverse=reverse)
+                lstm_rnn_cpu = LstmRnnBlock(W_init, R_init, x_cpu, reverse=reverse)
                 x_cpu.set_length(sequence_len)
                 h, dL_dh = zip(*[h.register_usage(context, context) for h in lstm_rnn_cpu.h])
                 lstm_rnn_cpu.fprop()
@@ -140,41 +141,6 @@ class TestLstmRnn(TestCase):
         self.assertEqual(sum(r), self.N * 6)
 
     def test_theano_fprop(self):
-        class LstmLayer(object):
-            def __init__(self, W_init, R_init, reverse):
-                W_init = np.hstack((W_init(), W_init(), W_init(), W_init()))
-                R_init = np.hstack((R_init(), R_init(), R_init(), R_init()))
-                self.W = theano.shared(W_init, name='W_zifo')
-                self.R = theano.shared(R_init, name='R_zifo')
-                self.n = W_init.shape[1] / 4
-                self.reverse = reverse
-
-            def get_output_expr(self, input_sequence):
-                h0 = T.zeros((batch_size, self.n), dtype=np.float32)
-                c0 = T.zeros((batch_size, self.n), dtype=np.float32)
-                input_sequence = input_sequence.transpose(2, 0, 1)
-                if reverse:
-                    input_sequence = input_sequence[::-1]
-                [_, h], _ = theano.scan(fn=self.__get_lstm_step_expr,
-                                        sequences=input_sequence,
-                                        outputs_info=[c0, h0])
-                return h[::-1] if reverse else h
-
-            def __get_lstm_step_expr(self, x_t, c_tm1, h_tm1):
-                sigm = T.nnet.sigmoid
-                tanh = T.tanh
-                dot = theano.dot
-
-                zifo_t = dot(x_t, self.W) + dot(h_tm1, self.R)
-                z_t = tanh(zifo_t[:, 0*self.n:1*self.n])
-                i_t = sigm(zifo_t[:, 1*self.n:2*self.n])
-                f_t = sigm(zifo_t[:, 2*self.n:3*self.n])
-                o_t = sigm(zifo_t[:, 3*self.n:4*self.n])
-
-                c_t = i_t * z_t + f_t * c_tm1
-                h_t = o_t * tanh(c_t)
-                return c_t, h_t
-
         quagga.processor_type = 'gpu'
         r = []
         for i in xrange(self.N):
@@ -188,16 +154,37 @@ class TestLstmRnn(TestCase):
             R_init = self.get_orthogonal_initializer(hidden_dim, hidden_dim)
 
             state = self.rng.get_state()
-            for reverse in [False, True]:
+            for reverse, mask in product([False, True], [False, True]):
                 self.rng.set_state(state)
                 th_x = T.ftensor3()
                 lstm_layer = LstmLayer(W_init, R_init, reverse=reverse)
-                th_h = theano.function([th_x], lstm_layer.get_output_expr(th_x))
-                th_h = th_h(np.dstack(x[:sequence_len]))
+                if mask:
+                    if self.rng.randint(2):
+                        mask = self.rng.randint(2, size=(batch_size, sequence_len)).astype(np.float32)
+                    else:
+                        mask = np.ones((batch_size, sequence_len), np.float32)
+                        non_zero_idxs = {self.rng.randint(batch_size)}
+                        for j in reversed(xrange(sequence_len)):
+                            for k in xrange(batch_size):
+                                if k in non_zero_idxs:
+                                    continue
+                                mask[k, j] = self.rng.rand() < 10.0 / sequence_len
+                                if mask[k, j] == 1.0:
+                                    non_zero_idxs.add(k)
+                            if len(non_zero_idxs) == batch_size:
+                                break
+                    th_mask = T.fmatrix()
+                    th_h = theano.function([th_x, th_mask], lstm_layer.get_output_expr(th_x, th_mask))
+                    th_h = th_h(np.dstack(x[:sequence_len]), mask)
+                else:
+                    mask = None
+                    th_h = theano.function([th_x], lstm_layer.get_output_expr(th_x))
+                    th_h = th_h(np.dstack(x[:sequence_len]))
 
                 self.rng.set_state(state)
                 q_x = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
-                lstm_rnn_gpu = LstmRnn(W_init, R_init, q_x, reverse=reverse, learning=False)
+                mask = Connector(Matrix.from_npa(mask)) if mask is not None else mask
+                lstm_rnn_gpu = LstmRnnBlock(W_init, R_init, q_x, mask, reverse, learning=False)
                 q_x.set_length(sequence_len)
                 for e in q_x:
                     e.fprop()
@@ -213,56 +200,9 @@ class TestLstmRnn(TestCase):
                 del lstm_rnn_gpu
                 del q_x
 
-        self.assertEqual(sum(r), self.N * 2)
+        self.assertEqual(sum(r), self.N * 4)
 
     def test_theano_grad(self):
-        class LstmLayer(object):
-            def __init__(self, W_init, R_init, reverse):
-                W_init = np.hstack((W_init(), W_init(), W_init(), W_init()))
-                R_init = np.hstack((R_init(), R_init(), R_init(), R_init()))
-                self.W = theano.shared(W_init, name='W_zifo')
-                self.R = theano.shared(R_init, name='R_zifo')
-                self.n = W_init.shape[1] / 4
-                self.reverse = reverse
-
-            def get_output_expr(self, input_sequence):
-                h0 = T.zeros((batch_size, self.n), dtype=np.float32)
-                c0 = T.zeros((batch_size, self.n), dtype=np.float32)
-                input_sequence = input_sequence.transpose(2, 0, 1)
-                if reverse:
-                    input_sequence = input_sequence[::-1]
-                [_, h], _ = theano.scan(fn=self.__get_lstm_step_expr,
-                                        sequences=input_sequence,
-                                        outputs_info=[c0, h0])
-                return h[::-1] if reverse else h
-
-            def __get_lstm_step_expr(self, x_t, c_tm1, h_tm1):
-                sigm = T.nnet.sigmoid
-                tanh = T.tanh
-                dot = theano.dot
-
-                zifo_t = dot(x_t, self.W) + dot(h_tm1, self.R)
-                z_t = tanh(zifo_t[:, 0*self.n:1*self.n])
-                i_t = sigm(zifo_t[:, 1*self.n:2*self.n])
-                f_t = sigm(zifo_t[:, 2*self.n:3*self.n])
-                o_t = sigm(zifo_t[:, 3*self.n:4*self.n])
-
-                c_t = i_t * z_t + f_t * c_tm1
-                h_t = o_t * tanh(c_t)
-                return c_t, h_t
-
-        class SequentialMeanPoolingLayer(object):
-            def get_output_expr(self, input_sequence):
-                return T.mean(input_sequence, axis=0)
-
-        class LogisticRegressionLayer(object):
-            def __init__(self, W_init, b_init):
-                self.W = theano.shared(value=W_init())
-                self.b = theano.shared(value=b_init())
-
-            def get_output_expr(self, input_expr):
-                return T.nnet.sigmoid(T.dot(input_expr, self.W) + self.b)
-
         quagga.processor_type = 'gpu'
         r = []
         for i in xrange(self.N):
@@ -279,43 +219,75 @@ class TestLstmRnn(TestCase):
             lr_b_init = lambda: self.rng.rand(1, 1).astype(dtype=np.float32)
 
             state = self.rng.get_state()
-            for reverse in [False, True]:
-                # Theano model
+            for reverse, mask in product([False, True], [False, True]):
                 self.rng.set_state(state)
                 th_x = T.ftensor3()
-                th_true_labels = T.fmatrix()
                 lstm_layer = LstmLayer(W_init, R_init, reverse=reverse)
-                smp_layer = SequentialMeanPoolingLayer()
                 lr_layer = LogisticRegressionLayer(lr_W_init, lambda: lr_b_init()[0])
-                probs = th_x
-                for layer in [lstm_layer, smp_layer, lr_layer]:
-                    probs = layer.get_output_expr(probs)
+                if mask:
+                    if self.rng.randint(2):
+                        mask = self.rng.randint(2, size=(batch_size, sequence_len)).astype(np.float32)
+                    else:
+                        mask = np.ones((batch_size, sequence_len), np.float32)
+                        non_zero_idxs = {self.rng.randint(batch_size)}
+                        for j in reversed(xrange(sequence_len)):
+                            for k in xrange(batch_size):
+                                if k in non_zero_idxs:
+                                    continue
+                                mask[k, j] = self.rng.rand() < 10.0 / sequence_len
+                                if mask[k, j] == 1.0:
+                                    non_zero_idxs.add(k)
+                            if len(non_zero_idxs) == batch_size:
+                                break
+                        mask = np.fliplr(mask) if reverse else mask
+                    th_mask = T.fmatrix()
+                    th_h = lstm_layer.get_output_expr(th_x, th_mask)
+                else:
+                    mask = None
+                    th_h = lstm_layer.get_output_expr(th_x)
+                mid_block = self.rng.randint(2)
+                if mid_block:
+                    probs = T.mean(th_h, axis=0)
+                else:
+                    probs = th_h[0] if reverse else th_h[-1]
+                th_true_labels = T.fmatrix()
+                probs = lr_layer.get_output_expr(probs)
                 loss = T.mean(T.nnet.binary_crossentropy(probs, th_true_labels))
                 grads = T.grad(loss, wrt=[lr_layer.W, lr_layer.b, lstm_layer.W, lstm_layer.R, th_x])
-                get_theano_grads = theano.function([th_x, th_true_labels], grads)
-                th_x = np.dstack(x)
-                theano_grads = get_theano_grads(th_x[..., :sequence_len], true_labels)
+                if mask is not None:
+                    get_theano_grads = theano.function([th_x, th_true_labels, th_mask], grads)
+                    theano_grads = get_theano_grads(np.dstack(x[:sequence_len]), true_labels, mask)
+                else:
+                    get_theano_grads = theano.function([th_x, th_true_labels], grads)
+                    theano_grads = get_theano_grads(np.dstack(x[:sequence_len]), true_labels)
 
                 # quagga model
                 self.rng.set_state(state)
                 context = Context()
                 x_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
                 true_labels_gpu = Connector(Matrix.from_npa(true_labels))
-                lstm_block = LstmRnn(W_init, R_init, x_gpu, reverse=reverse)
-                smp_block = SequentialMeanPoolingBlock(lstm_block.h)
-                dot_block = DotBlock(lr_W_init, lr_b_init, smp_block.output)
+                mask = Connector(Matrix.from_npa(mask)) if mask is not None else mask
+                lstm_block = LstmRnnBlock(W_init, R_init, x_gpu, mask, reverse=reverse)
+                if mid_block:
+                    mid_block = SequentialMeanPoolingBlock(lstm_block.h)
+                else:
+                    mid_block = SelectorBlock(lstm_block.h)
+                dot_block = DotBlock(lr_W_init, lr_b_init, mid_block.output)
                 sce_block = SigmoidCeBlock(dot_block.output, true_labels_gpu)
                 x_gpu.set_length(sequence_len)
                 for e in x_gpu:
                     e.fprop()
                 true_labels_gpu.fprop()
                 lstm_block.fprop()
-                smp_block.fprop()
+                if isinstance(mid_block, SequentialMeanPoolingBlock):
+                    mid_block.fprop()
+                else:
+                    mid_block.fprop(0 if reverse else sequence_len - 1)
                 dot_block.fprop()
                 sce_block.fprop()
                 sce_block.bprop()
                 dot_block.bprop()
-                smp_block.bprop()
+                mid_block.bprop()
                 lstm_block.bprop()
                 quagga_grads = [dot_block.dL_dW.to_host(),
                                 dot_block.dL_db.to_host(),
@@ -334,7 +306,56 @@ class TestLstmRnn(TestCase):
 
                 del lstm_block
                 del dot_block
-                del smp_block
+                del mid_block
                 del sce_block
 
-        self.assertEqual(sum(r), self.N * 10)
+        self.assertEqual(sum(r), self.N * 20)
+
+
+class LstmLayer(object):
+    def __init__(self, W_init, R_init, reverse):
+        W_init = np.hstack((W_init(), W_init(), W_init(), W_init()))
+        R_init = np.hstack((R_init(), R_init(), R_init(), R_init()))
+        self.W = theano.shared(W_init, name='W_zifo')
+        self.R = theano.shared(R_init, name='R_zifo')
+        self.n = W_init.shape[1] / 4
+        self.reverse = reverse
+
+    def get_output_expr(self, input_sequence, mask=None):
+        h0 = T.zeros((input_sequence.shape[0], self.n), dtype=np.float32)
+        c0 = T.zeros((input_sequence.shape[0], self.n), dtype=np.float32)
+        input_sequence = input_sequence.transpose(2, 0, 1)
+        mask = mask.T if mask else T.ones(input_sequence.shape[:2], dtype=np.float32)
+
+        if self.reverse:
+            input_sequence = input_sequence[::-1]
+            mask = mask[::-1]
+        [_, h], _ = theano.scan(fn=self.__get_lstm_mask_step,
+                                sequences=[input_sequence, mask],
+                                outputs_info=[c0, h0])
+        return h[::-1] if self.reverse else h
+
+    def __get_lstm_mask_step(self, x_t, mask_t, c_tm1, h_tm1):
+        sigm = T.nnet.sigmoid
+        tanh = T.tanh
+        dot = theano.dot
+
+        zifo_t = dot(x_t, self.W) + dot(h_tm1, self.R)
+        z_t = tanh(zifo_t[:, 0*self.n:1*self.n])
+        i_t = sigm(zifo_t[:, 1*self.n:2*self.n])
+        f_t = sigm(zifo_t[:, 2*self.n:3*self.n])
+        o_t = sigm(zifo_t[:, 3*self.n:4*self.n])
+
+        mask_t = mask_t.dimshuffle(0, 'x')
+        c_t = (i_t * z_t + f_t * c_tm1) * mask_t
+        h_t = o_t * tanh(c_t) * mask_t
+        return c_t, h_t
+
+
+class LogisticRegressionLayer(object):
+    def __init__(self, W_init, b_init):
+        self.W = theano.shared(value=W_init())
+        self.b = theano.shared(value=b_init())
+
+    def get_output_expr(self, input_expr):
+        return T.nnet.sigmoid(T.dot(input_expr, self.W) + self.b)
