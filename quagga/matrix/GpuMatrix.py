@@ -1,5 +1,4 @@
 import quagga
-import atexit
 import numpy as np
 import ctypes as ct
 from quagga.cuda import cudart, cublas, cudnn, curand, gpu_matrix_kernels, nonlinearities
@@ -15,8 +14,6 @@ class GpuMatrix(object):
         self._cudnn_tensor_descriptor = None
         self.device_id = device_id
         self.is_owner = is_owner
-        if is_owner:
-            atexit.register(cudart.cuda_free, self.data)
 
     @property
     def nelems(self):
@@ -62,13 +59,9 @@ class GpuMatrix(object):
 
     def __del__(self):
         if self.is_owner:
-            try:
-                atexit._exithandlers.remove((cudart.cuda_free, (self.data, ), {}))
-                cudart.cuda_free(self.data)
-                if self._cudnn_tensor_descriptor:
-                    cudnn.cudnn_destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
-            except ValueError:
-                pass
+            cudart.cuda_free(self.data)
+            if self._cudnn_tensor_descriptor:
+                cudnn.cudnn_destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
 
     def __getitem__(self, key):
         if type(key[1]) is int:
@@ -618,13 +611,11 @@ def _get_temp_memory(context, N):
     pointer = __temp_pointer.get(context)
     if N > __N.get(context, -np.inf):
         if pointer:
-            atexit._exithandlers.remove((cudart.cuda_free, (pointer, ), {}))
             cudart.cuda_free(pointer)
         __N[context] = N + 10
         c_dtype = ct.POINTER(ct.c_float)
         elem_size = ct.sizeof(c_dtype)
         pointer = cudart.cuda_malloc(__N[context] * elem_size, c_dtype)
-        atexit.register(cudart.cuda_free, pointer)
         __temp_pointer[context] = pointer
     return pointer
 

@@ -85,14 +85,14 @@ class TestSequentialMeanPoolingBlock(TestCase):
             x_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
             smean_pooling_block_gpu = SequentialMeanPoolingBlock(x_gpu)
             x_gpu.set_length(sequence_len)
-            output, dL_doutput = smean_pooling_block_gpu.output.register_usage(context, context)
+            _, dL_doutput = smean_pooling_block_gpu.output.register_usage(context, context)
             smean_pooling_block_gpu.fprop()
             random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
             Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
             smean_pooling_block_gpu.bprop()
             context.synchronize()
             smean_pooling_block_gpu.context.synchronize()
-            dL_dmatrices_gpu = smean_pooling_block_gpu.dL_dmatrices
+            dL_dmatrices_gpu = [e.backward_matrix.to_host() for e in x_gpu]
 
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
@@ -100,17 +100,17 @@ class TestSequentialMeanPoolingBlock(TestCase):
             x_cpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
             smean_pooling_block_cpu = SequentialMeanPoolingBlock(x_cpu)
             x_cpu.set_length(sequence_len)
-            output, dL_doutput = smean_pooling_block_cpu.output.register_usage(context, context)
+            _, dL_doutput = smean_pooling_block_cpu.output.register_usage(context, context)
             smean_pooling_block_cpu.fprop()
             random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
             Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
             smean_pooling_block_cpu.bprop()
             context.synchronize()
             smean_pooling_block_cpu.context.synchronize()
-            dL_dmatrices_cpu = smean_pooling_block_cpu.dL_dmatrices
+            dL_dmatrices_cpu = [e.backward_matrix.to_host() for e in x_cpu]
 
             for dL_dmatrix_gpu, dL_dmatrix_cpu in izip(dL_dmatrices_gpu, dL_dmatrices_cpu):
-                if not np.allclose(dL_dmatrix_gpu.to_host(), dL_dmatrix_cpu.to_host()):
+                if not np.allclose(dL_dmatrix_gpu, dL_dmatrix_cpu):
                     r.append(False)
                     break
             else:
@@ -173,7 +173,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             cudart.cuda_device_synchronize()
             context.synchronize()
 
-            dL_dx = [e.to_host() for e in smp_block.dL_dmatrices]
+            dL_dx = [e.backward_matrix.to_host() for e in x]
             dL_dx_th = get_grad_x(np.dstack([e.to_host() for e in x]), true_labels.to_host())
             for i in xrange(dL_dx_th.shape[-1]):
                 if not np.allclose(dL_dx[i], dL_dx_th[..., i]):

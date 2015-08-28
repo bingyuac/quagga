@@ -20,6 +20,8 @@ class DotBlock(object):
                 self.ones = Matrix.from_npa(np.ones((x.nrows, 1), np.float32), device_id=device_id)
             if x.bpropagable:
                 self.x, self.dL_dx = x.register_usage(self.context, self.context)
+            else:
+                self.x = x.register_usage(self.context)
         else:
             self.x = x.register_usage(self.context)
         self.learning = learning

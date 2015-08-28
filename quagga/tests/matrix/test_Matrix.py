@@ -197,6 +197,27 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N * 3)
 
+    def test_add(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            if self.rng.randint(2):
+                b = TestMatrix.get_random_array(a.shape)
+            else:
+                b = TestMatrix.get_random_array((1, a.shape[1]))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+
+            a_cpu.add(self.cpu_context, b_cpu)
+            a_gpu.add(self.gpu_context, b_gpu)
+
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_add_scaled(self):
         r = []
         for i in xrange(self.N):
@@ -334,7 +355,7 @@ class TestMatrix(TestCase):
             a_cpu.hprod(self.cpu_context, b_cpu)
             a_gpu.hprod(self.gpu_context, b_gpu)
 
-            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)
 

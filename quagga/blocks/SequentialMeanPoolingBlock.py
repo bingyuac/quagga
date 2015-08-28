@@ -16,8 +16,7 @@ class SequentialMeanPoolingBlock(object):
                              'Mixed state is not allowed!')
         self.max_input_sequence_len = len(matrices)
         self.context = Context(device_id)
-        device_id = self.context.device_id
-        self.output = Matrix.empty_like(matrices[0], device_id)
+        self.output = Matrix.empty_like(matrices[0], self.context.device_id)
         self.output = Connector(self.output, self.context, self.context if learning else None)
         self._matrices = matrices
         self.matrices = []

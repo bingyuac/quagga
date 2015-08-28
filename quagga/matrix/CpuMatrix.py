@@ -75,12 +75,7 @@ class CpuMatrix(object):
         if a.ndim != 2:
             raise ValueError('CpuMatrix works only with 2-d numpy arrays!')
         dtype = cls.str_to_dtype(dtype) if dtype else a.dtype
-        if not np.isfortran(a):
-            pass
-            # print 'Should be fortran array! Now I do not perform casting. I am not sure that we need it at all'
-            # TODO
-            # a = np.asfortranarray(a, dtype=dtype)
-        elif a.dtype != dtype:
+        if a.dtype != dtype:
             a = a.astype(dtype=dtype)
         return cls(a, a.shape[0], a.shape[1], dtype, device_id)
 
@@ -103,8 +98,6 @@ class CpuMatrix(object):
                              format(self.npa.dtype, a.dtype))
         if a.ndim != 2:
             raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
-        if not np.isfortran(a):
-            a = np.asfortranarray(a)
         self.nrows, self.ncols = a.shape
         self.npa = a
 
@@ -115,7 +108,7 @@ class CpuMatrix(object):
         self.npa[...] = value
 
     def to_host(self):
-        return self.npa
+        return np.copy(self.npa)
 
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
@@ -125,7 +118,7 @@ class CpuMatrix(object):
 
     def tile(self, context, axis, a):
         n = self.nrows if axis == 0 else self.ncols
-        self.npa[...] = np.asfortranarray(np.repeat(a.npa, n, axis))
+        self.npa[...] = np.repeat(a.npa, n, axis)
 
     def slice_columns(self, context, column_indxs, out):
         out.npa = self.npa[:, column_indxs.npa.flatten()]
@@ -140,14 +133,12 @@ class CpuMatrix(object):
         if ncols != self.ncols:
             raise ValueError("The number of columns in the assigning matrix differs"
                              "from the summed numbers of columns in buffers!")
-        stacked = np.hstack(m.npa for m in matrices)
-        stacked = np.asfortranarray(stacked)
-        self.npa[...] = stacked
+        self.npa[...] = np.hstack(m.npa for m in matrices)
 
     def hsplit(self, context, matrices, col_slices=None):
         if col_slices:
             for i, col_slice in enumerate(col_slices):
-                matrices[i].npa[...] = np.asfortranarray(self.npa[:, col_slice[0]:col_slice[1]])
+                matrices[i].npa[...] = self.npa[:, col_slice[0]:col_slice[1]]
         else:
             ncols = 0
             for matrix in matrices:
@@ -163,7 +154,7 @@ class CpuMatrix(object):
                 indices_or_sections.append(indices_or_sections[-1] + m.ncols)
             _matrices = np.hsplit(self.npa, indices_or_sections)
             for _m, m in izip(_matrices, matrices):
-                m.npa[...] = np.asfortranarray(_m)
+                m.npa[...] = _m
 
     def assign_vstack(self, context, matrices):
         nrows = 0
@@ -175,14 +166,12 @@ class CpuMatrix(object):
         if nrows != self.nrows:
             raise ValueError("The number of rows in the assigning matrix differs"
                              "from the summed numbers of rows in buffers!")
-        stacked = np.vstack(m.npa for m in matrices)
-        stacked = np.asfortranarray(stacked)
-        self.npa[...] = stacked
+        self.npa[...] = np.vstack(m.npa for m in matrices)
 
     def vsplit(self, context, matrices, row_slices=None):
         if row_slices:
             for i, row_slice in enumerate(row_slices):
-                matrices[i].npa[...] = np.asfortranarray(self.npa[row_slice[0]:row_slice[1], :])
+                matrices[i].npa[...] = self.npa[row_slice[0]:row_slice[1], :]
         else:
             nrows = 0
             for matrix in matrices:
@@ -198,7 +187,7 @@ class CpuMatrix(object):
                 indices_or_sections.append(indices_or_sections[-1] + m.nrows)
             _matrices = np.vsplit(self.npa, indices_or_sections)
             for _m, m in izip(_matrices, matrices):
-                m.npa[...] = np.asfortranarray(_m)
+                m.npa[...] = _m
 
     def scale(self, context, alpha, out=None):
         if out:
@@ -242,7 +231,7 @@ class CpuMatrix(object):
     def relu(self, context, relu_matrix, derivative_matrix=None):
         relu_matrix.npa[...] = np.maximum(self.npa, 0.0)
         if derivative_matrix:
-            derivative_matrix.npa[...] = (self.npa > 0).astype(np.float32, order='F')
+            derivative_matrix.npa[...] = (self.npa > 0).astype(np.float32)
 
     def softmax(self, context, softmax_matrix):
         maximums = np.max(self.npa, axis=1, keepdims=True)

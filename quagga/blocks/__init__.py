@@ -18,3 +18,4 @@ from quagga.blocks.NonlinearityBlock import NonlinearityBlock
 from quagga.blocks.SseBlock import SseBlock
 from quagga.blocks.DropoutBlock import DropoutBlock
 from quagga.blocks.ScaleBlock import ScaleBlock
+from quagga.blocks.SelectorBlock import SelectorBlock

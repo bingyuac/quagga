@@ -32,8 +32,7 @@
 - [ ] Add learning rate and momentum policies
     - [x] Implemented fixed learning policy
 - [ ] Add reduction kernels for mean value
-- [ ] Review usage of `vsplit` and `hsplit` (python code instead of c) 
-- [ ] check that one need to have fortran array order in `CpuMatrix`
+- [ ] Review usage of `vsplit` and `hsplit` (python code instead of c)
 - [ ] Add fast dropout LSTM
 - [ ] Add compiler functionality for more flexible code generation
 - [ ] Add max margin cost function
@@ -42,3 +41,4 @@
 - [ ] use device api for dropout instead of host api
 - [ ] Think about dropout and scaled layer It should not take to many memory, you should write a mechanism for this
 - [ ] Add broadcasting to Matrix Operations
+- [ ] Check fprop for output variables in the each block fprop function

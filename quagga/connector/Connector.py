@@ -43,9 +43,9 @@ class Connector(object):
         self._f_obtaining_context = f_obtaining_context
         self._f_usage_contexts = list()
         self._b_matrices = defaultdict(dict)
-        self._b_obtaining_contexts = dict()
         self._b_usage_context = b_usage_context
         self.zero_bmatrix = None
+        self.deregistered_b_obtaining_contexts = set()
 
     @property
     def bpropagable(self):
@@ -78,6 +78,14 @@ class Connector(object):
         self._b_matrices[b_obtaining_context][o_device_id] = b_matrix
         return self._f_matrices[f_usage_context.device_id], b_matrix
 
+    def deregistere_b_obtaining_context(self, b_obtaining_context):
+        if b_obtaining_context not in self._b_matrices:
+            raise ValueError("TODO You can't deregistere what you did not register!")
+        self.deregistered_b_obtaining_contexts.add(b_obtaining_context)
+
+    def remove_from_deregistered_b_obtaining_contexts(self, b_obtaining_context):
+        self.deregistered_b_obtaining_contexts.remove(b_obtaining_context)
+
     def fprop(self):
         o_device_id = self._f_obtaining_context.device_id
         for u_device_id, forward_matrix in self._f_matrices.iteritems():
@@ -85,7 +93,7 @@ class Connector(object):
                 self._f_matrices[o_device_id].copy(self._f_obtaining_context, forward_matrix)
         self._f_obtaining_context.block(*self._f_usage_contexts)
 
-    def bprop(self, deregistered_b_obtaining_contexts=set()):
+    def bprop(self):
         if not self._b_usage_context:
             raise ValueError('Nobody was going to use computation from backward '
                              'step. You should not backward propagate!')
@@ -93,7 +101,7 @@ class Connector(object):
         backward_matrices = []
         b_obtaining_contexts = []
         for b_obtaining_context, matrices in self._b_matrices.iteritems():
-            if b_obtaining_context in deregistered_b_obtaining_contexts:
+            if b_obtaining_context in self.deregistered_b_obtaining_contexts:
                 continue
             b_obtaining_contexts.append(b_obtaining_context)
             o_device_id = b_obtaining_context.device_id

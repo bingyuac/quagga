@@ -3,6 +3,7 @@ import numpy as np
 from unittest import TestCase
 from quagga.cuda import cudart
 from quagga.context import GpuContext
+from quagga.cuda.test_events import test_dependencies
 
 
 def cuda_array_from_list(a):
@@ -43,20 +44,20 @@ class TestEvent(TestCase):
             blocking_nodes.append(cuda_array_from_list(range(i*k + 4, i*k + 6)))
 
         for context_id in xrange(5, 6):
-            test_dependencies(contexts[context_id], 0, blocking_nodes[0], 0, execution_checklist, test_results)
+            test_dependencies(contexts[context_id].cuda_stream, 0, blocking_nodes[0], 0, execution_checklist, test_results)
             contexts[context_id].block(*contexts[:3])
 
         for i in xrange(N):
             for context_id in xrange(3):
-                test_dependencies(contexts[context_id], i * k + context_id + 1, blocking_nodes[i*3+1], 1, execution_checklist, test_results)
+                test_dependencies(contexts[context_id].cuda_stream, i * k + context_id + 1, blocking_nodes[i*3+1], 1, execution_checklist, test_results)
 
             for context_id in xrange(3, 5):
                 contexts[context_id].wait(*contexts[:3])
-                test_dependencies(contexts[context_id], i * k + context_id + 1, blocking_nodes[i*3+2], 3, execution_checklist, test_results)
+                test_dependencies(contexts[context_id].cuda_stream, i * k + context_id + 1, blocking_nodes[i*3+2], 3, execution_checklist, test_results)
 
             for context_id in xrange(5, 6):
                 contexts[context_id].wait(*contexts[3:5])
-                test_dependencies(contexts[context_id], i * k + context_id + 1, blocking_nodes[i*3+3], 2, execution_checklist, test_results)
+                test_dependencies(contexts[context_id].cuda_stream, i * k + context_id + 1, blocking_nodes[i*3+3], 2, execution_checklist, test_results)
                 contexts[context_id].block(*contexts[:3])
 
         for context in contexts:
