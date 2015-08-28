@@ -65,14 +65,10 @@ class TestMatrix(TestCase):
 
             a_cpu.scale(self.cpu_context, alpha, out_cpu)
             a_gpu.scale(self.gpu_context, alpha, out_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host()))
 
             a_cpu.scale(self.cpu_context, alpha)
             a_gpu.scale(self.gpu_context, alpha)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), out_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N * 2)
@@ -91,15 +87,11 @@ class TestMatrix(TestCase):
 
             a_cpu.tanh(self.cpu_context, tanh_matrix_cpu)
             a_gpu.tanh(self.gpu_context, tanh_matrix_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(tanh_matrix_cpu.to_host(),
                                  tanh_matrix_gpu.to_host()))
 
             a_cpu.tanh(self.cpu_context, tanh_matrix_cpu, derivative_matrix_cpu)
             a_gpu.tanh(self.gpu_context, tanh_matrix_gpu, derivative_matrix_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(tanh_matrix_cpu.to_host(),
                                  tanh_matrix_gpu.to_host()))
             r.append(np.allclose(derivative_matrix_cpu.to_host(),
@@ -121,15 +113,11 @@ class TestMatrix(TestCase):
 
             a_cpu.sigmoid(self.cpu_context, sigmoid_matrix_cpu)
             a_gpu.sigmoid(self.gpu_context, sigmoid_matrix_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(sigmoid_matrix_cpu.to_host(),
                                  sigmoid_matrix_gpu.to_host()))
 
             a_cpu.sigmoid(self.cpu_context, sigmoid_matrix_cpu, derivative_matrix_cpu)
             a_gpu.sigmoid(self.gpu_context, sigmoid_matrix_gpu, derivative_matrix_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(sigmoid_matrix_cpu.to_host(),
                                  sigmoid_matrix_gpu.to_host()))
             r.append(np.allclose(derivative_matrix_cpu.to_host(),
@@ -151,15 +139,11 @@ class TestMatrix(TestCase):
 
                 a_cpu.tanh_sigm(self.cpu_context, tanh_sigm_matrix_cpu, axis=axis)
                 a_gpu.tanh_sigm(self.gpu_context, tanh_sigm_matrix_gpu, axis=axis)
-                self.cpu_context.synchronize()
-                self.gpu_context.synchronize()
                 r.append(np.allclose(tanh_sigm_matrix_cpu.to_host(),
                                      tanh_sigm_matrix_gpu.to_host()))
 
                 a_cpu.tanh_sigm(self.cpu_context, tanh_sigm_matrix_cpu, derivative_matrix_cpu, axis=axis)
                 a_gpu.tanh_sigm(self.gpu_context, tanh_sigm_matrix_gpu, derivative_matrix_gpu, axis=axis)
-                self.cpu_context.synchronize()
-                self.gpu_context.synchronize()
                 r.append(np.allclose(tanh_sigm_matrix_cpu.to_host(),
                                      tanh_sigm_matrix_gpu.to_host()))
                 r.append(np.allclose(derivative_matrix_cpu.to_host(),
@@ -181,15 +165,11 @@ class TestMatrix(TestCase):
 
             a_cpu.relu(self.cpu_context, relu_matrix_cpu)
             a_gpu.relu(self.gpu_context, relu_matrix_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(relu_matrix_cpu.to_host(),
                                  relu_matrix_gpu.to_host()))
 
             a_cpu.relu(self.cpu_context, relu_matrix_cpu, derivative_matrix_cpu)
             a_gpu.relu(self.gpu_context, relu_matrix_gpu, derivative_matrix_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(relu_matrix_cpu.to_host(),
                                  relu_matrix_gpu.to_host()))
             r.append(np.allclose(derivative_matrix_cpu.to_host(),
@@ -238,26 +218,18 @@ class TestMatrix(TestCase):
 
             a_cpu.add(self.cpu_context, b_cpu)
             a_gpu.add(self.gpu_context, b_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
             a_cpu.add(self.cpu_context, c_cpu)
             a_gpu.add(self.gpu_context, c_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
             a_cpu.add_scaled(self.cpu_context, alpha, b_cpu)
             a_gpu.add_scaled(self.gpu_context, alpha, b_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
             a_cpu.add_scaled(self.cpu_context, alpha, c_cpu)
             a_gpu.add_scaled(self.gpu_context, alpha, c_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
             r.append(True)
@@ -287,8 +259,6 @@ class TestMatrix(TestCase):
             a_cpu[0].add_sum(self.cpu_context, a_cpu[1:])
             a_gpu[0].add_sum(self.gpu_context, a_gpu[1:])
 
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)
@@ -306,8 +276,6 @@ class TestMatrix(TestCase):
             a_cpu[0].assign_sum(self.cpu_context, a_cpu[1:])
             a_gpu[0].assign_sum(self.gpu_context, a_gpu[1:])
 
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)
@@ -332,8 +300,6 @@ class TestMatrix(TestCase):
 
             b_cpu.sliced_add_scaled(self.cpu_context, column_indxs_cpu, alpha, a_cpu)
             b_gpu.sliced_add_scaled(self.gpu_context, column_indxs_gpu, ct.c_float(alpha), a_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)
@@ -379,14 +345,10 @@ class TestMatrix(TestCase):
 
             out_cpu.add_hprod(self.cpu_context, a_cpu, b_cpu, alpha=alpha)
             out_gpu.add_hprod(self.gpu_context, a_gpu, b_gpu, alpha=alpha)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
             out_cpu.add_hprod(self.cpu_context, a_cpu, b_cpu, c_cpu, alpha)
             out_gpu.add_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu, alpha)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N * 2)
@@ -409,14 +371,10 @@ class TestMatrix(TestCase):
 
             out_cpu.assign_hprod(self.cpu_context, a_cpu, b_cpu, c_cpu)
             out_gpu.assign_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host()))
 
             out_cpu.assign_hprod(self.cpu_context, a_cpu, b_cpu)
             out_gpu.assign_hprod(self.gpu_context, a_gpu, b_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N * 2)
@@ -463,20 +421,14 @@ class TestMatrix(TestCase):
 
             out_cpu.assign_sum_hprod(self.cpu_context, a_cpu, b_cpu, c_cpu, d_cpu)
             out_gpu.assign_sum_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu, d_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-6))
 
             out_cpu.assign_sum_hprod(self.cpu_context, a_cpu, b_cpu, c_cpu, d_cpu, e_cpu)
             out_gpu.assign_sum_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu, d_gpu, e_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-6))
 
             out_cpu.assign_sum_hprod(self.cpu_context, a_cpu, b_cpu, c_cpu, d_cpu, e_cpu, f_cpu, g_cpu, h_cpu, i_cpu, j_cpu, k_cpu)
             out_gpu.assign_sum_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu, d_gpu, e_gpu, f_gpu, g_gpu, h_gpu, i_gpu, j_gpu, k_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-5))
 
         self.assertEqual(sum(r), self.N * 3)
@@ -497,8 +449,6 @@ class TestMatrix(TestCase):
 
             out_cpu.assign_hprod_sum(self.cpu_context, a_cpu, b_cpu)
             out_gpu.assign_hprod_sum(self.gpu_context, a_gpu, b_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-3))
 
         self.assertEqual(sum(r), self.N)
@@ -535,14 +485,10 @@ class TestMatrix(TestCase):
 
             a_cpu.assign_dot(self.cpu_context, b_cpu, c_cpu, mat_op_b, mat_op_c)
             a_gpu.assign_dot(self.gpu_context, b_gpu, c_gpu, mat_op_b, mat_op_c)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-3))
 
             a_v_cpu.assign_dot(self.cpu_context, b_cpu, c_v_cpu, mat_op_b, mat_op_c)
             a_v_gpu.assign_dot(self.gpu_context, b_gpu, c_v_gpu, mat_op_b, mat_op_c)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))
 
         self.assertEqual(sum(r), self.N * 2)
@@ -581,14 +527,10 @@ class TestMatrix(TestCase):
 
             a_cpu.add_dot(self.cpu_context, b_cpu, c_cpu, mat_op_b, mat_op_c, alpha, beta)
             a_gpu.add_dot(self.gpu_context, b_gpu, c_gpu, mat_op_b, mat_op_c, alpha, beta)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-3))
 
             a_v_cpu.add_dot(self.cpu_context, b_cpu, c_v_cpu, mat_op_b, mat_op_c, alpha, beta)
             a_v_gpu.add_dot(self.gpu_context, b_gpu, c_v_gpu, mat_op_b, mat_op_c, alpha, beta)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))
 
         self.assertEqual(sum(r), self.N * 2)
@@ -627,8 +569,6 @@ class TestMatrix(TestCase):
 
             b_cpu.slice_columns(self.cpu_context, column_indxs_cpu, a_cpu)
             b_gpu.slice_columns(self.gpu_context, column_indxs_gpu, a_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)
@@ -650,8 +590,6 @@ class TestMatrix(TestCase):
             gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
             cpu_stacked.assign_hstack(self.cpu_context, cpu_matrices)
             gpu_stacked.assign_hstack(self.gpu_context, gpu_matrices)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
 
         self.assertEqual(sum(r), self.N)
@@ -673,8 +611,6 @@ class TestMatrix(TestCase):
             gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
             cpu_stacked.assign_hstack(self.cpu_context, cpu_matrices)
             gpu_stacked.assign_hstack(self.gpu_context, gpu_matrices)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
 
         self.assertEqual(sum(r), self.N)
@@ -714,8 +650,6 @@ class TestMatrix(TestCase):
 
             cpu_stacked.vsplit(self.cpu_context, cpu_matrices)
             gpu_stacked.vsplit(self.gpu_context, gpu_matrices)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
                 if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
                     r.append(False)
@@ -760,8 +694,6 @@ class TestMatrix(TestCase):
 
             cpu_stacked.hsplit(self.cpu_context, cpu_matrices)
             gpu_stacked.hsplit(self.gpu_context, gpu_matrices)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
                 if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
                     r.append(False)
@@ -786,14 +718,10 @@ class TestMatrix(TestCase):
 
             a_cpu.tile(self.cpu_context, axis=0, a=b_cpu)
             a_gpu.tile(self.gpu_context, axis=0, a=b_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
             a_cpu.tile(self.cpu_context, axis=1, a=c_cpu)
             a_gpu.tile(self.gpu_context, axis=1, a=c_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
         self.assertEqual(sum(r), 2 * self.N)
@@ -811,8 +739,6 @@ class TestMatrix(TestCase):
             a_cpu[0].assign_sequential_mean_pooling(self.cpu_context, a_cpu[1:])
             a_gpu[0].assign_sequential_mean_pooling(self.gpu_context, a_gpu[1:])
 
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)
@@ -830,8 +756,6 @@ class TestMatrix(TestCase):
             CpuMatrix.sequentially_tile(self.cpu_context, a_cpu[1:], a_cpu[0])
             GpuMatrix.sequentially_tile(self.gpu_context, a_gpu[1:], a_gpu[0])
 
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             for a_cpu, a_gpu in izip(a_cpu[1:], a_gpu[1:]):
                 if not np.allclose(a_cpu.to_host(), a_gpu.to_host()):
                     r.append(False)
@@ -863,8 +787,6 @@ class TestMatrix(TestCase):
             embd_matrix_cpu.slice_rows_batch(self.cpu_context, embd_rows_indxs_cpu, dense_matrices_cpu, reverse)
             embd_matrix_gpu.slice_rows_batch(self.gpu_context, embd_rows_indxs_gpu, dense_matrices_gpu, reverse)
 
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             for m_cpu, m_gpu in izip(dense_matrices_cpu, dense_matrices_gpu):
                 if not np.allclose(m_cpu.to_host(), m_gpu.to_host()):
                     r.append(False)
@@ -891,14 +813,10 @@ class TestMatrix(TestCase):
 
             c_cpu.assign_scaled_addition(self.cpu_context, alpha, a_cpu, b_cpu)
             c_gpu.assign_scaled_addition(self.gpu_context, alpha, a_gpu, b_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
             c_cpu.assign_scaled_subtraction(self.cpu_context, alpha, a_cpu, b_cpu)
             c_gpu.assign_scaled_subtraction(self.gpu_context, alpha, a_gpu, b_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N * 2)
@@ -918,8 +836,6 @@ class TestMatrix(TestCase):
 
             a_cpu.softmax(self.cpu_context, b_cpu)
             a_gpu.softmax(self.gpu_context, b_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)
@@ -940,8 +856,6 @@ class TestMatrix(TestCase):
 
             a_cpu.mask_zeros(self.cpu_context, b_cpu, c_cpu)
             a_gpu.mask_zeros(self.gpu_context, b_gpu, c_gpu)
-            self.cpu_context.synchronize()
-            self.gpu_context.synchronize()
             r.append(np.allclose(c_cpu.to_host(), c_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)

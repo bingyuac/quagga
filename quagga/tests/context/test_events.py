@@ -60,9 +60,6 @@ class TestEvent(TestCase):
                 test_dependencies(contexts[context_id].cuda_stream, i * k + context_id + 1, blocking_nodes[i*3+3], 2, execution_checklist, test_results)
                 contexts[context_id].block(*contexts[:3])
 
-        for context in contexts:
-            context.synchronize()
-
         for nodes in blocking_nodes:
             cudart.cuda_free(nodes)
 

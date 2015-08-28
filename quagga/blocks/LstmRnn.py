@@ -34,8 +34,7 @@ class LstmRnn(object):
             self.dL_dR = Matrix.empty_like(self.R, device_id)
 
         self.x = x
-        if mask:
-            self.mask = mask.register_usage(self.context)
+        self.mask = mask.register_usage(self.context) if mask else None
         self.h = []
         self.lstm_cells = []
         batch_size = x[0].nrows
@@ -48,7 +47,7 @@ class LstmRnn(object):
                 prev_c = self.lstm_cells[-1].c
                 prev_h = self.lstm_cells[-1].h
             k = self.max_input_sequence_len - 1 - k if reverse else k
-            mask = self.mask[:, k] if hasattr(self, 'mask') else None
+            mask = self.mask[:, k] if self.mask else None
             if learning:
                 cell = _LstmBlock(self.W, self.R, x[k], mask, prev_c, prev_h, device_id, self.dL_dW, self.dL_dR)
             else:
@@ -69,14 +68,14 @@ class LstmRnn(object):
                 k = self.max_input_sequence_len - n
                 self.lstm_cells[k].prev_c.fill(self.lstm_cells[k].context, 0.0)
                 self.lstm_cells[k].prev_h.fill(self.lstm_cells[k].context, 0.0)
-            if hasattr(self, 'mask'):
+            if self.mask:
                 # waiting for mask
                 k = self.max_input_sequence_len - n
                 self.context.block(self.lstm_cells[k].context)
             for k in xrange(self.max_input_sequence_len - n, self.max_input_sequence_len):
                 self.lstm_cells[k].fprop()
         else:
-            if hasattr(self, 'mask'):
+            if self.mask:
                 # waiting for mask
                 self.context.block(self.lstm_cells[0].context)
             for k in xrange(n):
@@ -99,10 +98,7 @@ class LstmRnn(object):
                 h.deregistere_b_obtaining_context(self.lstm_cells[n].context)
                 c.deregistere_b_obtaining_context(self.lstm_cells[n].context)
             for k in reversed(xrange(n)):
-                if k == n-1 and n != self.max_input_sequence_len:
-                    self.lstm_cells[k].bprop(self.lstm_cells[k+1].context)
-                else:
-                    self.lstm_cells[k].bprop()
+                self.lstm_cells[k].bprop()
             if n != self.max_input_sequence_len:
                 h.remove_from_deregistered_b_obtaining_contexts(self.lstm_cells[n].context)
                 c.remove_from_deregistered_b_obtaining_contexts(self.lstm_cells[n].context)
@@ -159,8 +155,7 @@ class _LstmBlock(object):
             self.x, self.dL_dx = x.register_usage(self.context, self.context)
         else:
             self.x = x.register_usage(self.context)
-        if mask:
-            self.mask = mask
+        self.mask = mask
 
         try:
             if learning:
@@ -218,7 +213,7 @@ class _LstmBlock(object):
         # dL/dc[t] = dL[t+1]/dc[t] + dL/dh[t] .* o[t] .* dtanh(c[t])/dc[t]
         dL_dc = self.c.backward_matrix
         dL_dh = self.h.backward_matrix
-        if hasattr(self, 'mask'):
+        if self.mask:
             self.h.hprod(self.context, self.mask)
         dL_dc.add_hprod(self.context, dL_dh, self.o, self.dtanh_c_dc)
 

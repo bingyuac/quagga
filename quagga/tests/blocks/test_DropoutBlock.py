@@ -3,7 +3,6 @@ import theano
 import numpy as np
 from itertools import izip
 from unittest import TestCase
-from quagga.cuda import cudart
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
@@ -53,7 +52,6 @@ class TestDropoutBlock(TestCase):
             sce_block.bprop()
             lrdot_block.bprop()
             dropout_block.bprop()
-            cudart.cuda_device_synchronize()
             q_grads = [lrdot_block.dL_dW.to_host(),
                        lrdot_block.dL_db.to_host(),
                        x_gpu.backward_matrix.to_host()]

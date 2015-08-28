@@ -42,7 +42,6 @@ class TestSequentialEmbeddingBlock(TestCase):
                 x_gpu.ncols = sequence_len
                 x_gpu.fprop()
                 seq_embd_block.fprop()
-                seq_embd_block.context.synchronize()
                 output_gpu = seq_embd_block.output.to_host()
 
                 self.rng.set_state(state)
@@ -52,7 +51,6 @@ class TestSequentialEmbeddingBlock(TestCase):
                 x_cpu.ncols = sequence_len
                 x_cpu.fprop()
                 seq_embd_block.fprop()
-                seq_embd_block.context.synchronize()
                 output_cpu = seq_embd_block.output.to_host()
 
                 for output_gpu, output_cpu in izip(output_gpu, output_cpu):
@@ -90,7 +88,6 @@ class TestSequentialEmbeddingBlock(TestCase):
                     Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
                 seq_embd_block.bprop()
                 [(context, (indexes_gpu, dL_embedding_gpu))] = seq_embd_block.grads
-                context.synchronize()
 
                 self.rng.set_state(state)
                 quagga.processor_type = 'cpu'
@@ -106,7 +103,6 @@ class TestSequentialEmbeddingBlock(TestCase):
                     Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
                 seq_embd_block.bprop()
                 [(context, (indexes_cpu, dL_embedding_cpu))] = seq_embd_block.grads
-                context.synchronize()
 
                 r.append(np.allclose(indexes_gpu.to_host(), indexes_cpu.to_host()))
                 r.append(np.allclose(dL_embedding_gpu.to_host(), dL_embedding_cpu.to_host()))

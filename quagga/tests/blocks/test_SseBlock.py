@@ -2,7 +2,6 @@ import quagga
 import theano
 import numpy as np
 from unittest import TestCase
-from quagga.cuda import cudart
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
@@ -33,7 +32,6 @@ class TestSseBlock(TestCase):
             sse_block = SseBlock(y_hat_gpu, y_gpu)
             sse_block.fprop()
             sse_block.bprop()
-            cudart.cuda_device_synchronize()
             dL_dy_hat_gpu = y_hat_gpu.backward_matrix.to_host()
 
             quagga.processor_type = 'cpu'
@@ -70,7 +68,6 @@ class TestSseBlock(TestCase):
             sigmoid_ce_block = SseBlock(y_hat_gpu, y_gpu)
             sigmoid_ce_block.fprop()
             sigmoid_ce_block.bprop()
-            cudart.cuda_device_synchronize()
             q_dL_dy_hat = y_hat_gpu.backward_matrix.to_host()
 
             r.append(np.allclose(th_dL_dy_hat, q_dL_dy_hat))

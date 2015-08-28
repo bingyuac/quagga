@@ -3,7 +3,6 @@ import theano
 import numpy as np
 from itertools import izip
 from unittest import TestCase
-from quagga.cuda import cudart
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
@@ -51,7 +50,6 @@ class TestSequentialMeanPoolingBlock(TestCase):
             smean_pooling_block_gpu = SequentialMeanPoolingBlock(x_gpu)
             x_gpu.set_length(sequence_len)
             smean_pooling_block_gpu.fprop()
-            smean_pooling_block_gpu.context.synchronize()
             output_gpu = smean_pooling_block_gpu.output.to_host()
 
             self.rng.set_state(state)
@@ -60,7 +58,6 @@ class TestSequentialMeanPoolingBlock(TestCase):
             smean_pooling_block_cpu = SequentialMeanPoolingBlock(x_cpu)
             x_cpu.set_length(sequence_len)
             smean_pooling_block_cpu.fprop()
-            smean_pooling_block_cpu.context.synchronize()
             output_cpu = smean_pooling_block_cpu.output.to_host()
 
             r.append(np.allclose(output_gpu, output_cpu))
@@ -90,8 +87,6 @@ class TestSequentialMeanPoolingBlock(TestCase):
             random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
             Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
             smean_pooling_block_gpu.bprop()
-            context.synchronize()
-            smean_pooling_block_gpu.context.synchronize()
             dL_dmatrices_gpu = [e.backward_matrix.to_host() for e in x_gpu]
 
             self.rng.set_state(state)
@@ -105,8 +100,6 @@ class TestSequentialMeanPoolingBlock(TestCase):
             random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
             Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
             smean_pooling_block_cpu.bprop()
-            context.synchronize()
-            smean_pooling_block_cpu.context.synchronize()
             dL_dmatrices_cpu = [e.backward_matrix.to_host() for e in x_cpu]
 
             for dL_dmatrix_gpu, dL_dmatrix_cpu in izip(dL_dmatrices_gpu, dL_dmatrices_cpu):
@@ -170,8 +163,6 @@ class TestSequentialMeanPoolingBlock(TestCase):
             sce_block.bprop()
             dot_block.bprop()
             smp_block.bprop()
-            cudart.cuda_device_synchronize()
-            context.synchronize()
 
             dL_dx = [e.backward_matrix.to_host() for e in x]
             dL_dx_th = get_grad_x(np.dstack([e.to_host() for e in x]), true_labels.to_host())

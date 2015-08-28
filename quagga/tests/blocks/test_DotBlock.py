@@ -3,7 +3,6 @@ import theano
 import numpy as np
 from itertools import izip
 from unittest import TestCase
-from quagga.cuda import cudart
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
@@ -47,7 +46,6 @@ class TestDotBlock(TestCase):
             x_gpu = Connector(Matrix.from_npa(x))
             dot_block_gpu = DotBlock(W_init, b_init, x_gpu, learning=False)
             dot_block_gpu.fprop()
-            cudart.cuda_device_synchronize()
             output_gpu = dot_block_gpu.output.to_host()
 
             quagga.processor_type = 'cpu'
@@ -55,7 +53,6 @@ class TestDotBlock(TestCase):
             x_cpu = Connector(Matrix.from_npa(x))
             dot_block_cpu = DotBlock(W_init, b_init, x_cpu, learning=False)
             dot_block_cpu.fprop()
-            cudart.cuda_device_synchronize()
             output_cpu = dot_block_cpu.output.to_host()
 
             r.append(np.allclose(output_gpu, output_cpu, atol=1e-5))
@@ -84,7 +81,6 @@ class TestDotBlock(TestCase):
             random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
             Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
             dot_block_gpu.bprop()
-            cudart.cuda_device_synchronize()
             dL_dx_gpu = x_gpu.backward_matrix.to_host()
             dL_dW_gpu = dot_block_gpu.dL_dW.to_host()
             if b_init:
@@ -185,7 +181,6 @@ class TestDotBlock(TestCase):
             sce_block.bprop()
             lrdot_block.bprop()
             dot_block.bprop()
-            cudart.cuda_device_synchronize()
             q_grads = [lrdot_block.dL_dW.to_host(),
                        dot_block.dL_dW.to_host(),
                        x.backward_matrix.to_host()]

@@ -3,7 +3,6 @@ import theano
 import numpy as np
 from itertools import izip
 from unittest import TestCase
-from quagga.cuda import cudart
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.blocks import LstmRnn
@@ -54,19 +53,17 @@ class TestLstmRnn(TestCase):
                 self.rng.set_state(state)
                 quagga.processor_type = 'gpu'
                 x_gpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
-                lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, reverse, learning=False)
+                lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, reverse=reverse, learning=False)
                 x_gpu.set_length(sequence_len)
                 lstm_rnn_gpu.fprop()
-                lstm_rnn_gpu.context.synchronize()
                 h_gpu = lstm_rnn_gpu.h.to_host()
 
                 self.rng.set_state(state)
                 quagga.processor_type = 'cpu'
                 x_cpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
-                lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, reverse, learning=False)
+                lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, reverse=reverse, learning=False)
                 x_cpu.set_length(sequence_len)
                 lstm_rnn_cpu.fprop()
-                lstm_rnn_cpu.context.synchronize()
                 h_cpu = lstm_rnn_cpu.h.to_host()
 
                 for h_gpu, h_cpu in izip(h_gpu, h_cpu):
@@ -101,7 +98,7 @@ class TestLstmRnn(TestCase):
                 quagga.processor_type = 'gpu'
                 context = Context()
                 x_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
-                lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, reverse)
+                lstm_rnn_gpu = LstmRnn(W_init, R_init, x_gpu, reverse=reverse)
                 x_gpu.set_length(sequence_len)
                 h, dL_dh = zip(*[h.register_usage(context, context) for h in lstm_rnn_gpu.h])
                 lstm_rnn_gpu.fprop()
@@ -109,7 +106,6 @@ class TestLstmRnn(TestCase):
                     random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
                     Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
                 lstm_rnn_gpu.bprop()
-                lstm_rnn_gpu.context.synchronize()
                 dL_dW_gpu = lstm_rnn_gpu.dL_dW.to_host()
                 dL_dR_gpu = lstm_rnn_gpu.dL_dR.to_host()
                 dL_dx_gpu = [e.backward_matrix.to_host() for e in x_gpu]
@@ -118,7 +114,7 @@ class TestLstmRnn(TestCase):
                 quagga.processor_type = 'cpu'
                 context = Context()
                 x_cpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
-                lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, reverse)
+                lstm_rnn_cpu = LstmRnn(W_init, R_init, x_cpu, reverse=reverse)
                 x_cpu.set_length(sequence_len)
                 h, dL_dh = zip(*[h.register_usage(context, context) for h in lstm_rnn_cpu.h])
                 lstm_rnn_cpu.fprop()
@@ -126,7 +122,6 @@ class TestLstmRnn(TestCase):
                     random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
                     Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
                 lstm_rnn_cpu.bprop()
-                lstm_rnn_cpu.context.synchronize()
                 dL_dW_cpu = lstm_rnn_cpu.dL_dW.to_host()
                 dL_dR_cpu = lstm_rnn_cpu.dL_dR.to_host()
                 dL_dx_cpu = [e.backward_matrix.to_host() for e in x_cpu]
@@ -196,18 +191,17 @@ class TestLstmRnn(TestCase):
             for reverse in [False, True]:
                 self.rng.set_state(state)
                 th_x = T.ftensor3()
-                lstm_layer = LstmLayer(W_init, R_init, reverse)
+                lstm_layer = LstmLayer(W_init, R_init, reverse=reverse)
                 th_h = theano.function([th_x], lstm_layer.get_output_expr(th_x))
-                th_h = th_h(np.dstack(x)[..., :sequence_len])
+                th_h = th_h(np.dstack(x[:sequence_len]))
 
                 self.rng.set_state(state)
                 q_x = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
-                lstm_rnn_gpu = LstmRnn(W_init, R_init, q_x, reverse, learning=False)
+                lstm_rnn_gpu = LstmRnn(W_init, R_init, q_x, reverse=reverse, learning=False)
                 q_x.set_length(sequence_len)
                 for e in q_x:
                     e.fprop()
                 lstm_rnn_gpu.fprop()
-                cudart.cuda_device_synchronize()
                 q_h = lstm_rnn_gpu.h.to_host()
 
                 for i in xrange(th_h.shape[0]):
@@ -290,7 +284,7 @@ class TestLstmRnn(TestCase):
                 self.rng.set_state(state)
                 th_x = T.ftensor3()
                 th_true_labels = T.fmatrix()
-                lstm_layer = LstmLayer(W_init, R_init, reverse)
+                lstm_layer = LstmLayer(W_init, R_init, reverse=reverse)
                 smp_layer = SequentialMeanPoolingLayer()
                 lr_layer = LogisticRegressionLayer(lr_W_init, lambda: lr_b_init()[0])
                 probs = th_x
@@ -307,7 +301,7 @@ class TestLstmRnn(TestCase):
                 context = Context()
                 x_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
                 true_labels_gpu = Connector(Matrix.from_npa(true_labels))
-                lstm_block = LstmRnn(W_init, R_init, x_gpu, reverse)
+                lstm_block = LstmRnn(W_init, R_init, x_gpu, reverse=reverse)
                 smp_block = SequentialMeanPoolingBlock(lstm_block.h)
                 dot_block = DotBlock(lr_W_init, lr_b_init, smp_block.output)
                 sce_block = SigmoidCeBlock(dot_block.output, true_labels_gpu)
@@ -323,7 +317,6 @@ class TestLstmRnn(TestCase):
                 dot_block.bprop()
                 smp_block.bprop()
                 lstm_block.bprop()
-                cudart.cuda_device_synchronize()
                 quagga_grads = [dot_block.dL_dW.to_host(),
                                 dot_block.dL_db.to_host(),
                                 lstm_block.dL_dW.to_host(),

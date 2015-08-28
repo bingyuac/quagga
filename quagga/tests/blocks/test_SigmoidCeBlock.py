@@ -2,7 +2,6 @@ import quagga
 import theano
 import numpy as np
 from unittest import TestCase
-from quagga.cuda import cudart
 from theano import tensor as T
 from quagga.matrix import Matrix
 from quagga.context import Context
@@ -31,7 +30,6 @@ class TestSigmoidCeBlock(TestCase):
             true_labels_gpu = Connector(Matrix.from_npa(true_labels))
             sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
             sigmoid_ce_block.fprop()
-            cudart.cuda_device_synchronize()
             probs_gpu = sigmoid_ce_block.probs.to_host()
 
             quagga.processor_type = 'cpu'
@@ -39,7 +37,6 @@ class TestSigmoidCeBlock(TestCase):
             true_labels_cpu = Connector(Matrix.from_npa(true_labels))
             sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu)
             sigmoid_ce_block.fprop()
-            cudart.cuda_device_synchronize()
             probs_cpu = sigmoid_ce_block.probs.to_host()
 
             r.append(np.allclose(probs_gpu, probs_cpu))
@@ -63,7 +60,6 @@ class TestSigmoidCeBlock(TestCase):
             sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
             sigmoid_ce_block.fprop()
             sigmoid_ce_block.bprop()
-            cudart.cuda_device_synchronize()
             dL_dx_gpu = x_gpu.backward_matrix.to_host()
 
             context = Context()
@@ -101,7 +97,6 @@ class TestSigmoidCeBlock(TestCase):
             sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
             sigmoid_ce_block.fprop()
             sigmoid_ce_block.bprop()
-            cudart.cuda_device_synchronize()
             q_dL_dx = x_gpu.backward_matrix.to_host()
 
             r.append(np.allclose(th_dL_dx, q_dL_dx))
