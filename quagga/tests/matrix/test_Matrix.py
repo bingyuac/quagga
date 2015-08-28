@@ -283,10 +283,8 @@ class TestMatrix(TestCase):
     def test_sliced_add_scaled(self):
         r = []
         for i in xrange(self.N):
-            # a = TestMatrix.get_random_array()
-            # b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
-            a = np.array([[1, 2], [3, 4]], np.float32)
-            b = np.array([[10, 20, 30], [40, 50, 60]], np.float32)
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
             indxs = self.rng.choice(b.shape[1], a.shape[1]).astype(dtype=np.int32)
             indxs = indxs.reshape((1, len(indxs)))
             alpha = 2 * self.rng.rand(1)[0] - 1
@@ -298,8 +296,8 @@ class TestMatrix(TestCase):
             a_gpu = GpuMatrix.from_npa(a, 'float')
             b_gpu = GpuMatrix.from_npa(b, 'float')
 
-            b_cpu.sliced_add_scaled(self.cpu_context, column_indxs_cpu, alpha, a_cpu)
-            b_gpu.sliced_add_scaled(self.gpu_context, column_indxs_gpu, ct.c_float(alpha), a_gpu)
+            b_cpu.sliced_columns_add_scaled(self.cpu_context, column_indxs_cpu, alpha, a_cpu)
+            b_gpu.sliced_columns_add_scaled(self.gpu_context, column_indxs_gpu, ct.c_float(alpha), a_gpu)
             r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)
@@ -775,7 +773,6 @@ class TestMatrix(TestCase):
                 matrix = np.empty((nrows, embd_matrix.shape[1]), dtype=np.float32)
                 dense_matrices.append(matrix)
             embd_rows_indxs = self.rng.randint(embd_matrix.shape[0], size=(nrows, k)).astype(np.int32)
-            reverse = self.rng.randint(2)
 
             embd_matrix_cpu = CpuMatrix.from_npa(embd_matrix)
             embd_rows_indxs_cpu = CpuMatrix.from_npa(embd_rows_indxs)
@@ -784,8 +781,8 @@ class TestMatrix(TestCase):
             embd_rows_indxs_gpu = GpuMatrix.from_npa(embd_rows_indxs)
             dense_matrices_gpu = [GpuMatrix.from_npa(each) for each in dense_matrices]
 
-            embd_matrix_cpu.slice_rows_batch(self.cpu_context, embd_rows_indxs_cpu, dense_matrices_cpu, reverse)
-            embd_matrix_gpu.slice_rows_batch(self.gpu_context, embd_rows_indxs_gpu, dense_matrices_gpu, reverse)
+            embd_matrix_cpu.slice_rows_batch(self.cpu_context, embd_rows_indxs_cpu, dense_matrices_cpu)
+            embd_matrix_gpu.slice_rows_batch(self.gpu_context, embd_rows_indxs_gpu, dense_matrices_gpu)
 
             for m_cpu, m_gpu in izip(dense_matrices_cpu, dense_matrices_gpu):
                 if not np.allclose(m_cpu.to_host(), m_gpu.to_host()):
@@ -887,3 +884,34 @@ class TestMatrix(TestCase):
                      np.isclose(dropout_prob_gpu, dropout_prob, atol=1e-03))
 
         self.assertGreater(sum(r), int(0.9 * self.N))
+
+    def test_sliced_rows_batch_scaled_add(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            m = []
+            K = self.rng.random_integers(a.shape[0])
+            indxs = []
+            for _ in xrange(self.rng.random_integers(100)):
+                m.append(TestMatrix.get_random_array((K, a.shape[1])))
+                indxs.append(self.rng.choice(a.shape[0], K))
+            indxs = np.array(indxs, np.int32).T
+            alpha = 2 * self.rng.rand(1)[0] - 1
+
+            a_cpu = CpuMatrix.from_npa(a)
+            m_cpu = [CpuMatrix.from_npa(e) for e in m]
+            indxs_cpu = CpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a)
+            m_gpu = [GpuMatrix.from_npa(e) for e in m]
+            indxs_gpu = GpuMatrix.from_npa(indxs)
+
+            a_cpu.sliced_rows_batch_scaled_add(self.cpu_context, indxs_cpu, alpha, m_cpu)
+            a_gpu.sliced_rows_batch_scaled_add(self.gpu_context, indxs_gpu, alpha, m_gpu)
+
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-5))
+
+            del a_gpu
+            del indxs_gpu
+            del m_gpu
+
+        self.assertEqual(sum(r), self.N)

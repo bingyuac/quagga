@@ -315,17 +315,18 @@ def slice_rows_batch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nr
     cudart.check_cuda_status(status)
 
 
-gpu_matrix_kernels._reverseSliceRowsBatch.restype = cudart.ct_cuda_error
-gpu_matrix_kernels._reverseSliceRowsBatch.argtypes = [cudart.ct_cuda_stream,
-                                                      ct.POINTER(ct.c_int),
-                                                      ct.c_int,
-                                                      ct.c_int,
-                                                      ct.POINTER(ct.c_float),
-                                                      ct.c_int,
-                                                      ct.c_int,
-                                                      ct.POINTER(ct.POINTER(ct.c_float))]
-def reverse_slice_rows_batch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices):
-    status = gpu_matrix_kernels._reverseSliceRowsBatch(stream, embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices)
+gpu_matrix_kernels._slicedRowsBatchScaledAdd.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._slicedRowsBatchScaledAdd.argtypes = [cudart.ct_cuda_stream,
+                                                         ct.POINTER(ct.c_int),
+                                                         ct.c_int,
+                                                         ct.c_int,
+                                                         ct.c_float,
+                                                         ct.POINTER(ct.POINTER(ct.c_float)),
+                                                         ct.c_int,
+                                                         ct.c_int,
+                                                         ct.POINTER(ct.c_float)]
+def sliced_rows_batch_scaled_add(stream, embd_rows_indxs, nrows, ncols, alpha, dense_matrices, embd_nrows, embd_ncols, embd_matrix):
+    status = gpu_matrix_kernels._slicedRowsBatchScaledAdd(stream, embd_rows_indxs, nrows, ncols, alpha, dense_matrices, embd_nrows, embd_ncols, embd_matrix)
     cudart.check_cuda_status(status)
 
 

@@ -5,7 +5,7 @@ from quagga.connector import Connector
 
 
 class SequentialEmbeddingBlock(object):
-    def __init__(self, embedding_init, indexes, learning=True, reverse=False, device_id=None):
+    def __init__(self, embedding_init, indexes, learning=True, device_id=None):
         self.embedding = Matrix.from_npa(embedding_init(), device_id=device_id)
         self.context = Context(device_id)
         device_id = self.context.device_id
@@ -16,20 +16,17 @@ class SequentialEmbeddingBlock(object):
             self.output.append(output)
         self.output = MatrixList(self.output)
         if learning:
-            self.dL_embedding = Matrix.empty(indexes.nelems, self.embedding.ncols, device_id=device_id)
+            self.dL_embedding = None
         self.indexes = indexes.register_usage(self.context)
-        self.reverse = reverse
 
     def fprop(self):
         self.output.set_length(self.indexes.ncols)
-        self.embedding.slice_rows_batch(self.context, self.indexes, self.output, self.reverse)
+        self.embedding.slice_rows_batch(self.context, self.indexes, self.output)
         for output in self.output:
             output.fprop()
 
     def bprop(self):
-        self.dL_embedding.nrows = self.indexes.nelems
-        matrices = [e.backward_matrix for e in self.output][::(-1 if self.reverse else 1)]
-        self.dL_embedding.assign_vstack(self.context, matrices)
+        self.dL_embedding = [e.backward_matrix for e in self.output]
 
     @property
     def params(self):

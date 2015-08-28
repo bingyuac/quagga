@@ -74,13 +74,14 @@ __global__  void sliceRowsBatch(const int* embd_rows_indxs,
 }
 
 
-__global__  void reverseSliceRowsBatch(const int* embd_rows_indxs,
-									   int nrows,
-									   int ncols,
-							    	   const float* __restrict__ embd_matrix,
-							    	   int embd_nrows,
-							    	   int embd_ncols,
-							    	   float* __restrict__ dense_matrices[]) {
+__global__  void slicedRowsBatchScaledAdd(const int* embd_rows_indxs,
+										  int nrows,
+										  int ncols,
+										  float alpha,
+							    		  const float* __restrict__ dense_matrices[],
+							    		  int embd_nrows,
+							    		  int embd_ncols,
+							    		  float* __restrict__ embd_matrix) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * embd_ncols;
@@ -90,10 +91,10 @@ __global__  void reverseSliceRowsBatch(const int* embd_rows_indxs,
 	for (int i = start_i; i < total_nelems; i += nthreads) {
 		k = i / nelems;
 		dense_offset = i % nelems;
-		embd_row_idx = embd_rows_indxs[(ncols - 1 - k) * nrows + i % nrows];
+		embd_row_idx = embd_rows_indxs[k * nrows + i % nrows];
 		embd_col_idx = dense_offset / nrows;
 		embd_offset = embd_col_idx * embd_nrows + embd_row_idx;
-		dense_matrices[k][dense_offset] = embd_matrix[embd_offset];
+		atomicAdd(embd_matrix + embd_offset, alpha * dense_matrices[k][dense_offset]);
 	}
 }
 
@@ -604,17 +605,17 @@ extern "C" {
         return cudaGetLastError();
 	}
 
-
-	cudaError_t _reverseSliceRowsBatch(cudaStream_t stream,
-									   const int* embd_rows_indxs,
-									   int nrows,
-									   int ncols,
-								       const float* __restrict__ embd_matrix,
-								       int embd_nrows,
-								       int embd_ncols,
-								       float* __restrict__ dense_matrices[]) {
+	cudaError_t _slicedRowsBatchScaledAdd(cudaStream_t stream,
+									      const int* embd_rows_indxs,
+										  int nrows,
+										  int ncols,
+										  float alpha,
+							    		  const float* __restrict__ dense_matrices[],
+							    		  int embd_nrows,
+							    		  int embd_ncols,
+							    		  float* __restrict__ embd_matrix) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * embd_ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-        reverseSliceRowsBatch<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embd_rows_indxs, nrows, ncols, embd_matrix, embd_nrows, embd_ncols, dense_matrices);
+        slicedRowsBatchScaledAdd<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embd_rows_indxs, nrows, ncols, alpha, dense_matrices, embd_nrows, embd_ncols, embd_matrix);
         return cudaGetLastError();
 	}
 

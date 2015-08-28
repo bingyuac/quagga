@@ -278,7 +278,7 @@ class CpuMatrix(object):
     def sub(self, context, a):
         self.add_scaled(context, -1.0, a)
 
-    def sliced_add_scaled(self, context, column_indxs, alpha, a):
+    def sliced_columns_add_scaled(self, context, column_indxs, alpha, a):
         """
         self[column_indxs] += alpha * a
         """
@@ -360,13 +360,19 @@ class CpuMatrix(object):
         for m in matrices:
             m.npa[...] = a.npa
 
-    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices, reverse=False):
+    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
         n = embd_rows_indxs.ncols
         for i in xrange(n):
-            if reverse:
-                dense_matrices[i].npa[...] = self.npa[embd_rows_indxs.npa[:, n-1-i]]
-            else:
-                dense_matrices[i].npa[...] = self.npa[embd_rows_indxs.npa[:, i]]
+            dense_matrices[i].npa[...] = self.npa[embd_rows_indxs.npa[:, i]]
+
+    def sliced_rows_batch_scaled_add(self, context, embd_rows_indxs, alpha, dense_matrices):
+        """
+        for k in range(K):
+            self[column_indxs[:, k]] += alpha * dense_matrices[k]
+        """
+        for k, m in enumerate(dense_matrices):
+            for i, idx in enumerate(embd_rows_indxs.npa[:, k]):
+                self.npa[idx] += alpha * m.npa[i]
 
     @staticmethod
     def get_random_generator(seed):

@@ -465,18 +465,18 @@ class GpuMatrix(object):
     def sub(self, context, a):
         self.add_scaled(context, ct.c_float(-1.0), a)
 
-    def sliced_add_scaled(self, context, column_indxs, alpha, a):
+    def sliced_columns_add_scaled(self, context, column_indxs, alpha, a):
         """
         self[column_indxs] += alpha * a
         """
         context.activate()
         gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha, a.data, column_indxs.data, self.data)
 
-    def sliced_add(self, context, column_indxs, a):
+    def sliced_columns_add(self, context, column_indxs, a):
         """
         self[column_indxs] += a
         """
-        self.sliced_add_scaled(context, column_indxs, 1.0, a)
+        self.sliced_columns_add_scaled(context, column_indxs, 1.0, a)
 
     def hprod(self, context, a):
         """
@@ -572,17 +572,27 @@ class GpuMatrix(object):
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
         gpu_matrix_kernels.sequentially_tile(context.cuda_stream, a.nelems, a.data, device_pointer, n)
 
-    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices, reverse=False):
+    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
         context.activate()
         n = len(dense_matrices)
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in dense_matrices))
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
-        if reverse:
-            gpu_matrix_kernels.reverse_slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
-        else:
-            gpu_matrix_kernels.slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
+        gpu_matrix_kernels.slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
+
+    def sliced_rows_batch_scaled_add(self, context, embd_rows_indxs, alpha, dense_matrices):
+        """
+        for k in range(K):
+            self[column_indxs[:, k]] += alpha * dense_matrices[k]
+        """
+        context.activate()
+        n = len(dense_matrices)
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in dense_matrices))
+        device_pointer = _get_temp_memory(context, n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        gpu_matrix_kernels.sliced_rows_batch_scaled_add(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, alpha, device_pointer, self.nrows, self.ncols, self.data)
 
     @staticmethod
     def get_random_generator(seed):
