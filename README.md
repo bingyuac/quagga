@@ -42,3 +42,4 @@
 - [ ] Think about dropout and scaled layer It should not take to many memory, you should write a mechanism for this
 - [ ] Add broadcasting to Matrix Operations
 - [ ] Check fprop for output variables in the each block fprop function
+- [ ] There are sometimes a very nasty bugs connected with using matrix when it is not calculated completely you should always keep an eye on a proper synchronization

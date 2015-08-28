@@ -6,9 +6,9 @@ from quagga.connector import Connector
 
 class SequentialEmbeddingBlock(object):
     def __init__(self, embedding_init, indexes, learning=True, device_id=None):
-        self.embedding = Matrix.from_npa(embedding_init(), device_id=device_id)
         self.context = Context(device_id)
         device_id = self.context.device_id
+        self.embedding = Matrix.from_npa(embedding_init(), device_id=device_id)
         self.output = []
         for i in xrange(indexes.ncols):
             output = Matrix.empty(indexes.nrows, self.embedding.ncols, device_id=device_id)

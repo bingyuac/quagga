@@ -43,4 +43,4 @@ class SequentialMeanPoolingBlock(object):
         n = len(self._matrices)
         dL_doutput = self.output.backward_matrix
         dL_doutput.scale(self.context, ct.c_float(1.0 / n))
-        Matrix.sequentially_tile(self.context, self.dL_dmatrices, dL_doutput)
+        Matrix.sequentially_tile(self.context, self.dL_dmatrices[:n], dL_doutput)
