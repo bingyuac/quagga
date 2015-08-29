@@ -567,7 +567,7 @@ class TestMatrix(TestCase):
 
             b_cpu.slice_columns(self.cpu_context, column_indxs_cpu, a_cpu)
             b_gpu.slice_columns(self.gpu_context, column_indxs_gpu, a_gpu)
-            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)
 
@@ -913,5 +913,26 @@ class TestMatrix(TestCase):
             del a_gpu
             del indxs_gpu
             del m_gpu
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_slice_rows(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array((a.shape[0]+10000, a.shape[1]))
+            indxs = self.rng.choice(b.shape[0], a.shape[0]).astype(dtype=np.int32)
+            indxs = indxs.reshape((len(indxs), 1))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            row_indxs_cpu = CpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            row_indxs_gpu = GpuMatrix.from_npa(indxs)
+
+            b_cpu.slice_rows(self.cpu_context, row_indxs_cpu, a_cpu)
+            b_gpu.slice_rows(self.gpu_context, row_indxs_gpu, a_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)

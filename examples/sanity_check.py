@@ -6,8 +6,8 @@ from quagga.blocks import FakeDataBlock
 from quagga.blocks import EmbeddingBlock
 from quagga.blocks import LogisticRegressionCe
 from quagga.optimizers import SgdOptimizer
-from quagga.optimizers.policy import FixedLearningRatePolicy
-from quagga.optimizers.interruption import ValidationInterruption
+from quagga.optimizers.policies import FixedLearningRatePolicy
+from quagga.optimizers.observers import ValidationInterruption
 
 
 if __name__ == '__main__':
@@ -24,5 +24,5 @@ if __name__ == '__main__':
     model = Model(data_block, embd_block, ravel_block, dense_block, log_reg)
     learning_rate_policy = FixedLearningRatePolicy(0.1)
     sgd = SgdOptimizer(20000, learning_rate_policy, model)
-    sgd.add_interruption(ValidationInterruption(1000, 1000, 'test.log', model))
+    sgd.add_observer(ValidationInterruption(1000, 1000, 'test.log', model))
     sgd.optimize()

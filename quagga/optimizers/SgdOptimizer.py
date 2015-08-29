@@ -9,43 +9,30 @@ class SgdOptimizer(object):
         self.model = model
         self.param_u_contexts, self.params = zip(*self.model.params)
         self.grad_o_contexts, self.grads = zip(*self.model.grads)
-        self.interruptions = []
-        self.c_dtype = ct.c_float
-
-    @property
-    def learning_rate(self):
-        learning_rate = self.c_dtype()
-        learning_rate.value = -self.learning_rate_policy.learning_rate.value
-        return learning_rate
+        self.oververs = []
 
     def optimize(self):
-        import time
-        total_optimize_time = 0.0
-        total_valid_time = 0.0
-        t = time.time()
-        for i in xrange(self.max_iter):
+        optimize_time = 0.0
+        for _ in xrange(self.max_iter):
             self.model.fprop()
             self.model.bprop()
             self.update()
             self.learning_rate_policy.update()
-            for interruption in self.interruptions:
-                total_optimize_time += time.time() - t
-                t = time.time()
-                if i % interruption.period == 0:
-                    interruption.interrupt(self.model)
-                total_valid_time += time.time() - t
-                t = time.time()
-        print total_optimize_time
-        print total_valid_time
+            for observer in self.oververs:
+                observer.notify()
+        print optimize_time
 
     def update(self):
-        learning_rate = self.learning_rate
+        learning_rate = ct.c_float(-self.learning_rate_policy.learning_rate)
         for param_u_context, param, grad_o_context, grad in izip(self.param_u_contexts, self.params, self.grad_o_contexts, self.grads):
             param_u_context.wait(grad_o_context)
-            if type(grad) is tuple:
-                param.sliced_columns_add_scaled(param_u_context, grad[0], learning_rate, grad[1])
+            if isinstance(grad, tuple):
+                if isinstance(grad[1], list):
+                    param.sliced_rows_batch_scaled_add(param_u_context, grad[0], learning_rate, grad[1])
+                else:
+                    raise ValueError('TODO!')
             else:
                 param.add_scaled(param_u_context, learning_rate, grad)
 
-    def add_interruption(self, interruption):
-        self.interruptions.append(interruption)
+    def add_observer(self, observer):
+        self.oververs.append(observer)

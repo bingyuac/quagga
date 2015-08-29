@@ -1,2 +1,0 @@
-from quagga.optimizers.interruption.SnapshotInterruption import SnapshotInterruption
-from quagga.optimizers.interruption.ValidationInterruption import ValidationInterruption

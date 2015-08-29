@@ -50,6 +50,28 @@ __global__  void reverseSliceColumns(int nrows,
 }
 
 
+__global__  void sliceRows(int embedding_matrix_nrows,
+						   const int* __restrict__ embedding_row_indxs,
+						   const float* __restrict__ embedding_matrix,
+						   int nrows,
+						   int ncols,
+						   float* __restrict__ dense_matrix) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	int dense_column_idx;
+	int row_idx;
+	int embedding_offset;
+	for (int i = start_i; i < nelems; i += nthreads) {
+		dense_column_idx = i / nrows;
+		row_idx = i % nrows;
+		embedding_offset = dense_column_idx * embedding_matrix_nrows + embedding_row_indxs[row_idx];
+		dense_matrix[i] = embedding_matrix[embedding_offset];
+	}
+}
+
+
 __global__  void sliceRowsBatch(const int* embd_rows_indxs,
 								int nrows,
 								int ncols,
@@ -588,6 +610,19 @@ extern "C" {
 							  		 float* __restrict__ dense_matrix) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
 		reverseSliceColumns<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
+		return cudaGetLastError();
+	}
+
+
+	cudaError_t _sliceRows(cudaStream_t stream,
+						   int embedding_matrix_nrows,
+						   const int* __restrict__ embedding_row_indxs,
+						   const float* __restrict__ embedding_matrix,
+						   int nrows,
+						   int ncols,
+						   float* __restrict__ dense_matrix) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+		sliceRows<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix);
 		return cudaGetLastError();
 	}
 

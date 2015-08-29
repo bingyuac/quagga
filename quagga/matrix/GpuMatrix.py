@@ -259,13 +259,15 @@ class GpuMatrix(object):
             raise ValueError('Invalid axis!')
 
     def slice_columns(self, context, column_indxs, out, reverse=False):
-        if any(context.device_id != device_id for device_id in [self.device_id, column_indxs.device_id, out.device_id]):
-            raise ValueError('Matrices have to be on the same device as context!')
         context.activate()
         if reverse:
             gpu_matrix_kernels.reverse_slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
         else:
             gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
+
+    def slice_rows(self, context, row_indxs, out):
+        context.activate()
+        gpu_matrix_kernels.slice_rows(context.cuda_stream, self.nrows, row_indxs.data, self.data, out.nrows, out.ncols, out.data)
 
     def assign_hstack(self, context, matrices):
         ncols = 0

@@ -192,6 +192,19 @@ def reverse_slice_columns(stream, nrows, ncols, embedding_column_indxs, embeddin
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._sliceRows.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._sliceRows.argtypes = [cudart.ct_cuda_stream,
+                                          ct.c_int,
+                                          ct.POINTER(ct.c_int),
+                                          ct.POINTER(ct.c_float),
+                                          ct.c_int,
+                                          ct.c_int,
+                                          ct.POINTER(ct.c_float)]
+def slice_rows(stream, embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix):
+    status = gpu_matrix_kernels._sliceRows(stream, embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._verticalStack.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._verticalStack.argtypes = [cudart.ct_cuda_stream,
                                               ct.c_int,

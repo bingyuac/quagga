@@ -1,0 +1,2 @@
+from quagga.optimizers.policies.FixedMomentumPolicy import FixedMomentumPolicy
+from quagga.optimizers.policies.FixedLearningRatePolicy import FixedLearningRatePolicy

@@ -121,7 +121,10 @@ class CpuMatrix(object):
         self.npa[...] = np.repeat(a.npa, n, axis)
 
     def slice_columns(self, context, column_indxs, out):
-        out.npa = self.npa[:, column_indxs.npa.flatten()]
+        out.npa[...] = self.npa[:, column_indxs.npa.flatten()]
+
+    def slice_rows(self, context, row_indxs, out):
+        out.npa[...] = self.npa[row_indxs.npa.flatten()]
 
     def assign_hstack(self, context, matrices):
         ncols = 0
