@@ -3,10 +3,12 @@ import gzip
 import cPickle
 import numpy as np
 from urllib import urlretrieve
+from quagga import initializers
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.connector import Connector
 from sklearn.preprocessing import OneHotEncoder
+from quagga.blocks import DotBlock, NonlinearityBlock, DropoutBlock, SoftmaxCeBlock
 
 
 def load_mnis_dataset():
@@ -59,3 +61,25 @@ class MnistMiniBatchesGenerator(object):
             self.x_output.fprop()
             self.y_output.fprop()
             self.i += 1
+
+
+if __name__=='__main__':
+    train_x, train_y, _, _, _, _ = load_mnis_dataset()
+    train_data_block = MnistMiniBatchesGenerator(x=train_x,
+                                                 y=train_y,
+                                                 batch_size=128,
+                                                 randomize=True,
+                                                 infinity_generator=True,
+                                                 device_id=0)
+
+    first_dot_block = DotBlock(W_init=initializers.Orthogonal(784, 500),
+                               b_init=initializers.Constant(1, 500),
+                               x=train_data_block.x_output,
+                               device_id=0)
+    first_nonl_block = NonlinearityBlock(x, nonlinearity, learning=True, device_id=None)
+    first_dropout_block = DropoutBlock()
+    second_dot_block = DotBlock(W_init, b_init, x, device_id=0)
+    second_nonl_block = NonlinearityBlock()
+    second_dropout_block = DropoutBlock()
+    sce_dot_block = DotBlock(W_init, b_init, x, device_id=0)
+    sce_block = = SoftmaxCeBlock()

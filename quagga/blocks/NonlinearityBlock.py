@@ -4,18 +4,17 @@ from quagga.connector import Connector
 
 
 class NonlinearityBlock(object):
-    def __init__(self, x, nonlinearity, learning=True, device_id=None):
+    def __init__(self, x, nonlinearity, device_id=None):
         self.context = Context(device_id)
         device_id = self.context.device_id
-        output = Matrix.empty_like(x, device_id)
-        self.output = Connector(output, self.context, self.context if learning else None)
-        self.learning = learning
-        if learning:
+        self.learning = x.bpropagable
+        if self.learning:
             self._df_dpref = Matrix.empty_like(x, device_id)
-            if x.bpropagable:
-                self.x, self.dL_dx = x.register_usage(self.context, self.context)
+            self.x, self.dL_dx = x.register_usage(self.context, self.context)
         else:
             self.x = x.register_usage(self.context)
+        output = Matrix.empty_like(x, device_id)
+        self.output = Connector(output, self.context, self.context if self.learning else None)
         if nonlinearity == 'sigmoid':
             self.f = self.x.sigmoid
         elif nonlinearity == 'tanh':
