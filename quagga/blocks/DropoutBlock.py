@@ -14,19 +14,22 @@ class DropoutBlock(object):
             self.x = x.register_usage(self.context)
         self.output = Matrix.empty_like(x, self.context.device_id)
         self.output = Connector(self.output, self.context, self.context if x.bpropagable else None)
+        self.training_mode = True
 
     def fprop(self):
-        self.x.dropout(self.context, self.generator, self.dropout_prob, self.output)
+        if self.training_mode:
+            self.x.dropout(self.context, self.generator, self.dropout_prob, self.output)
+        else:
+            self.x.scale(self.context, 1.0 - self.dropout_prob, self.output)
         self.output.fprop()
 
     def bprop(self):
-        dL_doutput = self.output.backward_matrix
-        dL_doutput.mask_zeros(self.context, self.output, self.dL_dx)
+        if hasattr(self, 'dL_dx'):
+            dL_doutput = self.output.backward_matrix
+            dL_doutput.mask_zeros(self.context, self.output, self.dL_dx)
 
-    @property
-    def params(self):
-        return []
+    def set_training_mode(self):
+        self.training_mode = True
 
-    @property
-    def grads(self):
-        return []
+    def set_testing_mode(self):
+        self.training_mode = False

@@ -868,6 +868,7 @@ extern "C" {
         return cudaGetLastError();
 	}
 
+
 	cudaError_t _assignScaledSubtraction(cudaStream_t stream,
                       		   	  	  	 int nelems,
 							      	  	 float alpha,

@@ -1,3 +1,4 @@
+from itertools import izip
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.matrix import MatrixList
@@ -5,14 +6,19 @@ from quagga.connector import Connector
 
 
 class LstmRnnBlock(object):
-    def __init__(self, W_init, R_init, x, mask=None, reverse=False, learning=True, device_id=None):
+    def __init__(self,
+                 W_z_init, W_i_init, W_f_init, W_o_init,
+                 R_z_init, R_i_init, R_f_init, R_o_init,
+                 x, mask=None, reverse=False, learning=True, device_id=None):
         """
         TODO
         """
-        if W_init.ncols != R_init.ncols:
-            raise ValueError('W and R must have the same number of columns!')
-        if R_init.nrows != R_init.ncols:
-            raise ValueError('R must be a square matrix!')
+        for W_init, R_init in izip([W_z_init, W_i_init, W_f_init, W_o_init],
+                                   [R_z_init, R_i_init, R_f_init, R_o_init]):
+            if W_init.ncols != R_init.ncols:
+                raise ValueError('W and R must have the same number of columns!')
+            if R_init.nrows != R_init.ncols:
+                raise ValueError('R must be a square matrix!')
 
         input_dim = W_init.nrows
         hidden_dim = R_init.nrows
@@ -21,13 +27,13 @@ class LstmRnnBlock(object):
         self.max_input_sequence_len = len(x)
         self.reverse = reverse
 
-        W = [Matrix.from_npa(W_init(), device_id=device_id) for _ in xrange(4)]
+        W = [Matrix.from_npa(init(), device_id=device_id) for init in [W_z_init, W_i_init, W_f_init, W_o_init]]
         self.W = Matrix.empty(input_dim, 4 * hidden_dim, W[0].dtype, device_id)
         self.W.assign_hstack(self.context, W)
         if learning:
             self.dL_dW = Matrix.empty_like(self.W, device_id)
 
-        R = [Matrix.from_npa(R_init(), device_id=device_id) for _ in xrange(4)]
+        R = [Matrix.from_npa(init(), device_id=device_id) for init in [R_z_init, R_i_init, R_f_init, R_o_init]]
         self.R = Matrix.empty(hidden_dim, 4 * hidden_dim, R[0].dtype, device_id)
         self.R.assign_hstack(self.context, R)
         if learning:

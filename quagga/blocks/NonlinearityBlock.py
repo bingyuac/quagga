@@ -23,10 +23,11 @@ class NonlinearityBlock(object):
             self.f = self.x.relu
         else:
             raise ValueError('TODO!')
+        self.training_mode = True
 
     @property
     def df_dpref(self):
-        if self.learning:
+        if self.training_mode and self.learning:
             return self._df_dpref
 
     def fprop(self):
@@ -39,10 +40,8 @@ class NonlinearityBlock(object):
             dL_df = self.output.backward_matrix
             self.dL_dx.assign_hprod(self.context, dL_df, self.df_dpref)
 
-    @property
-    def params(self):
-        return []
+    def set_training_mode(self):
+        self.training_mode = True
 
-    @property
-    def grads(self):
-        return []
+    def set_testing_mode(self):
+        self.training_mode = False

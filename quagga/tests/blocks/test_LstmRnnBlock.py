@@ -15,6 +15,9 @@ from quagga.blocks import SigmoidCeBlock
 from quagga.blocks import SequentialMeanPoolingBlock
 
 
+# TODO fix tests connected with new initialization
+
+
 class TestLstmRnnBlock(TestCase):
     @classmethod
     def setUpClass(cls):

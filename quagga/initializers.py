@@ -13,7 +13,7 @@ class Constant(object):
         self.val = val
 
     def __call__(self):
-        c = np.empty(self.shape)
+        c = np.empty(self.shape, dtype=np.float32, order='F')
         c.fill(self.val)
         return c
 
@@ -27,7 +27,8 @@ class Orthogonal(object):
     def __call__(self):
         a = rng.normal(0.0, 1.0, self.shape)
         u, _, v = np.linalg.svd(a, full_matrices=False)
-        return u if u.shape == self.shape else v
+        a = u if u.shape == self.shape else v
+        return np.asfortranarray(a, np.float32)
 
 
 class Uniform(object):
@@ -53,4 +54,5 @@ class Uniform(object):
             init_range = (-self.init_range, self.init_range)
         else:
             init_range = self.init_range
-        return rng.uniform(low=init_range[0], high=init_range[1], size=self.shape)
+        a = rng.uniform(low=init_range[0], high=init_range[1], size=self.shape)
+        return np.asfortranarray(a, np.float32)

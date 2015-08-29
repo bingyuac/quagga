@@ -1,5 +1,6 @@
 import ctypes as ct
 from itertools import izip
+from quagga.cuda import cudart
 
 
 class SgdOptimizer(object):
@@ -12,15 +13,15 @@ class SgdOptimizer(object):
         self.oververs = []
 
     def optimize(self):
-        optimize_time = 0.0
+        self.model.set_training_mode()
         for _ in xrange(self.max_iter):
+            cudart.cuda_device_synchronize()
             self.model.fprop()
             self.model.bprop()
             self.update()
             self.learning_rate_policy.update()
             for observer in self.oververs:
                 observer.notify()
-        print optimize_time
 
     def update(self):
         learning_rate = ct.c_float(-self.learning_rate_policy.learning_rate)

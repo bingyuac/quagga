@@ -1,14 +1,29 @@
 import os
 import gzip
+import json
 import cPickle
+import logging
 import numpy as np
+from quagga import Model
 from urllib import urlretrieve
-from quagga import initializers
 from quagga.matrix import Matrix
 from quagga.context import Context
+from collections import OrderedDict
 from quagga.connector import Connector
+from quagga.optimizers import SgdOptimizer
 from sklearn.preprocessing import OneHotEncoder
-from quagga.blocks import DotBlock, NonlinearityBlock, DropoutBlock, SoftmaxCeBlock
+from quagga.optimizers.observers import ValidLossTracker
+from quagga.optimizers.observers import TrainLossTracker
+from quagga.optimizers.policies import FixedLearningRatePolicy
+
+
+def get_logger():
+    logger = logging.getLogger('train_logger')
+    handler = logging.FileHandler('train.log', mode='w')
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s', '%d-%m-%Y %H:%M:%S'))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
 
 
 def load_mnis_dataset():
@@ -22,64 +37,86 @@ def load_mnis_dataset():
 
 
 class MnistMiniBatchesGenerator(object):
-    def __init__(self, x, y, batch_size, randomize, infinity_generator, device_id):
+    def __init__(self, train_x, train_y, valid_x, valid_y, batch_size, device_id):
         self.context = Context(device_id)
         device_id = self.context.device_id
 
-        self.x = Matrix.from_npa(x.astype(np.float32), device_id=device_id)
-        y = OneHotEncoder(dtype=np.float32, sparse=False).fit_transform(y[:, np.newaxis])
-        self.y = Matrix.from_npa(y, device_id=device_id)
+        self.train_x = Matrix.from_npa(train_x.astype(np.float32), device_id=device_id)
+        self.valid_x = Matrix.from_npa(valid_x.astype(np.float32), device_id=device_id)
+        one_hot_encoder = OneHotEncoder(dtype=np.float32, sparse=False)
+        one_hot_encoder.fit(train_y[:, np.newaxis])
+        train_y = one_hot_encoder.transform(train_y[:, np.newaxis])
+        valid_y = one_hot_encoder.transform(valid_y[:, np.newaxis])
+        self.train_y = Matrix.from_npa(train_y, device_id=device_id)
+        self.valid_y = Matrix.from_npa(valid_y, device_id=device_id)
         self.batch_size = batch_size
 
-        self.x_output = Matrix.empty(self.batch_size, self.x.ncols, device_id)
+        self.x_output = Matrix.empty(self.batch_size, self.train_x.ncols, device_id=device_id)
         self.x_output = Connector(self.x_output, self.context)
-        self.y_output = Matrix.empty(self.batch_size, self.y.ncols, device_id)
+        self.y_output = Matrix.empty(self.batch_size, self.train_y.ncols, device_id=device_id)
         self.y_output = Connector(self.y_output, self.context)
 
-        self.indices = np.arange(self.x.nrows, dtype=np.int32)
-        self.q_indices = Matrix.empty(self.batch_size, 1, 'int32', device_id)
-        self.randomize = randomize
-        if self.randomize:
-            self.rng = np.random.RandomState(42)
-            self.rng.shuffle(self.indices)
-        self.infinity_generator = infinity_generator
-        self.i = 0
+        self.train_indices = np.arange(self.train_x.nrows, dtype=np.int32)
+        self.valid_indices = np.arange(self.valid_x.nrows, dtype=np.int32)
+        self.q_indices = Matrix.empty(self.batch_size, 1, 'int', device_id=device_id)
+        self.rng = np.random.RandomState(42)
+        self.rng.shuffle(self.train_indices)
+        self.train_i = 0
+        self.valid_i = 0
+        self.training_mode = True
+
+    def set_training_mode(self):
+        self.training_mode = True
+
+    def set_testing_mode(self):
+        self.training_mode = False
 
     def fprop(self):
-        indices = self.indices[self.i * self.batch_size:(self.i + 1) * self.batch_size]
-        if len(indices) != self.batch_size:
-            self.i = 0
-            if not self.infinity_generator:
-                raise StopIteration()
-            elif self.randomize:
-                self.rng.shuffle(self.indices)
+        if self.training_mode:
+            indices = self.train_indices[self.batch_size * self.train_i:
+                                         self.batch_size * (self.train_i + 1)]
+            indices = np.asfortranarray(indices[:, np.newaxis])
+            self.train_i += 1
+            if len(indices) == self.batch_size:
+                self.q_indices.to_device(self.context, indices)
+                self.train_x.slice_rows(self.context, self.q_indices, self.x_output)
+                self.train_y.slice_rows(self.context, self.q_indices, self.y_output)
+                self.x_output.fprop()
+                self.y_output.fprop()
+            else:
+                self.train_i = 0
+                self.rng.shuffle(self.train_indices)
                 self.fprop()
         else:
-            self.q_indices.to_device(self.context, indices)
-            self.x.slice_rows(self.context, self.q_indices, self.x_output)
-            self.y.slice_rows(self.context, self.q_indices, self.y_output)
-            self.x_output.fprop()
-            self.y_output.fprop()
-            self.i += 1
+            indices = self.valid_indices[self.batch_size * self.valid_i:
+                                         self.batch_size * (self.valid_i + 1)]
+            indices = np.asfortranarray(indices[:, np.newaxis])
+            self.valid_i += 1
+            if len(indices) == self.batch_size:
+                self.q_indices.to_device(self.context, indices)
+                self.valid_x.slice_rows(self.context, self.q_indices, self.x_output)
+                self.valid_y.slice_rows(self.context, self.q_indices, self.y_output)
+                self.x_output.fprop()
+                self.y_output.fprop()
+            else:
+                self.valid_i = 0
+                raise StopIteration()
 
 
-if __name__=='__main__':
-    train_x, train_y, _, _, _, _ = load_mnis_dataset()
-    train_data_block = MnistMiniBatchesGenerator(x=train_x,
-                                                 y=train_y,
-                                                 batch_size=128,
-                                                 randomize=True,
-                                                 infinity_generator=True,
-                                                 device_id=0)
-
-    first_dot_block = DotBlock(W_init=initializers.Orthogonal(784, 500),
-                               b_init=initializers.Constant(1, 500),
-                               x=train_data_block.x_output,
-                               device_id=0)
-    first_nonl_block = NonlinearityBlock(x, nonlinearity, learning=True, device_id=None)
-    first_dropout_block = DropoutBlock()
-    second_dot_block = DotBlock(W_init, b_init, x, device_id=0)
-    second_nonl_block = NonlinearityBlock()
-    second_dropout_block = DropoutBlock()
-    sce_dot_block = DotBlock(W_init, b_init, x, device_id=0)
-    sce_block = = SoftmaxCeBlock()
+if __name__ == '__main__':
+    train_x, train_y, valid_x, valid_y, _, _ = load_mnis_dataset()
+    data_block = MnistMiniBatchesGenerator(train_x, train_y, valid_x, valid_y, batch_size=1024, device_id=0)
+    with open('mnist.json') as f:
+        model_definition = json.load(f, object_pairs_hook=OrderedDict)
+    model = Model(model_definition, data_block)
+    logger = get_logger()
+    learning_rate_policy = FixedLearningRatePolicy(0.01)
+    # train_loss_tracker = TrainLossTracker(model, 1000, logger)
+    # valid_loss_tracker = ValidLossTracker(model, 2000, logger)
+    sgd_optimizer = SgdOptimizer(10000, learning_rate_policy, model)
+    # sgd_optimizer.add_observer(train_loss_tracker)
+    # sgd_optimizer.add_observer(valid_loss_tracker)
+    import time
+    t = time.time()
+    sgd_optimizer.optimize()
+    print time.time() - t

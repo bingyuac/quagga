@@ -31,11 +31,3 @@ class SoftmaxCeBlock(object):
         true_labels = self.true_labels.to_host()
         probs = self.probs.to_host()
         return - np.mean(np.sum(true_labels * np.log(probs + 1e-20), axis=1))
-
-    @property
-    def params(self):
-        return []
-
-    @property
-    def grads(self):
-        return []

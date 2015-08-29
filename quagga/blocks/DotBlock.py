@@ -24,7 +24,6 @@ class DotBlock(object):
                 self.x = x.register_usage(self.context)
         else:
             self.x = x.register_usage(self.context)
-        self.learning = learning
 
     def fprop(self):
         self.output.assign_dot(self.context, self.x, self.W)
