@@ -1,6 +1,5 @@
 import ctypes as ct
 from itertools import izip
-from quagga.cuda import cudart
 
 
 class SgdOptimizer(object):
@@ -15,7 +14,6 @@ class SgdOptimizer(object):
     def optimize(self):
         self.model.set_training_mode()
         for _ in xrange(self.max_iter):
-            cudart.cuda_device_synchronize()
             self.model.fprop()
             self.model.bprop()
             self.update()

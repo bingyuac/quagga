@@ -1,4 +1,7 @@
 {
+  "data_block": {
+    "blocking_context": ["first_dot_block", "context"]
+  },
   "input_data_dropout_block": {
     "type": "DropoutBlock",
     "x": {"data_block": "x_output"},

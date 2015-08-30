@@ -571,6 +571,31 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
+    def test_slice_columns_and_transpose(self):
+        r = []
+        for i in xrange(self.N):
+            # a = TestMatrix.get_random_array()
+            # b = TestMatrix.get_random_array((a.shape[1], a.shape[0]+10000))
+
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array((a.shape[1], a.shape[0]+10000))
+
+            indxs = self.rng.choice(b.shape[1], a.shape[0]).astype(dtype=np.int32)
+            indxs = indxs.reshape((1, len(indxs)))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            column_indxs_cpu = CpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            column_indxs_gpu = GpuMatrix.from_npa(indxs)
+
+            b_cpu.slice_columns_and_transpose(self.cpu_context, column_indxs_cpu, a_cpu)
+            b_gpu.slice_columns_and_transpose(self.gpu_context, column_indxs_gpu, a_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_assign_hstack(self):
         r = []
         for i in xrange(self.N):

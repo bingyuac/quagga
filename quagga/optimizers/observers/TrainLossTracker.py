@@ -14,4 +14,5 @@ class TrainLossTracker(object):
         if self.iteration % self.period == 0 and self.iteration != 0:
             self.logger.info('Iteration {}: train loss: {:.4f}'.
                              format(self.iteration, np.mean(self.losses)))
+            self.losses = []
         self.iteration += 1

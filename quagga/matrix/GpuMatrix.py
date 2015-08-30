@@ -265,6 +265,10 @@ class GpuMatrix(object):
         else:
             gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 
+    def slice_columns_and_transpose(self, context, column_indxs, out):
+        context.activate()
+        gpu_matrix_kernels.slice_columns_and_transpose(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
+
     def slice_rows(self, context, row_indxs, out):
         context.activate()
         gpu_matrix_kernels.slice_rows(context.cuda_stream, self.nrows, row_indxs.data, self.data, out.nrows, out.ncols, out.data)

@@ -1,9 +1,9 @@
 #include <algorithm>
 #include <cuda_runtime.h>
-
+#include <stdio.h>
 
 #define MAX_NUM_THREADS_PER_BLOCK 512
-#define MAX_NUM_BLOCKS_PER_KERNEL 64
+#define MAX_NUM_BLOCKS_PER_KERNEL 128
 
 
 __global__  void sliceColumns(int nrows,
@@ -45,6 +45,28 @@ __global__  void reverseSliceColumns(int nrows,
 		row_idx = i % nrows;
 		embedding_offset = embedding_column_indxs[dense_column_idx] * nrows + row_idx;
 		dense_offset = nrows * (ncols - 1 - dense_column_idx) + row_idx;
+		dense_matrix[dense_offset] = embedding_matrix[embedding_offset];
+	}
+}
+
+
+__global__  void sliceColumnsAndTranspose(int nrows,
+							  			  int ncols,
+							  			  const int* __restrict__ embedding_column_indxs,
+							  			  const float* __restrict__ embedding_matrix,
+							  			  float* __restrict__ dense_matrix) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+	int dense_row_idx;
+	int dense_col_idx;
+	int dense_offset;
+	int embedding_offset;
+	for (int i = start_i; i < nelems; i += nthreads) {
+		dense_row_idx = i / ncols;
+		dense_col_idx = i % ncols;
+		dense_offset = dense_col_idx * nrows + dense_row_idx;
+		embedding_offset = embedding_column_indxs[dense_row_idx] * ncols + dense_col_idx;
 		dense_matrix[dense_offset] = embedding_matrix[embedding_offset];
 	}
 }
@@ -610,6 +632,18 @@ extern "C" {
 							  		 float* __restrict__ dense_matrix) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
 		reverseSliceColumns<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
+		return cudaGetLastError();
+	}
+
+
+	cudaError_t _sliceColumnsAndTranspose(cudaStream_t stream,
+							  			  int nrows,
+							  			  int ncols,
+							  			  const int* __restrict__ embedding_column_indxs,
+							  			  const float* __restrict__ embedding_matrix,
+							  			  float* __restrict__ dense_matrix) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+		sliceColumnsAndTranspose<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
 		return cudaGetLastError();
 	}
 

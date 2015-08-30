@@ -10,6 +10,7 @@ class Model(object):
         self.data_block = data_block
         self.blocks = OrderedDict()
         self.blocks['data_block'] = data_block
+        blocking_block_name, blocking_context_attr_name = model_definition.popitem(last=False)[1]['blocking_context']
         h5_file = None
         for block_name, definition in model_definition.iteritems():
             kwargs = {}
@@ -32,6 +33,7 @@ class Model(object):
                 else:
                     kwargs[key] = value
             self.blocks[block_name] = BlockClass(**kwargs)
+        self.blocks['data_block'].blocking_context = getattr(self.blocks[blocking_block_name], blocking_context_attr_name)
         if h5_file:
             h5_file.close()
         self.blocks_names = self.blocks.keys()

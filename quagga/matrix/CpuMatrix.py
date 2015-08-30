@@ -123,6 +123,9 @@ class CpuMatrix(object):
     def slice_columns(self, context, column_indxs, out):
         out.npa[...] = self.npa[:, column_indxs.npa.flatten()]
 
+    def slice_columns_and_transpose(self, context, column_indxs, out):
+        out.npa[...] = self.npa[:, column_indxs.npa.flatten()].T
+
     def slice_rows(self, context, row_indxs, out):
         out.npa[...] = self.npa[row_indxs.npa.flatten()]
 

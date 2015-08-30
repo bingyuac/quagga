@@ -29,6 +29,7 @@ def get_logger():
 def load_mnis_dataset():
     filename = 'mnist.pkl.gz'
     if not os.path.exists(filename):
+        print 'dow'
         urlretrieve('http://deeplearning.net/data/mnist/mnist.pkl.gz', filename)
 
     with gzip.open(filename, 'rb') as f:
@@ -38,27 +39,27 @@ def load_mnis_dataset():
 
 class MnistMiniBatchesGenerator(object):
     def __init__(self, train_x, train_y, valid_x, valid_y, batch_size, device_id):
+        self.blocking_context = None
         self.context = Context(device_id)
         device_id = self.context.device_id
-
-        self.train_x = Matrix.from_npa(train_x.astype(np.float32), device_id=device_id)
-        self.valid_x = Matrix.from_npa(valid_x.astype(np.float32), device_id=device_id)
+        self.train_x = Matrix.from_npa(train_x.T.astype(np.float32), device_id=device_id)
+        self.valid_x = Matrix.from_npa(valid_x.T.astype(np.float32), device_id=device_id)
         one_hot_encoder = OneHotEncoder(dtype=np.float32, sparse=False)
         one_hot_encoder.fit(train_y[:, np.newaxis])
         train_y = one_hot_encoder.transform(train_y[:, np.newaxis])
         valid_y = one_hot_encoder.transform(valid_y[:, np.newaxis])
-        self.train_y = Matrix.from_npa(train_y, device_id=device_id)
-        self.valid_y = Matrix.from_npa(valid_y, device_id=device_id)
+        self.train_y = Matrix.from_npa(train_y.T, device_id=device_id)
+        self.valid_y = Matrix.from_npa(valid_y.T, device_id=device_id)
         self.batch_size = batch_size
 
-        self.x_output = Matrix.empty(self.batch_size, self.train_x.ncols, device_id=device_id)
+        self.x_output = Matrix.empty(self.batch_size, self.train_x.nrows, device_id=device_id)
         self.x_output = Connector(self.x_output, self.context)
-        self.y_output = Matrix.empty(self.batch_size, self.train_y.ncols, device_id=device_id)
+        self.y_output = Matrix.empty(self.batch_size, self.train_y.nrows, device_id=device_id)
         self.y_output = Connector(self.y_output, self.context)
 
-        self.train_indices = np.arange(self.train_x.nrows, dtype=np.int32)
-        self.valid_indices = np.arange(self.valid_x.nrows, dtype=np.int32)
-        self.q_indices = Matrix.empty(self.batch_size, 1, 'int', device_id=device_id)
+        self.train_indices = np.arange(self.train_x.ncols, dtype=np.int32)
+        self.valid_indices = np.arange(self.valid_x.ncols, dtype=np.int32)
+        self.q_indices = Matrix.empty(1, self.batch_size, 'int', device_id=device_id)
         self.rng = np.random.RandomState(42)
         self.rng.shuffle(self.train_indices)
         self.train_i = 0
@@ -79,8 +80,9 @@ class MnistMiniBatchesGenerator(object):
             self.train_i += 1
             if len(indices) == self.batch_size:
                 self.q_indices.to_device(self.context, indices)
-                self.train_x.slice_rows(self.context, self.q_indices, self.x_output)
-                self.train_y.slice_rows(self.context, self.q_indices, self.y_output)
+                self.context.wait(self.blocking_context)
+                self.train_x.slice_columns_and_transpose(self.context, self.q_indices, self.x_output)
+                self.train_y.slice_columns_and_transpose(self.context, self.q_indices, self.y_output)
                 self.x_output.fprop()
                 self.y_output.fprop()
             else:
@@ -94,8 +96,9 @@ class MnistMiniBatchesGenerator(object):
             self.valid_i += 1
             if len(indices) == self.batch_size:
                 self.q_indices.to_device(self.context, indices)
-                self.valid_x.slice_rows(self.context, self.q_indices, self.x_output)
-                self.valid_y.slice_rows(self.context, self.q_indices, self.y_output)
+                self.context.wait(self.blocking_context)
+                self.valid_x.slice_columns_and_transpose(self.context, self.q_indices, self.x_output)
+                self.valid_y.slice_columns_and_transpose(self.context, self.q_indices, self.y_output)
                 self.x_output.fprop()
                 self.y_output.fprop()
             else:
@@ -105,18 +108,20 @@ class MnistMiniBatchesGenerator(object):
 
 if __name__ == '__main__':
     train_x, train_y, valid_x, valid_y, _, _ = load_mnis_dataset()
-    data_block = MnistMiniBatchesGenerator(train_x, train_y, valid_x, valid_y, batch_size=1024, device_id=0)
+    data_block = MnistMiniBatchesGenerator(train_x, train_y, valid_x, valid_y, batch_size=128, device_id=0)
     with open('mnist.json') as f:
         model_definition = json.load(f, object_pairs_hook=OrderedDict)
     model = Model(model_definition, data_block)
     logger = get_logger()
     learning_rate_policy = FixedLearningRatePolicy(0.01)
-    # train_loss_tracker = TrainLossTracker(model, 1000, logger)
-    # valid_loss_tracker = ValidLossTracker(model, 2000, logger)
-    sgd_optimizer = SgdOptimizer(10000, learning_rate_policy, model)
-    # sgd_optimizer.add_observer(train_loss_tracker)
-    # sgd_optimizer.add_observer(valid_loss_tracker)
+    train_loss_tracker = TrainLossTracker(model, 2000, logger)
+    valid_loss_tracker = ValidLossTracker(model, 2000, logger)
+    sgd_optimizer = SgdOptimizer(50000, learning_rate_policy, model)
+    sgd_optimizer.add_observer(train_loss_tracker)
+    sgd_optimizer.add_observer(valid_loss_tracker)
     import time
     t = time.time()
     sgd_optimizer.optimize()
+    from quagga.cuda import cudart
+    cudart.cuda_device_synchronize()
     print time.time() - t

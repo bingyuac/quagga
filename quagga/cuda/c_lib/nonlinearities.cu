@@ -3,7 +3,7 @@
 
 
 #define MAX_NUM_THREADS_PER_BLOCK 512
-#define MAX_NUM_BLOCKS_PER_KERNEL 64
+#define MAX_NUM_BLOCKS_PER_KERNEL 128
 
 
 __global__ void sigmoid(int nelems,
