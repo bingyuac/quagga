@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <cuda_runtime.h>
-#include <stdio.h>
+
 
 #define MAX_NUM_THREADS_PER_BLOCK 512
 #define MAX_NUM_BLOCKS_PER_KERNEL 128
@@ -296,7 +296,7 @@ __global__ void assignSum(int nelems,
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for (int i = start_i; i < nelems; i += nthreads) {
-		s[i] = 0.0;
+		s[i] = 0.0f;
 		for (int k = 0; k < n; k++) {
 			s[i] += matrices[k][i];
 		}
@@ -446,7 +446,7 @@ __global__ void maskZeros(int nelems,
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for (int i = start_i; i < nelems; i += nthreads) {
-		out[i] = a[i] * (b[i] != 0.0);
+		out[i] = a[i] * (b[i] != 0.0f);
 	}
 }
 

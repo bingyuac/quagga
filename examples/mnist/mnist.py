@@ -11,10 +11,12 @@ from quagga.context import Context
 from collections import OrderedDict
 from quagga.connector import Connector
 from quagga.optimizers import SgdOptimizer
+from quagga.optimizers.observers import Saver
 from sklearn.preprocessing import OneHotEncoder
 from quagga.optimizers.observers import ValidLossTracker
 from quagga.optimizers.observers import TrainLossTracker
 from quagga.optimizers.policies import FixedLearningRatePolicy
+from quagga.optimizers.stopping_criteria import MaxIterCriterion
 
 
 def get_logger():
@@ -29,9 +31,7 @@ def get_logger():
 def load_mnis_dataset():
     filename = 'mnist.pkl.gz'
     if not os.path.exists(filename):
-        print 'dow'
         urlretrieve('http://deeplearning.net/data/mnist/mnist.pkl.gz', filename)
-
     with gzip.open(filename, 'rb') as f:
         train_set, valid_set, test_set = cPickle.load(f)
     return train_set[0], train_set[1], valid_set[0], valid_set[1], test_set[0], test_set[1]
@@ -73,34 +73,31 @@ class MnistMiniBatchesGenerator(object):
         self.training_mode = False
 
     def fprop(self):
+        indices = self.train_indices if self.training_mode else self.valid_indices
+        i = self.train_i if self.training_mode else self.valid_i
+        x = self.train_x if self.training_mode else self.valid_x
+        y = self.train_y if self.training_mode else self.valid_y
+
+        indices = indices[self.batch_size * i:self.batch_size * (i + 1)]
+        indices = np.asfortranarray(indices[:, np.newaxis])
+
         if self.training_mode:
-            indices = self.train_indices[self.batch_size * self.train_i:
-                                         self.batch_size * (self.train_i + 1)]
-            indices = np.asfortranarray(indices[:, np.newaxis])
             self.train_i += 1
-            if len(indices) == self.batch_size:
-                self.q_indices.to_device(self.context, indices)
-                self.context.wait(self.blocking_context)
-                self.train_x.slice_columns_and_transpose(self.context, self.q_indices, self.x_output)
-                self.train_y.slice_columns_and_transpose(self.context, self.q_indices, self.y_output)
-                self.x_output.fprop()
-                self.y_output.fprop()
-            else:
+        else:
+            self.valid_i += 1
+
+        if len(indices) == self.batch_size:
+            self.q_indices.to_device(self.context, indices)
+            self.context.wait(self.blocking_context)
+            x.slice_columns_and_transpose(self.context, self.q_indices, self.x_output)
+            y.slice_columns_and_transpose(self.context, self.q_indices, self.y_output)
+            self.x_output.fprop()
+            self.y_output.fprop()
+        else:
+            if self.training_mode:
                 self.train_i = 0
                 self.rng.shuffle(self.train_indices)
                 self.fprop()
-        else:
-            indices = self.valid_indices[self.batch_size * self.valid_i:
-                                         self.batch_size * (self.valid_i + 1)]
-            indices = np.asfortranarray(indices[:, np.newaxis])
-            self.valid_i += 1
-            if len(indices) == self.batch_size:
-                self.q_indices.to_device(self.context, indices)
-                self.context.wait(self.blocking_context)
-                self.valid_x.slice_columns_and_transpose(self.context, self.q_indices, self.x_output)
-                self.valid_y.slice_columns_and_transpose(self.context, self.q_indices, self.y_output)
-                self.x_output.fprop()
-                self.y_output.fprop()
             else:
                 self.valid_i = 0
                 raise StopIteration()
@@ -114,11 +111,14 @@ if __name__ == '__main__':
     model = Model(model_definition, data_block)
     logger = get_logger()
     learning_rate_policy = FixedLearningRatePolicy(0.01)
+    sgd_optimizer = SgdOptimizer(MaxIterCriterion(40000), learning_rate_policy, model)
     train_loss_tracker = TrainLossTracker(model, 2000, logger)
     valid_loss_tracker = ValidLossTracker(model, 2000, logger)
-    sgd_optimizer = SgdOptimizer(50000, learning_rate_policy, model)
+    saver = Saver(model, 5000, 'mnist_trained.json', 'mnist_parameters.hdf5', logger)
     sgd_optimizer.add_observer(train_loss_tracker)
     sgd_optimizer.add_observer(valid_loss_tracker)
+    sgd_optimizer.add_observer(saver)
+
     import time
     t = time.time()
     sgd_optimizer.optimize()

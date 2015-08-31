@@ -1,6 +1,9 @@
+import json
 import h5py
+import copy
 import quagga.blocks
 import quagga.initializers
+from itertools import izip
 from collections import OrderedDict
 
 
@@ -10,6 +13,8 @@ class Model(object):
         self.data_block = data_block
         self.blocks = OrderedDict()
         self.blocks['data_block'] = data_block
+        self.model_definition = copy.deepcopy(model_definition)
+
         blocking_block_name, blocking_context_attr_name = model_definition.popitem(last=False)[1]['blocking_context']
         h5_file = None
         for block_name, definition in model_definition.iteritems():
@@ -21,8 +26,8 @@ class Model(object):
                     if len(value) == 1:
                         if not h5_file:
                             h5_file = h5py.File(value[0], 'r')
-                        temp = h5_file[key][...]
-                        kwargs[key] = lambda: temp
+                        temp = h5_file[block_name + '_' + key][...]
+                        kwargs[key] = (lambda a: lambda: a)(temp)
                         kwargs[key].nrows = temp.shape[0]
                         kwargs[key].ncols = temp.shape[1]
                     else:
@@ -79,3 +84,17 @@ class Model(object):
     @property
     def loss(self):
         return self.loss_block.loss
+
+    def save(self, definition_file_path, parameters_file_path):
+        model_definition = copy.deepcopy(self.model_definition)
+        with h5py.File(parameters_file_path, 'w') as h5_file:
+            for block, block_name, block_definition in izip(self.blocks, self.blocks_names, model_definition.values()):
+                if not hasattr(block, 'get_parameter_initializers'):
+                    continue
+                initializers = block.get_parameter_initializers()
+                for key, value in block_definition.iteritems():
+                    if isinstance(value, list):
+                        h5_file[block_name + '_' + key] = initializers[key]()
+                        model_definition[block_name][key] = [parameters_file_path]
+        with open(definition_file_path, 'w') as f:
+            json.dump(model_definition, f)

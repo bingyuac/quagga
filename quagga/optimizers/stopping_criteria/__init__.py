@@ -1,0 +1,1 @@
+from quagga.optimizers.stopping_criteria.MaxIterCriterion import MaxIterCriterion

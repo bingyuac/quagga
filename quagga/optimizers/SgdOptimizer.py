@@ -3,8 +3,8 @@ from itertools import izip
 
 
 class SgdOptimizer(object):
-    def __init__(self, max_iter, learning_rate_policy, model):
-        self.max_iter = max_iter
+    def __init__(self, stopping_criterion, learning_rate_policy, model):
+        self.stopping_criterion = stopping_criterion
         self.learning_rate_policy = learning_rate_policy
         self.model = model
         self.param_u_contexts, self.params = zip(*self.model.params)
@@ -13,7 +13,7 @@ class SgdOptimizer(object):
 
     def optimize(self):
         self.model.set_training_mode()
-        for _ in xrange(self.max_iter):
+        while not self.stopping_criterion.is_fulfilled():
             self.model.fprop()
             self.model.bprop()
             self.update()

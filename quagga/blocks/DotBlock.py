@@ -55,3 +55,9 @@ class DotBlock(object):
             return [(self.context, self.dL_dW), (self.context, self.dL_db)]
         else:
             return [(self.context, self.dL_dW)]
+
+    def get_parameter_initializers(self):
+        initializers = {'W_init': lambda: self.W.to_host()}
+        if hasattr(self, 'b'):
+            initializers['b_init'] = lambda: self.b.to_host()
+        return initializers
