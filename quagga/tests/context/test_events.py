@@ -12,7 +12,7 @@ def cuda_array_from_list(a):
     elem_size = ct.sizeof(ct.c_int)
     nbytes = a.size * elem_size
     data = cudart.cuda_malloc(nbytes, ct.c_int)
-    cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
+    cudart.cuda_memcpy(data, host_data, nbytes, 'default')
     return data
 
 
@@ -21,7 +21,7 @@ def list_from_cuda_array(a, n, release_memory=True):
     host_array = (c_int_p * n)()
     host_ptr = ct.cast(host_array, c_int_p)
     elem_size = ct.sizeof(ct.c_int)
-    cudart.cuda_memcpy(host_ptr, a, n * elem_size, 'device_to_host')
+    cudart.cuda_memcpy(host_ptr, a, n * elem_size, 'default')
     if release_memory:
         cudart.cuda_free(a)
     a = np.ndarray(shape=(n, ), dtype=np.int32, buffer=host_array, order='F')

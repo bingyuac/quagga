@@ -346,10 +346,10 @@ __global__ void fill(int nelems,
 
 __global__ void matrixVectorRowAddition(int nrows,
 							      		int ncols,
-							      		const float* matrix,
+							      		const float* __restrict__ matrix,
 							      		float alpha,
-							      		const float* vector,
-							      		float* out) {
+							      		const float* __restrict__ vector,
+							      		float* __restrict__ out) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * ncols;
@@ -362,9 +362,9 @@ __global__ void matrixVectorRowAddition(int nrows,
 
 __global__ void assignScaledAddition(int nelems,
 							      	 float alpha,
-							      	 const float* a,
-							      	 const float* b,
-							      	 float* out) {
+							      	 const float* __restrict__ a,
+							      	 const float* __restrict__ b,
+							      	 float* __restrict__ out) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -376,14 +376,29 @@ __global__ void assignScaledAddition(int nelems,
 
 __global__ void assignScaledSubtraction(int nelems,
 							      	    float alpha,
-							      	 	const float* a,
-							      	 	const float* b,
-							      	 	float* out) {
+							      	 	const float* __restrict__ a,
+							      	 	const float* __restrict__ b,
+							      	 	float* __restrict__ out) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for (int i = start_i; i < nelems; i += nthreads) {
 		out[i] = alpha * (a[i] - b[i]);
+	}
+}
+
+
+__global__ void softmaxCeDerivative(int batchSize,
+									int numClasses,
+							      	const float* __restrict__ probs,
+							      	const int* __restrict__ targetClasses,
+							      	float* __restrict__ derivatives) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = batchSize * numClasses;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		derivatives[i] = (probs[i] - (i / batchSize == targetClasses[i % batchSize])) / batchSize;
 	}
 }
 
@@ -453,9 +468,9 @@ __global__ void maskZeros(int nelems,
 
 __global__ void matrixVectorColumnHprod(int nrows,
 							      		int ncols,
-							      		const float* matrix,
-							      		const float* vector,
-							      		float* out) {
+							      		const float* __restrict__ matrix,
+							      		const float* __restrict__ vector,
+							      		float* __restrict__ out) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * ncols;
@@ -858,10 +873,10 @@ extern "C" {
     cudaError_t _matrixVectorRowAddition(cudaStream_t stream,
     									 int nrows,
 							      		 int ncols,
-							      		 const float* matrix,
+							      		 const float* __restrict__ matrix,
 							      		 float alpha,
-							      		 const float* vector,
-							      		 float* out) {
+							      		 const float* __restrict__ vector,
+							      		 float* __restrict__ out) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         matrixVectorRowAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrix, alpha, vector, out);
         return cudaGetLastError();
@@ -894,9 +909,9 @@ extern "C" {
 	cudaError_t _assignScaledAddition(cudaStream_t stream,
                       		   	  	  int nelems,
 							      	  float alpha,
-							      	  const float* a,
-							      	  const float* b,
-							      	  float* out) {
+							      	  const float* __restrict__ a,
+							      	  const float* __restrict__ b,
+							      	  float* __restrict__ out) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignScaledAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
         return cudaGetLastError();
@@ -906,11 +921,23 @@ extern "C" {
 	cudaError_t _assignScaledSubtraction(cudaStream_t stream,
                       		   	  	  	 int nelems,
 							      	  	 float alpha,
-							      	  	 const float* a,
-							      	  	 const float* b,
-							      	  	 float* out) {
+							      	  	 const float* __restrict__ a,
+							      	  	 const float* __restrict__ b,
+							      	  	 float* __restrict__ out) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignScaledSubtraction<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _softmaxCeDerivative(cudaStream_t stream,
+                      		   	  	 int batchSize,
+									 int numClasses,
+							      	 const float* __restrict__ probs,
+							      	 const int* __restrict__ targetClasses,
+							      	 float* __restrict__ derivatives) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (batchSize * numClasses - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        softmaxCeDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(batchSize, numClasses, probs, targetClasses, derivatives);
         return cudaGetLastError();
 	}
 
@@ -918,8 +945,8 @@ extern "C" {
 	cudaError_t _matrixVectorColumnHprod(cudaStream_t stream,
     									 int nrows,
 							      		 int ncols,
-							      		 const float* matrix,
-							      		 const float* vector,
+							      		 const float* __restrict__ matrix,
+							      		 const float* __restrict__ vector,
 							      		 float* out) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         matrixVectorColumnHprod<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrix, vector, out);

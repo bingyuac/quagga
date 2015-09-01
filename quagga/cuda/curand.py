@@ -51,52 +51,57 @@ class CurandError(Exception):
     pass
 
 
-curand_exceptions = {}
-for curand_error_code, curand_status_name in curand_statuses.iteritems():
-    class_name = curand_status_name.replace('_STATUS_', '_')
+exceptions = {}
+for error_code, status_name in curand_statuses.iteritems():
+    class_name = status_name.replace('_STATUS_', '_')
     class_name = ''.join(each.capitalize() for each in class_name.split('_'))
-    klass = type(class_name, (CurandError, ), {'__doc__': curand_status_name})
-    curand_exceptions[curand_error_code] = klass
+    klass = type(class_name, (CurandError, ), {'__doc__': status_name})
+    exceptions[error_code] = klass
 
 
-def check_curand_status(status):
+def check_status(status):
     if status != 0:
         try:
-            raise curand_exceptions[status]
+            raise exceptions[status]
         except KeyError:
             raise CurandError('unknown CURAND error {}'.format(status))
 
 
 _libcurand.curandCreateGenerator.restype = ct_curand_status
-_libcurand.curandCreateGenerator.argtypes = [ct.POINTER(ct_curand_generator), ct.c_int]
-def curand_create_generator(generator, rng_type):
+_libcurand.curandCreateGenerator.argtypes = [ct.POINTER(ct_curand_generator),
+                                             ct.c_int]
+def create_generator(generator, rng_type):
     status = _libcurand.curandCreateGenerator(ct.byref(generator), rng_type)
-    check_curand_status(status)
+    check_status(status)
 
 
 _libcurand.curandDestroyGenerator.restype = ct_curand_status
 _libcurand.curandDestroyGenerator.argtypes = [ct_curand_generator, ct.c_int]
-def curand_destroy_generator(generator):
+def destroy_generator(generator):
     status = _libcurand.curandDestroyGenerator(generator)
-    check_curand_status(status)
+    check_status(status)
 
 
 _libcurand.curandSetPseudoRandomGeneratorSeed.restype = ct_curand_status
-_libcurand.curandSetPseudoRandomGeneratorSeed.argtypes = [ct_curand_generator, ct.c_ulonglong]
-def curand_set_pseudo_random_generator_seed(generator, seed):
+_libcurand.curandSetPseudoRandomGeneratorSeed.argtypes = [ct_curand_generator,
+                                                          ct.c_ulonglong]
+def pseudo_random_generator_seed(generator, seed):
     status = _libcurand.curandSetPseudoRandomGeneratorSeed(generator, seed)
-    check_curand_status(status)
+    check_status(status)
 
 
 _libcurand.curandGenerateUniform.restype = ct_curand_status
-_libcurand.curandGenerateUniform.argtypes = [ct_curand_generator, ct.POINTER(ct.c_float), ct.c_size_t]
-def curand_generate_uniform(generator, output_ptr, num):
+_libcurand.curandGenerateUniform.argtypes = [ct_curand_generator,
+                                             ct.POINTER(ct.c_float),
+                                             ct.c_size_t]
+def generate_uniform(generator, output_ptr, num):
     status = _libcurand.curandGenerateUniform(generator, output_ptr, num)
-    check_curand_status(status)
+    check_status(status)
 
 
 _libcurand.curandSetStream.restype = ct_curand_status
-_libcurand.curandSetStream.argtypes = [ct_curand_generator, cudart.ct_cuda_stream]
-def curand_set_stream(generator, stream):
+_libcurand.curandSetStream.argtypes = [ct_curand_generator,
+                                       cudart.ct_cuda_stream]
+def set_stream(generator, stream):
     status = _libcurand.curandSetStream(generator, stream)
-    check_curand_status(status)
+    check_status(status)

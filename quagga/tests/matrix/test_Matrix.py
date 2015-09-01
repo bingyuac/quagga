@@ -843,6 +843,26 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N * 2)
 
+    def test_assign_softmax_ce_derivative(self):
+        r = []
+        for i in xrange(self.N):
+            probs = TestMatrix.get_random_array((2, 3))
+            target_classes = self.rng.randint(probs.shape[1], size=(probs.shape[0], 1)).astype(np.int32)
+            derivative = np.empty_like(probs)
+
+            probs_cpu = CpuMatrix.from_npa(probs)
+            target_classes_cpu = CpuMatrix.from_npa(target_classes)
+            derivative_cpu = CpuMatrix.from_npa(derivative)
+            probs_gpu = GpuMatrix.from_npa(probs)
+            target_classes_gpu = GpuMatrix.from_npa(target_classes)
+            derivative_gpu = GpuMatrix.from_npa(derivative)
+
+            derivative_cpu.assign_softmax_ce_derivative(self.cpu_context, probs_cpu, target_classes_cpu)
+            derivative_gpu.assign_softmax_ce_derivative(self.gpu_context, probs_gpu, target_classes_gpu)
+            r.append(np.allclose(derivative_cpu.to_host(), derivative_gpu.to_host(), atol=1e-6))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_softmax(self):
         r = []
         for i in xrange(self.N):

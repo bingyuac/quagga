@@ -27,7 +27,7 @@ class GpuMatrix(object):
     def nrows(self, value):
         self._nrows = value
         if self._cudnn_tensor_descriptor:
-            cudnn.cudnn_destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
+            cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
             self._cudnn_tensor_descriptor = None
 
     @property
@@ -38,7 +38,7 @@ class GpuMatrix(object):
     def ncols(self, value):
         self._ncols = value
         if self._cudnn_tensor_descriptor:
-            cudnn.cudnn_destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
+            cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
             self._cudnn_tensor_descriptor = None
 
     @property
@@ -49,10 +49,10 @@ class GpuMatrix(object):
     def cudnn_tensor_descriptor(self):
         if not self._cudnn_tensor_descriptor:
             self._cudnn_tensor_descriptor = cudnn.ct_cudnn_tensor_descriptor()
-            cudnn.cudnn_create_tensor_descriptor(self._cudnn_tensor_descriptor)
+            cudnn.create_tensor_descriptor(self._cudnn_tensor_descriptor)
             # CUDNN uses C-order, but CUBLAS uses F-order
-            cudnn.cudnn_set_tensor_4d_descriptor_ex(self._cudnn_tensor_descriptor,
-                                                    cudnn.cudnn_data_type['CUDNN_DATA_FLOAT'],
+            cudnn.set_tensor_4d_descriptor_ex(self._cudnn_tensor_descriptor,
+                                                    cudnn.data_type['CUDNN_DATA_FLOAT'],
                                                     self.nrows, self.ncols, 1, 1,
                                                     1, self.nrows, 1, 1)
         return self._cudnn_tensor_descriptor
@@ -61,7 +61,7 @@ class GpuMatrix(object):
         if self.is_owner:
             cudart.cuda_free(self.data)
             if self._cudnn_tensor_descriptor:
-                cudnn.cudnn_destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
+                cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
 
     def __getitem__(self, key):
         if type(key[1]) is int:
@@ -76,9 +76,6 @@ class GpuMatrix(object):
                 return GpuMatrix(data, k, 1, self.dtype, self.device_id, False)
             raise ValueError('This slice: {} is unsupported!'.format(key))
         if type(key[1]) is slice:
-
-            isinstance(key[1].stop, int)
-
             if key[1].start is None and isinstance(key[1].stop, int) and key[1].step is None:
                 return GpuMatrix(self.data, self.nrows, key[1].stop, self.dtype, self.device_id, False)
             if isinstance(key[1].start, int) and key[1].stop is None and key[1].step is None:
@@ -95,11 +92,9 @@ class GpuMatrix(object):
             raise ValueError('You can set only one element!')
         if key[0] > self.nrows or key[1] > self.ncols:
             raise IndexError('One of the index is out of bounds for gpu array with shape ({}, {})'.format(self.nrows, self.ncols))
-        elem_size = ct.sizeof(self.c_dtype)
-        value = self.c_dtype(value)
-        void_p = ct.cast(self.data, ct.c_void_p).value + (self.nrows * key[1] + key[0]) * elem_size
-        data_element = ct.cast(void_p, ct.POINTER(self.c_dtype))
-        cudart.cuda_memcpy(data_element, ct.byref(value), elem_size, 'host_to_device')
+        data_element = self._get_pointer_to_element(key[0], key[1])
+        cudart.cuda_memcpy(data_element, ct.byref(self.c_dtype(value)),
+                           ct.sizeof(self.c_dtype), 'host_to_device')
 
     def same_shape(self, other):
         return self.nrows == other.nrows and self.ncols == other.ncols
@@ -110,6 +105,10 @@ class GpuMatrix(object):
 
     def _get_pointer_to_row(self, k):
         void_p = ct.cast(self.data, ct.c_void_p).value + k * ct.sizeof(self.c_dtype)
+        return ct.cast(void_p, ct.POINTER(self.c_dtype))
+
+    def _get_pointer_to_element(self, i, j):
+        void_p = ct.cast(self.data, ct.c_void_p).value + (self.nrows * j + i) * ct.sizeof(self.c_dtype)
         return ct.cast(void_p, ct.POINTER(self.c_dtype))
 
     @staticmethod
@@ -146,7 +145,7 @@ class GpuMatrix(object):
         with cudart.device(device_id):
             device_id = cudart.cuda_get_device()
             data = cudart.cuda_malloc(nbytes, c_dtype)
-            cudart.cuda_memcpy(data, host_data, nbytes, 'host_to_device')
+            cudart.cuda_memcpy(data, host_data, nbytes, 'default')
         return cls(data, a.shape[0], a.shape[1], dtype, device_id, True)
 
     @classmethod
@@ -195,7 +194,7 @@ class GpuMatrix(object):
                                  format(self.dtype, a._type_))
             self.nrows, self.ncols = nrows, ncols
         context.activate()
-        cudart.cuda_memcpy_async(self.data, a, self.nbytes, 'host_to_device', context.cuda_stream)
+        cudart.cuda_memcpy_async(self.data, a, self.nbytes, 'default', context.cuda_stream)
 
     def fill(self, context, value):
         gpu_matrix_kernels.fill(context.cuda_stream, self.nelems, value, self.data)
@@ -207,14 +206,14 @@ class GpuMatrix(object):
         elem_size = ct.sizeof(self.c_dtype)
         nbytes = a.size * elem_size
         with cudart.device(self.device_id):
-            cudart.cuda_memcpy(self.data, host_data, nbytes, 'host_to_device')
+            cudart.cuda_memcpy(self.data, host_data, nbytes, 'default')
 
     def to_host(self):
         c_dtype_p = ct.POINTER(self.c_dtype)
         host_array = (self.c_dtype * self.nelems)()
         host_ptr = ct.cast(host_array, c_dtype_p)
         with cudart.device(self.device_id):
-            cudart.cuda_memcpy(host_ptr, self.data, self.nbytes, 'device_to_host')
+            cudart.cuda_memcpy(host_ptr, self.data, self.nbytes, 'default')
         return np.ndarray(shape=(self.nrows, self.ncols),
                           dtype=self.np_dtype,
                           buffer=host_array,
@@ -225,7 +224,7 @@ class GpuMatrix(object):
 
     def copy(self, context, out):
         context.activate()
-        cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'device_to_device', context.cuda_stream)
+        cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'default', context.cuda_stream)
 
     def ravel(self):
         return GpuMatrix(self.data, self.nelems, 1, self.dtype, self.device_id, False)
@@ -244,7 +243,7 @@ class GpuMatrix(object):
                                  'same number of columns as matrix to be tiled!')
             for i in xrange(self.nrows):
                 row = self._get_pointer_to_row(i)
-                cublas.cublas_s_copy(context.cublas_handle, self.ncols, a.data, 1, row, self.nrows)
+                cublas.s_copy(context.cublas_handle, self.ncols, a.data, 1, row, self.nrows)
         elif axis == 1:
             if a.ncols != 1:
                 raise ValueError('Invalid shape! `a` must have number of '
@@ -254,7 +253,7 @@ class GpuMatrix(object):
                                  'same number of rows as matrix to be tiled!')
             for i in xrange(self.ncols):
                 column = self._get_pointer_to_column(i)
-                cublas.cublas_s_copy(context.cublas_handle, self.nrows, a.data, 1, column, 1)
+                cublas.s_copy(context.cublas_handle, self.nrows, a.data, 1, column, 1)
         else:
             raise ValueError('Invalid axis!')
 
@@ -362,7 +361,7 @@ class GpuMatrix(object):
         if out:
             gpu_matrix_kernels.scale(context.cuda_stream, self.nelems, alpha, self.data, out.data)
         else:
-            cublas.cublas_s_scal(context.cublas_handle, self.nelems, alpha, self.data, 1)
+            cublas.s_scal(context.cublas_handle, self.nelems, alpha, self.data, 1)
 
     def tanh(self, context, tanh_matrix, derivative_matrix=None):
         context.activate()
@@ -401,9 +400,9 @@ class GpuMatrix(object):
 
     def softmax(self, context, softmax_matrix):
         context.activate()
-        cudnn.cudnn_softmax_forward(context.cudnn_handle,
-                                    cudnn.cudnn_softmax_algorithm['CUDNN_SOFTMAX_ACCURATE'],
-                                    cudnn.cudnn_softmax_mode['CUDNN_SOFTMAX_MODE_INSTANCE'],
+        cudnn.softmax_forward(context.cudnn_handle,
+                                    cudnn.softmax_algorithm['CUDNN_SOFTMAX_ACCURATE'],
+                                    cudnn.softmax_mode['CUDNN_SOFTMAX_MODE_INSTANCE'],
                                     ct.c_float(1.0),
                                     self.cudnn_tensor_descriptor,
                                     self.data,
@@ -432,6 +431,9 @@ class GpuMatrix(object):
             raise ValueError('TODO!')
         gpu_matrix_kernels.assign_scaled_subtraction(context.cuda_stream, self.nelems, alpha, a.data, b.data, self.data)
 
+    def assign_softmax_ce_derivative(self, context, probs, target_classes):
+        gpu_matrix_kernels.softmax_ce_derivative(context.cuda_stream, probs.nrows, probs.ncols, probs.data, target_classes.data, self.data)
+
     def assign_sub(self, context, a, b):
         self.assign_scaled_addition(context, 1.0, a, b)
 
@@ -445,7 +447,7 @@ class GpuMatrix(object):
                 raise ValueError('Operands could not be broadcast together with shapes ({},{}) ({},{})!'.format(self.nrows, self.ncols, a.nrows, a.ncols))
             gpu_matrix_kernels.matrix_vector_row_addition(context.cuda_stream, self.nrows, self.ncols, self.data, alpha, a.data, self.data)
         else:
-            cublas.cublas_s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
+            cublas.s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
 
     def add(self, context, a):
         self.add_scaled(context, ct.c_float(1.0), a)
@@ -456,7 +458,7 @@ class GpuMatrix(object):
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
-        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         gpu_matrix_kernels.add_sum(context.cuda_stream, self.nelems, device_pointer, n, self.data)
 
     def assign_sum(self, context, matrices):
@@ -465,7 +467,7 @@ class GpuMatrix(object):
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
-        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         gpu_matrix_kernels.assign_sum(context.cuda_stream, self.nelems, device_pointer, n, self.data)
 
     def sub(self, context, a):
@@ -548,10 +550,10 @@ class GpuMatrix(object):
         """
         context.activate()
         if self.ncols == 1 and matrix_operation_b == 'N':
-            cublas.cublas_s_gemv(context.cublas_handle, matrix_operation_a, a.nrows, a.ncols, alpha, a.data, a.nrows, b.data, 1, beta, self.data, 1)
+            cublas.s_gemv(context.cublas_handle, matrix_operation_a, a.nrows, a.ncols, alpha, a.data, a.nrows, b.data, 1, beta, self.data, 1)
         else:
             k = b.nrows if matrix_operation_b == 'N' else b.ncols
-            cublas.cublas_s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
+            cublas.s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
 
     def assign_sequential_mean_pooling(self, context, matrices):
         context.activate()
@@ -559,7 +561,7 @@ class GpuMatrix(object):
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
-        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         self.fill(context, 0.0)
         gpu_matrix_kernels.assign_sequential_mean_pooling(context.cuda_stream, self.nrows, self.ncols, device_pointer, n, self.data)
 
@@ -575,7 +577,7 @@ class GpuMatrix(object):
         matrices = (ct.POINTER(a.c_dtype) * n)(*(m.data for m in matrices))
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
-        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         gpu_matrix_kernels.sequentially_tile(context.cuda_stream, a.nelems, a.data, device_pointer, n)
 
     def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
@@ -584,7 +586,7 @@ class GpuMatrix(object):
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in dense_matrices))
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
-        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         gpu_matrix_kernels.slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
 
     def sliced_rows_batch_scaled_add(self, context, embd_rows_indxs, alpha, dense_matrices):
@@ -597,20 +599,20 @@ class GpuMatrix(object):
         matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in dense_matrices))
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
-        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'host_to_device', context.cuda_stream)
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         gpu_matrix_kernels.sliced_rows_batch_scaled_add(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, alpha, device_pointer, self.nrows, self.ncols, self.data)
 
     @staticmethod
     def get_random_generator(seed):
         generator = curand.ct_curand_generator()
-        curand.curand_create_generator(generator, curand.curand_rng_type['CURAND_RNG_PSEUDO_DEFAULT'])
-        curand.curand_set_pseudo_random_generator_seed(generator, seed)
+        curand.create_generator(generator, curand.curand_rng_type['CURAND_RNG_PSEUDO_DEFAULT'])
+        curand.pseudo_random_generator_seed(generator, seed)
         return generator
 
     def dropout(self, context, generator, dropout_prob, out):
         context.activate()
-        curand.curand_set_stream(generator, context.cuda_stream)
-        curand.curand_generate_uniform(generator, out.data, self.nelems)
+        curand.set_stream(generator, context.cuda_stream)
+        curand.generate_uniform(generator, out.data, self.nelems)
         gpu_matrix_kernels.dropout(context.cuda_stream, self.nelems, dropout_prob, self.data, out.data, out.data)
 
     def mask_zeros(self, context, mask, out):

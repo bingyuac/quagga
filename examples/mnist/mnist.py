@@ -19,9 +19,9 @@ from quagga.optimizers.policies import FixedLearningRatePolicy
 from quagga.optimizers.stopping_criteria import MaxIterCriterion
 
 
-def get_logger():
+def get_logger(file_name):
     logger = logging.getLogger('train_logger')
-    handler = logging.FileHandler('train.log', mode='w')
+    handler = logging.FileHandler(file_name, mode='w')
     handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s', '%d-%m-%Y %H:%M:%S'))
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
@@ -105,11 +105,11 @@ class MnistMiniBatchesGenerator(object):
 
 if __name__ == '__main__':
     train_x, train_y, valid_x, valid_y, _, _ = load_mnis_dataset()
-    data_block = MnistMiniBatchesGenerator(train_x, train_y, valid_x, valid_y, batch_size=128, device_id=0)
+    data_block = MnistMiniBatchesGenerator(train_x, train_y, valid_x, valid_y, batch_size=4096, device_id=1)
     with open('mnist.json') as f:
         model_definition = json.load(f, object_pairs_hook=OrderedDict)
     model = Model(model_definition, data_block)
-    logger = get_logger()
+    logger = get_logger('train.log')
     learning_rate_policy = FixedLearningRatePolicy(0.01)
     sgd_optimizer = SgdOptimizer(MaxIterCriterion(40000), learning_rate_policy, model)
     train_loss_tracker = TrainLossTracker(model, 2000, logger)

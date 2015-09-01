@@ -261,6 +261,10 @@ class CpuMatrix(object):
         """
         self.npa[...] = alpha * (a.npa - b.npa)
 
+    def assign_softmax_ce_derivative(self, context, probs, target_classes):
+        self.npa[...] = probs.npa / probs.npa.shape[0]
+        self.npa[range(probs.npa.shape[0]), target_classes.npa.flatten()] -= 1.0 / probs.npa.shape[0]
+
     def assign_sub(self, context, a, b):
         self.assign_scaled_addition(context, 1.0, a, b)
 

@@ -25,13 +25,13 @@ class GpuContext(object):
     @property
     def cublas_handle(self):
         cublas_handle = GpuContext._cublas_handle[self.device_id]
-        cublas.cublas_set_stream(cublas_handle, self.cuda_stream)
+        cublas.set_stream(cublas_handle, self.cuda_stream)
         return cublas_handle
 
     @property
     def cudnn_handle(self):
         cudnn_handle = GpuContext._cudnn_handle[self.device_id]
-        cudnn.cudnn_set_stream(cudnn_handle, self.cuda_stream)
+        cudnn.set_stream(cudnn_handle, self.cuda_stream)
         return cudnn_handle
 
     def synchronize(self):
@@ -66,6 +66,6 @@ GpuContext._cudnn_handle = []
 for device_id in xrange(cudart.cuda_get_device_count()):
     with cudart.device(device_id):
         GpuContext._cublas_handle.append(cublas.ct_cublas_handle())
-        cublas.cublas_create(GpuContext._cublas_handle[-1])
+        cublas.create(GpuContext._cublas_handle[-1])
         GpuContext._cudnn_handle.append(cudnn.ct_cudnn_handle())
-        cudnn.cudnn_create(GpuContext._cudnn_handle[-1])
+        cudnn.create(GpuContext._cudnn_handle[-1])

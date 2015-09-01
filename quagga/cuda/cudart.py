@@ -249,6 +249,7 @@ def cuda_memcpy_async(dst, src, count, kind, stream):
         Size in bytes to copy
     kind: str
         Type of transfer
+    stream: ct_cuda_stream
     """
 
     count = ct.c_size_t(count)
@@ -533,6 +534,15 @@ _libcudart.cudaDeviceEnablePeerAccess.argtypes = [ct.c_int, ct.c_uint]
 def cuda_device_enable_peer_access(peer_device):
     status = _libcudart.cudaDeviceEnablePeerAccess(peer_device, 0)
     check_cuda_status(status)
+
+
+_libcudart.cudaDeviceCanAccessPeer.restype = ct_cuda_error
+_libcudart.cudaDeviceCanAccessPeer.argtypes = [ct.POINTER(ct.c_int), ct.c_int, ct.c_uint]
+def cuda_device_can_access_peer(device, peer_device):
+    can_access_peer = ct.c_int()
+    status = _libcudart.cudaDeviceCanAccessPeer(ct.byref(can_access_peer), device, peer_device)
+    check_cuda_status(status)
+    return can_access_peer
 
 
 @contextmanager

@@ -19,12 +19,17 @@ class SoftmaxCeBlock(object):
         self.true_labels = true_labels.register_usage(self.context)
         self.probs = Matrix.empty_like(true_labels, device_id=self.context.device_id)
 
+        if self.true_labels.dtype == 'int':
+            self.bprop = lambda self: self.dL_dx.assign_softmax_ce_derivative(self.context, self.probs, self.true_labels)
+        else:
+            self.bprop = lambda self: self.dL_dx.assign_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
+
     def fprop(self):
         self.x.softmax(self.context, self.probs)
 
     def bprop(self):
         # error = (probs - true_labels) / M
-        self.dL_dx.assign_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
+        pass
 
     @property
     def loss(self):
