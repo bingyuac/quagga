@@ -35,4 +35,7 @@ class SoftmaxCeBlock(object):
     def loss(self):
         true_labels = self.true_labels.to_host()
         probs = self.probs.to_host()
-        return - np.mean(np.sum(true_labels * np.log(probs + 1e-20), axis=1))
+        if self.true_labels.dtype == 'int':
+            return - np.mean(np.log(probs[range(probs.shape[0]), true_labels.flatten()] + 1e-20))
+        else:
+            return - np.mean(np.sum(true_labels * np.log(probs + 1e-20), axis=1))
