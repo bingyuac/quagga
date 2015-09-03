@@ -5,20 +5,16 @@ from itertools import izip
 
 
 class CpuMatrix(object):
-    def __init__(self, npa, nrows, ncols, dtype, device_id):
+    def __init__(self, npa):
         self.npa = npa
-        self._nrows = nrows
-        self._ncols = ncols
-        self.dtype = dtype
-        self.device_id = device_id
 
     @property
     def nelems(self):
-        return self._nrows * self._ncols
+        return self.npa.size
 
     @property
     def nrows(self):
-        return self._nrows
+        return self.npa.shape[0]
 
     @nrows.setter
     def nrows(self, value):
@@ -28,14 +24,13 @@ class CpuMatrix(object):
         if value > base.shape[0]:
             raise ValueError('There is no so many preallocated memory! '
                              'Maximum for `nrows` is {}'.format(base.shape[0]))
-        self._nrows = value
         self.npa = base[:value]
         if self.npa.base is None:
-            raise ValueError('Oops!')
+            raise ValueError('TODO Oops!')
 
     @property
     def ncols(self):
-        return self._ncols
+        return self.npa.shape[1]
 
     @ncols.setter
     def ncols(self, value):
@@ -45,22 +40,20 @@ class CpuMatrix(object):
         if value > base.shape[1]:
             raise ValueError('There is no so many preallocated memory! '
                              'Maximum for `ncols` is {}'.format(base.shape[1]))
-        self._ncols = value
         self.npa = base[:, :value]
         if self.npa.base is None:
-            raise ValueError('Oops!')
+            raise ValueError('TODO Oops!')
 
     def __getitem__(self, key):
-        if type(key[1]) == int:
-            # This is a workaround for slicing with np.newaxis
-            # https://github.com/numpy/numpy/issues/5918
-            # should be just:
-            # key += (np.newaxis, )
-            key = (key[0], slice(key[1], key[1] + 1, None))
-        return CpuMatrix.from_npa(self.npa[key])
+        if isinstance(key, int):
+            key = key, np.newaxis
+        a = self.npa[key]
+        if a.base is not self.npa:
+            raise ValueError('This slice: {} is unsupported!'.format(key))
+        return CpuMatrix(a)
 
     def same_shape(self, other):
-        return self.nrows == other.nrows and self.ncols == other.ncols
+        return self.npa.shape == other.npa.shape
 
     @staticmethod
     def str_to_dtype(dtype):
@@ -77,19 +70,19 @@ class CpuMatrix(object):
         dtype = cls.str_to_dtype(dtype) if dtype else a.dtype
         if a.dtype != dtype:
             a = a.astype(dtype=dtype)
-        return cls(a, a.shape[0], a.shape[1], dtype, device_id)
+        return cls(a)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype=None, device_id=None):
         dtype = dtype if dtype else quagga.dtype
         np_dtype = cls.str_to_dtype(dtype) if type(dtype) is str else dtype
-        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype)), device_id=device_id)
+        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype)))
 
     @classmethod
     def empty_like(cls, other, device_id=None):
         if hasattr(other, 'npa'):
             return cls.from_npa(np.nan_to_num(np.empty_like(other.npa)))
-        return cls.empty(other.nrows, other.ncols, other.dtype, device_id)
+        return cls.empty(other.nrows, other.ncols, other.dtype)
 
     def to_device(self, context, a):
         if self.npa.dtype != a.dtype:
@@ -99,7 +92,7 @@ class CpuMatrix(object):
         if a.ndim != 2:
             raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
         self.nrows, self.ncols = a.shape
-        self.npa = a
+        self.npa[...] = a
 
     def fill(self, context, value):
         self.npa[...] = value
@@ -113,8 +106,14 @@ class CpuMatrix(object):
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
 
-    def copy(self, context, out):
-        out.npa[...] = np.copy(self.npa)
+    def copy(self, context, out, stride_size=None):
+        """
+        self[i] -> out[i * stride_size]
+        """
+        if stride_size:
+            out.npa[:, :self.npa.size] = self.npa
+        else:
+            out.npa[...] = np.copy(self.npa)
 
     def tile(self, context, axis, a):
         n = self.nrows if axis == 0 else self.ncols

@@ -75,6 +75,10 @@ class GpuMatrix(object):
                 cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
 
     def __getitem__(self, key):
+        if type(key) is int:
+            data = self._get_pointer_to_element(key, 0)
+            # TODO
+            return GpuMatrix(data, None, None, self.dtype, self.device_id, False)
         if type(key[0]) is slice and not key[0].step and type(key[1]) is int:
             stop = key[0].stop if key[0].stop else self.nrows
             start = key[0].start if key[0].start else 0
@@ -95,8 +99,7 @@ class GpuMatrix(object):
         if key[0] > self.nrows or key[1] > self.ncols:
             raise IndexError('One of the index is out of bounds for gpu array with shape ({}, {})'.format(self.nrows, self.ncols))
         data_element = self._get_pointer_to_element(key[0], key[1])
-        cudart.cuda_memcpy(data_element, ct.byref(self.c_dtype(value)),
-                           ct.sizeof(self.c_dtype), 'host_to_device')
+        cudart.cuda_memcpy(data_element, ct.byref(self.c_dtype(value)), ct.sizeof(self.c_dtype), 'default')
 
     def same_shape(self, other):
         return self.nrows == other.nrows and self.ncols == other.ncols
@@ -190,7 +193,8 @@ class GpuMatrix(object):
             self.nrows, self.ncols = a.shape
             a = a.ctypes.data_as(ct.POINTER(self.c_dtype))
         else:
-            if a._type_ != self.dtype: # this branch for ctypes array
+            # this branch for ctypes array
+            if a._type_ != self.dtype:
                 raise ValueError("Allocated memory has {} type. "
                                  "Can't transfer {} type".
                                  format(self.dtype, a._type_))
@@ -224,13 +228,16 @@ class GpuMatrix(object):
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
 
-    def copy(self, context, out, out_pitch=None):
+    def copy(self, context, out, stride_size=None):
         """
-        self -> out
+        self[i] -> out[i * stride_size]
         """
         context.activate()
-        if out_pitch:
-            cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'default', context.cuda_stream)
+        if stride_size:
+            # TODO: Add stride support
+            spitch = ct.sizeof(out.c_dtype)
+            dpitch = stride_size * spitch
+            cudart.cuda_memcpy2d_async(out.data, dpitch, self.data, spitch, spitch, self.nelems, 'default', context.cuda_stream)
         else:
             cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'default', context.cuda_stream)
 
@@ -651,6 +658,7 @@ def _get_temp_memory(context, N):
         pointer = cudart.cuda_malloc(__N[context] * elem_size, c_dtype)
         __temp_pointer[context] = pointer
     return pointer
+
 
 __temp_pointer = {}
 __N = {}

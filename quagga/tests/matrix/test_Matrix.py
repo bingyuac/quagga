@@ -999,3 +999,43 @@ class TestMatrix(TestCase):
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)
+
+    def test_copy(self):
+        r = []
+        for i in xrange(self.N):
+            for strided in [True, False]:
+                if strided:
+                    N = self.rng.random_integers(7000)
+                    offset = [self.rng.random_integers(N)]
+                    offset.append(self.rng.random_integers(offset[0], N))
+                    a = TestMatrix.get_random_array((1, N))
+                    b = TestMatrix.get_random_array((self.rng.random_integers(N), self.rng.randint(offset[1] - offset[0], N)))
+                    k = self.rng.randint(b.shape[0])
+
+                    a_cpu = CpuMatrix.from_npa(a)
+                    b_cpu = CpuMatrix.from_npa(b)
+                    a_gpu = GpuMatrix.from_npa(a)
+                    b_gpu = GpuMatrix.from_npa(b)
+
+                    chunk_b_cpu = b_cpu[k]
+                    chunk_a_cpu = a_cpu[:, offset[0]:offset[1]]
+                    chunk_b_gpu = b_gpu[k]
+                    chunk_a_gpu = a_gpu[:, offset[0]:offset[1]]
+
+                    chunk_a_cpu.copy(self.cpu_context, chunk_b_cpu, stride_size=b_cpu.nrows)
+                    chunk_a_gpu.copy(self.gpu_context, chunk_b_gpu, stride_size=b_gpu.nrows)
+                else:
+                    a = TestMatrix.get_random_array()
+                    b = TestMatrix.get_random_array(a.shape)
+
+                    a_cpu = CpuMatrix.from_npa(a)
+                    b_cpu = CpuMatrix.from_npa(b)
+                    a_gpu = GpuMatrix.from_npa(a)
+                    b_gpu = GpuMatrix.from_npa(b)
+
+                    a_cpu.copy(self.cpu_context, b_cpu)
+                    a_gpu.copy(self.gpu_context, b_gpu)
+
+                r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N * 2)

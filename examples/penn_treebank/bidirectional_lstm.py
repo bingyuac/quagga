@@ -116,6 +116,8 @@ class SentencesMiniBatchesGenerator(object):
 
         train_sentences = np.array([self.train_offsets.flatten_sentences])
         valid_sentences = np.array([self.valid_offsets.flatten_sentences])
+        self._sent_lengths = np.empty((batch_size, 1), dtype=np.int32, order='F')
+        self.sent_lengths = Matrix.from_npa(self._sent_lengths, device_id=device_id)
         self.train_sents = Matrix.from_npa(train_sentences, 'int', device_id)
         self.valid_sents = Matrix.from_npa(valid_sentences, 'int', device_id)
 
@@ -144,11 +146,13 @@ class SentencesMiniBatchesGenerator(object):
         for k, offset in enumerate(offsets):
             sent = sents[:, offset[0]:offset[1]]
             sent_len = offset[1] - offset[0]
-            batch_chunk = self.sentence_batch[k, :sent_len]
-            batch_chunk.copy(self.context, sent)
-            if sent_len != self.sentence_batch.nrows:
-                sub_mask = self.mask[sent_len:, k]
-                sub_mask.fill(self.context, 0.0)
+            batch_chunk = self.sentence_batch[k, 0]
+            batch_chunk.copy(self.context, sent, stride_size=self.sentence_batch.nrows)
+
+            self._sent_lengths[k] = sent_len
+
+        self.sent_lengths.to_device(self.context, self._sent_lengths)
+        self.mask.mask_column_numbers_row_wise(self.context, self.sent_lengths)
 
     def set_training_mode(self):
         self.training_mode = True
