@@ -396,3 +396,10 @@ class CpuMatrix(object):
         out = self * (mask != 0)
         """
         out.npa[...] = self.npa * (mask.npa != 0)
+
+    def mask_column_numbers_row_wise(self, context, numbers):
+        """
+        self[i, j] = j < numbers[i]
+        """
+        for i in xrange(numbers.npa.shape[0]):
+            self.npa[i] = np.arange(self.npa.shape[1]) < numbers.npa[i]

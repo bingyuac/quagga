@@ -981,3 +981,21 @@ class TestMatrix(TestCase):
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)
+
+    def test_mask_column_numbers_row_wise(self):
+        r = []
+        for i in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            numbers = self.rng.randint(a.shape[1], size=a.shape[0]).astype(dtype=np.int32)
+            numbers = numbers.reshape((numbers.size, 1))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            numbers_cpu = CpuMatrix.from_npa(numbers)
+            a_gpu = GpuMatrix.from_npa(a)
+            numbers_gpu = GpuMatrix.from_npa(numbers)
+
+            a_cpu.mask_column_numbers_row_wise(self.cpu_context, numbers_cpu)
+            a_gpu.mask_column_numbers_row_wise(self.gpu_context, numbers_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)

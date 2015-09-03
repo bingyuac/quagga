@@ -424,3 +424,14 @@ gpu_matrix_kernels._matrixVectorColumnHprod.argtypes = [cudart.ct_cuda_stream,
 def matrix_vector_column_hprod(stream, nrows, ncols, matrix, vector, out):
     status = gpu_matrix_kernels._matrixVectorColumnHprod(stream, nrows, ncols, matrix, vector, out)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._maskColumnNumbersRowWise.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._maskColumnNumbersRowWise.argtypes = [cudart.ct_cuda_stream,
+                                                         ct.c_int,
+                                                         ct.c_int,
+                                                         ct.POINTER(ct.c_int),
+                                                         ct.POINTER(ct.c_float)]
+def mask_column_numbers_row_wise(stream, nrows, ncols, numbers, out):
+    status = gpu_matrix_kernels._maskColumnNumbersRowWise(stream, nrows, ncols, numbers, out)
+    cudart.check_cuda_status(status)

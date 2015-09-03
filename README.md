@@ -45,3 +45,5 @@
 - [ ] There are sometimes a very nasty bugs connected with using matrix when it is not calculated completely you should always keep an eye on a proper synchronization
 - [ ] Check all np.allclose into test_Matrix tests for the right checking, sometimes there are typos 
 - [ ] Fix blocks tests and unify block interface
+- [ ] Add NCE block
+- [ ] Add strides support

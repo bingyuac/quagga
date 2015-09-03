@@ -1,7 +1,18 @@
 import quagga
+import warnings
 import numpy as np
 import ctypes as ct
 from quagga.cuda import cudart, cublas, cudnn, curand, gpu_matrix_kernels, nonlinearities
+
+
+warning_messages = ['P2P comunication is not possible between:']
+for i in xrange(cudart.cuda_get_device_count()):
+    for j in xrange(cudart.cuda_get_device_count()):
+        if i != j:
+            if not cudart.cuda_device_can_access_peer(i, j):
+                warning_messages.append('GPU{}->GPU{}'.format(i, j))
+if len(warning_messages) != 1:
+    warnings.warn(' '.join(warning_messages), UserWarning)
 
 
 class GpuMatrix(object):
@@ -64,28 +75,19 @@ class GpuMatrix(object):
                 cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
 
     def __getitem__(self, key):
-        if type(key[1]) is int:
-            if key[0] == slice(None):
-                data = self._get_pointer_to_column(key[1])
-                return GpuMatrix(data, self.nrows, 1, self.dtype, self.device_id, False)
-            if not key[0].step:
-                data = self._get_pointer_to_column(key[1])
-                k = key[0].stop - key[0].start
-                data = ct.cast(data, ct.c_void_p).value + key[0].start * ct.sizeof(self.c_dtype)
-                data = ct.cast(data, ct.POINTER(self.c_dtype))
-                return GpuMatrix(data, k, 1, self.dtype, self.device_id, False)
-            raise ValueError('This slice: {} is unsupported!'.format(key))
-        if type(key[1]) is slice:
-            if key[1].start is None and isinstance(key[1].stop, int) and key[1].step is None:
-                return GpuMatrix(self.data, self.nrows, key[1].stop, self.dtype, self.device_id, False)
-            if isinstance(key[1].start, int) and key[1].stop is None and key[1].step is None:
-                data = self._get_pointer_to_column(key[1].start)
-                return GpuMatrix(data, self.nrows, self.ncols - key[1].start, self.dtype, self.device_id, False)
-            if isinstance(key[1].start, int) and isinstance(key[1].stop, int) and key[1].step is None:
-                data = self._get_pointer_to_column(key[1].start)
-                return GpuMatrix(data, self.nrows, key[1].stop - key[1].start, self.dtype, self.device_id, False)
-            raise ValueError('This slice: {} is unsupported!'.format(key))
-        raise IndexError('Only integers and slices are supported!')
+        if type(key[0]) is slice and not key[0].step and type(key[1]) is int:
+            stop = key[0].stop if key[0].stop else self.nrows
+            start = key[0].start if key[0].start else 0
+            nrows = stop - start
+            data = self._get_pointer_to_element(start, key[1])
+            return GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False)
+        if key[0] == slice(None) and type(key[1]) is slice and not key[1].step:
+            stop = key[1].stop if key[1].stop else self.ncols
+            start = key[1].start if key[1].start else 0
+            ncols = stop - start
+            data = self._get_pointer_to_column(start)
+            return GpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id, False)
+        raise ValueError('This slice: {} is unsupported!'.format(key))
 
     def __setitem__(self, key, value):
         if type(key[0]) is not int or type(key[1]) is not int:
@@ -222,9 +224,15 @@ class GpuMatrix(object):
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
 
-    def copy(self, context, out):
+    def copy(self, context, out, out_pitch=None):
+        """
+        self -> out
+        """
         context.activate()
-        cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'default', context.cuda_stream)
+        if out_pitch:
+            cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'default', context.cuda_stream)
+        else:
+            cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'default', context.cuda_stream)
 
     def ravel(self):
         return GpuMatrix(self.data, self.nelems, 1, self.dtype, self.device_id, False)
@@ -621,6 +629,13 @@ class GpuMatrix(object):
         """
         context.activate()
         gpu_matrix_kernels.mask_zeros(context.cuda_stream, self.nelems, self.data, mask.data, out.data)
+
+    def mask_column_numbers_row_wise(self, context, numbers):
+        """
+        self[i, j] = j < numbers[i]
+        """
+        context.activate()
+        gpu_matrix_kernels.mask_column_numbers_row_wise(context.cuda_stream, self.nrows, self.ncols, numbers.data, self.data)
 
 
 def _get_temp_memory(context, N):

@@ -481,7 +481,32 @@ __global__ void matrixVectorColumnHprod(int nrows,
 }
 
 
+__global__ void maskColumnNumbersRowWise(int nrows,
+									 	 int ncols,
+									     const int* __restrict__ numbers,
+								     	 float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = (i / nrows < numbers[i % nrows]);
+	}
+}
+
+
 extern "C" {
+	cudaError_t _maskColumnNumbersRowWise(cudaStream_t stream,
+                           				  int nrows,
+                           				  int ncols,
+			               				  const int* __restrict__ numbers,
+			               				  float* __restrict__ out) {
+	    int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        maskColumnNumbersRowWise<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, numbers, out);
+        return cudaGetLastError();
+	}
+
+
 	cudaError_t _maskZeros(cudaStream_t stream,
                            int nelems,
 			               const float* __restrict__ a,

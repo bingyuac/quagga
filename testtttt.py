@@ -3,6 +3,18 @@ from quagga.cuda import cudart
 from quagga.matrix import GpuMatrix
 from quagga.context import GpuContext
 
+import warnings
+for i in xrange(cudart.cuda_get_device_count()):
+    for j in xrange(cudart.cuda_get_device_count()):
+        if i != j and not cudart.cuda_device_can_access_peer(i, j):
+
+            warnings.formatwarning = lambda **kwargs: 'sdfsdfd'
+
+
+import os
+os._exit(0)
+
+
 # cudart.cuda_set_device(1)
 # print cudart.cuda_device_can_access_peer(1, 0)
 # cudart.cuda_set_device(0)

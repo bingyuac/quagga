@@ -252,8 +252,17 @@ def cuda_memcpy_async(dst, src, count, kind, stream):
     stream: ct_cuda_stream
     """
 
-    count = ct.c_size_t(count)
     status = _libcudart.cudaMemcpyAsync(dst, src, count, cuda_memcpy_kinds[kind], stream)
+    check_cuda_status(status)
+
+
+_libcudart.cudaMemcpy2DAsync.restype = ct_cuda_error
+_libcudart.cudaMemcpy2DAsync.argtypes = [ct.c_void_p, ct.c_size_t,
+                                         ct.c_void_p, ct.c_size_t,
+                                         ct.c_size_t, ct.c_size_t,
+                                         ct.c_int, ct_cuda_stream]
+def cuda_memcpy2d_async(dst, dpitch, src, spitch, width, height, kind, stream):
+    status = _libcudart.cudaMemcpy2DAsync(dst, dpitch, src, spitch, width, height, cuda_memcpy_kinds[kind], stream)
     check_cuda_status(status)
 
 
