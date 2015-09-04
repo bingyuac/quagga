@@ -1022,8 +1022,8 @@ class TestMatrix(TestCase):
                     chunk_b_gpu = b_gpu[k]
                     chunk_a_gpu = a_gpu[:, offset[0]:offset[1]]
 
-                    chunk_a_cpu.copy(self.cpu_context, chunk_b_cpu, stride_size=b_cpu.nrows)
-                    chunk_a_gpu.copy(self.gpu_context, chunk_b_gpu, stride_size=b_gpu.nrows)
+                    chunk_a_cpu.copy_to(self.cpu_context, chunk_b_cpu)
+                    chunk_a_gpu.copy_to(self.gpu_context, chunk_b_gpu)
                 else:
                     a = TestMatrix.get_random_array()
                     b = TestMatrix.get_random_array(a.shape)
@@ -1033,8 +1033,8 @@ class TestMatrix(TestCase):
                     a_gpu = GpuMatrix.from_npa(a)
                     b_gpu = GpuMatrix.from_npa(b)
 
-                    a_cpu.copy(self.cpu_context, b_cpu)
-                    a_gpu.copy(self.gpu_context, b_gpu)
+                    a_cpu.copy_to(self.cpu_context, b_cpu)
+                    a_gpu.copy_to(self.gpu_context, b_gpu)
 
                 r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
 

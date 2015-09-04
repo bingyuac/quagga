@@ -46,4 +46,5 @@
 - [ ] Check all np.allclose into test_Matrix tests for the right checking, sometimes there are typos 
 - [ ] Fix blocks tests and unify block interface
 - [ ] Add NCE block
-- [ ] Add strides support
+- [ ] Add strides support https://github.com/inducer/pycuda/blob/master/pycuda/gpuarray.py#L1105
+- [ ] Follow pep8 and http://docs.openstack.org/developer/hacking/

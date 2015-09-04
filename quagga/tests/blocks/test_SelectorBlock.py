@@ -87,7 +87,7 @@ class TestSelectorBlock(TestCase):
                 _, dL_doutput = selector_block_gpu.output.register_usage(context, context)
                 selector_block_gpu.fprop(self.rng.randint(sequence_len))
                 random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
+                Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
                 selector_block_gpu.bprop()
                 dL_dx_gpu = [e.backward_matrix.to_host() for e in x_gpu]
 
@@ -100,7 +100,7 @@ class TestSelectorBlock(TestCase):
                 _, dL_doutput = selector_block_cpu.output.register_usage(context, context)
                 selector_block_cpu.fprop(self.rng.randint(sequence_len))
                 random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
+                Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
                 selector_block_cpu.bprop()
                 dL_dx_cpu = [e.backward_matrix.to_host() for e in x_cpu]
 

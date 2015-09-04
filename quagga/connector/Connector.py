@@ -90,7 +90,7 @@ class Connector(object):
         o_device_id = self._f_obtaining_context.device_id
         for u_device_id, forward_matrix in self._f_matrices.iteritems():
             if u_device_id != o_device_id:
-                self._f_matrices[o_device_id].copy(self._f_obtaining_context, forward_matrix)
+                self._f_matrices[o_device_id].copy_to(self._f_obtaining_context, forward_matrix)
         self._f_obtaining_context.block(*self._f_usage_contexts)
 
     def bprop(self):
@@ -106,7 +106,7 @@ class Connector(object):
             b_obtaining_contexts.append(b_obtaining_context)
             o_device_id = b_obtaining_context.device_id
             if u_device_id != o_device_id:
-                matrices[o_device_id].copy(b_obtaining_context, matrices[u_device_id])
+                matrices[o_device_id].copy_to(b_obtaining_context, matrices[u_device_id])
             backward_matrices.append(matrices[u_device_id])
         self._b_usage_context.wait(*b_obtaining_contexts)
 

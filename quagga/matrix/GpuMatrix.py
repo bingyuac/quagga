@@ -16,7 +16,7 @@ if len(warning_messages) != 1:
 
 
 class GpuMatrix(object):
-    def __init__(self, data, nrows, ncols, dtype, device_id, is_owner):
+    def __init__(self, data, nrows, ncols, dtype, device_id, is_owner, strides=None):
         self.data = data
         self._nrows = nrows
         self._ncols = ncols
@@ -25,6 +25,11 @@ class GpuMatrix(object):
         self._cudnn_tensor_descriptor = None
         self.device_id = device_id
         self.is_owner = is_owner
+        if strides:
+            self.strides = strides
+        else:
+            elem_size = ct.sizeof(self.c_dtype)
+            self.strides = (elem_size, self.nrows * elem_size)
 
     @property
     def nelems(self):
@@ -63,9 +68,9 @@ class GpuMatrix(object):
             cudnn.create_tensor_descriptor(self._cudnn_tensor_descriptor)
             # CUDNN uses C-order, but CUBLAS uses F-order
             cudnn.set_tensor_4d_descriptor_ex(self._cudnn_tensor_descriptor,
-                                                    cudnn.data_type['CUDNN_DATA_FLOAT'],
-                                                    self.nrows, self.ncols, 1, 1,
-                                                    1, self.nrows, 1, 1)
+                                              cudnn.data_type['CUDNN_DATA_FLOAT'],
+                                              self.nrows, self.ncols, 1, 1,
+                                              1, self.nrows, 1, 1)
         return self._cudnn_tensor_descriptor
 
     def __del__(self):
@@ -77,8 +82,9 @@ class GpuMatrix(object):
     def __getitem__(self, key):
         if type(key) is int:
             data = self._get_pointer_to_element(key, 0)
-            # TODO
-            return GpuMatrix(data, None, None, self.dtype, self.device_id, False)
+            return GpuMatrix(data, 1, self.ncols, self.dtype, self.device_id, False, self.strides)
+        if type(key) is slice and self.ncols == 1:
+            key = (key, 0)
         if type(key[0]) is slice and not key[0].step and type(key[1]) is int:
             stop = key[0].stop if key[0].stop else self.nrows
             start = key[0].start if key[0].start else 0
@@ -228,15 +234,15 @@ class GpuMatrix(object):
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
 
-    def copy(self, context, out, stride_size=None):
+    def copy_to(self, context, out):
         """
-        self[i] -> out[i * stride_size]
+        self -> out
         """
         context.activate()
-        if stride_size:
-            # TODO: Add stride support
-            spitch = ct.sizeof(out.c_dtype)
-            dpitch = stride_size * spitch
+        if out.nrows == 1 and out.strides[0] != out.strides[1]:
+            # TODO: Add real stride support
+            spitch = out.strides[0]
+            dpitch = out.strides[1]
             cudart.cuda_memcpy2d_async(out.data, dpitch, self.data, spitch, spitch, self.nelems, 'default', context.cuda_stream)
         else:
             cudart.cuda_memcpy_async(out.data, self.data, self.nbytes, 'default', context.cuda_stream)

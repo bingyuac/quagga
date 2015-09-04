@@ -64,7 +64,7 @@ class TestNonlinearityBlock(TestCase):
                 nonlinearity_block.fprop()
                 _, dL_doutput = nonlinearity_block.output.register_usage(context, context)
                 random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
+                Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
                 nonlinearity_block.bprop()
                 dL_dx_gpu = x_gpu.backward_matrix.to_host()
 
@@ -76,7 +76,7 @@ class TestNonlinearityBlock(TestCase):
                 nonlinearity_block.fprop()
                 _, dL_doutput = nonlinearity_block.output.register_usage(context, context)
                 random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
+                Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
                 nonlinearity_block.bprop()
                 dL_dx_cpu = x_cpu.backward_matrix.to_host()
 

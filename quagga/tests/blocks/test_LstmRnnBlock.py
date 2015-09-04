@@ -108,7 +108,7 @@ class TestLstmRnnBlock(TestCase):
                 lstm_rnn_gpu.fprop()
                 for _, dL_dh in izip(h, dL_dh):
                     random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
-                    Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
+                    Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_dh)
                 lstm_rnn_gpu.bprop()
                 dL_dW_gpu = lstm_rnn_gpu.dL_dW.to_host()
                 dL_dR_gpu = lstm_rnn_gpu.dL_dR.to_host()
@@ -124,7 +124,7 @@ class TestLstmRnnBlock(TestCase):
                 lstm_rnn_cpu.fprop()
                 for _, dL_dh in izip(h, dL_dh):
                     random_matrix = self.rng.rand(dL_dh.nrows, dL_dh.ncols)
-                    Matrix.from_npa(random_matrix, 'float').copy(context, dL_dh)
+                    Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_dh)
                 lstm_rnn_cpu.bprop()
                 dL_dW_cpu = lstm_rnn_cpu.dL_dW.to_host()
                 dL_dR_cpu = lstm_rnn_cpu.dL_dR.to_host()

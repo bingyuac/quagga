@@ -106,11 +106,11 @@ class CpuMatrix(object):
     def to_list(self):
         return [self[:, i] for i in xrange(self.ncols)]
 
-    def copy(self, context, out, stride_size=None):
+    def copy_to(self, context, out):
         """
-        self[i] -> out[i * stride_size]
+        self -> out
         """
-        if stride_size:
+        if out.npa.shape != self.npa.shape:
             out.npa[:, :self.npa.size] = self.npa
         else:
             out.npa[...] = np.copy(self.npa)

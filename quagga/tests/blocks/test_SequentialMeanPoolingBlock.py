@@ -85,7 +85,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             _, dL_doutput = smean_pooling_block_gpu.output.register_usage(context, context)
             smean_pooling_block_gpu.fprop()
             random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-            Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
+            Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
             smean_pooling_block_gpu.bprop()
             dL_dmatrices_gpu = [e.backward_matrix.to_host() for e in x_gpu]
 
@@ -98,7 +98,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             _, dL_doutput = smean_pooling_block_cpu.output.register_usage(context, context)
             smean_pooling_block_cpu.fprop()
             random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-            Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
+            Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
             smean_pooling_block_cpu.bprop()
             dL_dmatrices_cpu = [e.backward_matrix.to_host() for e in x_cpu]
 

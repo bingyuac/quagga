@@ -51,12 +51,12 @@ class TestMeanPoolingBlock(TestCase):
             vpooling_block = MeanPoolingBlock(a_gpu, axis=0)
             voutput, dL_dvoutput = vpooling_block.output.register_usage(context, context)
             _dL_voutput = self.get_random_array((dL_dvoutput.nrows, dL_dvoutput.ncols))
-            GpuMatrix.from_npa(_dL_voutput, 'float').copy(context, dL_dvoutput)
+            GpuMatrix.from_npa(_dL_voutput, 'float').copy_to(context, dL_dvoutput)
 
             hpooling_block = MeanPoolingBlock(a_gpu, axis=1)
             houtput, dL_dhoutput = hpooling_block.output.register_usage(context, context)
             _dL_houtput = self.get_random_array((dL_dhoutput.nrows, dL_dhoutput.ncols))
-            GpuMatrix.from_npa(_dL_houtput, 'float').copy(context, dL_dhoutput)
+            GpuMatrix.from_npa(_dL_houtput, 'float').copy_to(context, dL_dhoutput)
 
             vpooling_block.fprop()
             vpooling_block.bprop()

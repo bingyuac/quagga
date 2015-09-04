@@ -54,7 +54,7 @@ class TestVerticalStackBlock(TestCase):
             vstack_block = VerticalStackBlock(*matrices)
             output, dL_doutput = vstack_block.output.register_usage(context, context)
             _dL_output = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-            GpuMatrix.from_npa(_dL_output, 'float').copy(context, dL_doutput)
+            GpuMatrix.from_npa(_dL_output, 'float').copy_to(context, dL_doutput)
             vstack_block.fprop()
             vstack_block.bprop()
             for row_slice, dL_dmatrix in izip(row_slices, vstack_block.dL_dmatrices):

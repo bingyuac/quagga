@@ -101,7 +101,7 @@ class TestSequentialEmbeddingBlock(TestCase):
             seq_embd_block.fprop()
             for _, dL_doutput in izip(_, dL_doutput):
                 random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
+                Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
             seq_embd_block.bprop()
             dL_embedding_gpu = [e.to_host() for e in seq_embd_block.dL_embedding]
 
@@ -116,7 +116,7 @@ class TestSequentialEmbeddingBlock(TestCase):
             seq_embd_block.fprop()
             for _, dL_doutput in izip(_, dL_doutput):
                 random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                Matrix.from_npa(random_matrix, 'float').copy(context, dL_doutput)
+                Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
             seq_embd_block.bprop()
             dL_embedding_cpu = [e.to_host() for e in seq_embd_block.dL_embedding]
 

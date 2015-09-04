@@ -44,7 +44,7 @@ class TestEmbeddingBlock(TestCase):
             embed_block = EmbeddingBlock(embedding_init, indexes)
             output, dL_doutput = embed_block.output.register_usage(context, context)
             embed_block.fprop()
-            GpuMatrix.from_npa(np.random.rand(dL_doutput.nrows, dL_doutput.ncols), 'float').copy(context, dL_doutput)
+            GpuMatrix.from_npa(np.random.rand(dL_doutput.nrows, dL_doutput.ncols), 'float').copy_to(context, dL_doutput)
             embed_block.bprop()
             sparse_grad = embed_block.grads[0][1]
             a, b = sparse_grad[0].to_host(), sparse_grad[1].to_host()

@@ -54,7 +54,7 @@ class TestHorizontalStackBlock(TestCase):
             hstack_block = HorizontalStackBlock(*matrices)
             output, dL_doutput = hstack_block.output.register_usage(context, context)
             _dL_output = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-            GpuMatrix.from_npa(_dL_output, 'float').copy(context, dL_doutput)
+            GpuMatrix.from_npa(_dL_output, 'float').copy_to(context, dL_doutput)
             hstack_block.fprop()
             hstack_block.bprop()
             for col_slice, dL_dmatrix in izip(col_slices, hstack_block.dL_dmatrices):

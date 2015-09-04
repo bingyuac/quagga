@@ -33,7 +33,7 @@ class TestRavel(TestCase):
             matrix = Connector(GpuMatrix.from_npa(np.random.rand(dim, k), 'float'), b_usage_context=context)
             ravel_block = Ravel(matrix)
             output, dL_doutput = ravel_block.output.register_usage(context, context)
-            GpuMatrix.from_npa(np.random.rand(dL_doutput.nrows, dL_doutput.ncols), 'float').copy(context, dL_doutput)
+            GpuMatrix.from_npa(np.random.rand(dL_doutput.nrows, dL_doutput.ncols), 'float').copy_to(context, dL_doutput)
             ravel_block.fprop()
             ravel_block.bprop()
             a = ravel_block.dL_dmatrix.to_host()

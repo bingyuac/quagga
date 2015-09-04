@@ -7,7 +7,7 @@ class Ravel(object):
         self.context = Context(device_id)
         if matrix.bpropagable:
             self.matrix, self.dL_dmatrix = matrix.register_usage(self.context, self.context)
-            self.bprop = lambda: self.output.backward_matrix.copy(self.context, self.dL_dmatrix)
+            self.bprop = lambda: self.output.backward_matrix.copy_to(self.context, self.dL_dmatrix)
             self.output = Connector(self.matrix.ravel(), self.context, self.context)
         else:
             self.matrix = matrix.register_usage(self.context)

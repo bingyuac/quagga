@@ -43,11 +43,11 @@ class SelectorBlock(object):
                 if i != self.last_index:
                     x.remove_from_deregistered_b_obtaining_contexts(self.context)
         self.last_index = n - 1
-        self.x[self.last_index].copy(self.context, self.output)
+        self.x[self.last_index].copy_to(self.context, self.output)
         self.output.fprop()
 
     def bprop(self):
         for i, x in enumerate(self._x):
             if i != self.last_index:
                 x.deregistere_b_obtaining_context(self.context)
-        self.output.backward_matrix.copy(self.context, self.dL_dx[self.last_index])
+        self.output.backward_matrix.copy_to(self.context, self.dL_dx[self.last_index])
