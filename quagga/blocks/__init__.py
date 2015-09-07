@@ -17,3 +17,4 @@ from quagga.blocks.SseBlock import SseBlock
 from quagga.blocks.DropoutBlock import DropoutBlock
 from quagga.blocks.ScaleBlock import ScaleBlock
 from quagga.blocks.SelectorBlock import SelectorBlock
+from quagga.blocks.SequentialHorizontalStackBlock import SequentialHorizontalStackBlock

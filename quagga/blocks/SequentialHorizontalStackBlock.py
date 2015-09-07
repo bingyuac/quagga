@@ -7,7 +7,7 @@ from quagga.connector import Connector
 
 
 class SequentialHorizontalStackBlock(object):
-    def __init__(self, x_sequence, y_sequence, device_id):
+    def __init__(self, x_sequence, y_sequence, device_id=None):
         """
         TODO
         """
@@ -64,9 +64,10 @@ class SequentialHorizontalStackBlock(object):
         if n != len(self._y_sequence):
             raise ValueError('TODO!')
         self.output_sequence.set_length(n)
-        Matrix.batch_horizontal_stack(self.context, self.x_sequence, self.y_sequence, self.output_sequence)
+        Matrix.batch_hstack(self.context, self.x_sequence[:n], self.y_sequence[:n], self.output_sequence)
 
     def bprop(self):
         if hasattr(self, 'dL_dx_sequences'):
             dL_doutput_sequence = [e.backward_matrix for e in self.output_sequence]
-            Matrix.batch_horizontal_split(self.context, dL_doutput_sequence, self.dL_dx_sequences, self.dL_dy_sequences)
+            n = len(dL_doutput_sequence)
+            Matrix.batch_hsplit(self.context, dL_doutput_sequence, self.dL_dx_sequences[:n], self.dL_dy_sequences[:n])

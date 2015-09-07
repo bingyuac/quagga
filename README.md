@@ -4,17 +4,17 @@
     - [ ] Add shape assertions into Cpu/GpuMatrix methods
     - [ ] Add contexts assertions into Cpu/GpuMatrix methods
 - [ ] Add benchmarks
-- [x] Implement MergeBlock
-    - [x] Implement VStackBlock
-        - [x] add VStackBlock
-        - [x] Implement vstack in Cpu/GpuMatrix classes
-        - [x] Implement vsplit in Cpu/GpuMatrix classes
-        - [x] Add tests
-    - [x] Implement HStackBlock
-        - [x] add HStackBlock
-        - [x] Implement hstack kernel
-        - [x] Implement hstack in Cpu/GpuMatrix classes
-        - [x] Add tests
+- [ ] Implement MergeBlock
+    - [ ] Implement VStackBlock
+        - [ ] add VStackBlock
+        - [ ] Implement vstack in Cpu/GpuMatrix classes
+        - [ ] Implement vsplit in Cpu/GpuMatrix classes
+        - [ ] Add tests
+    - [ ] Implement HStackBlock
+        - [ ] add HStackBlock
+        - [ ] Implement hstack kernel
+        - [ ] Implement hstack in Cpu/GpuMatrix classes
+        - [ ] Add tests
 - [ ] Cpu/GpuMatrix improvement    
     - [ ] Fix tests current tests
     - [ ] Review current usage of kernels

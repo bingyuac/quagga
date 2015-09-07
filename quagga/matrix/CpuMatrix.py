@@ -5,8 +5,10 @@ from itertools import izip
 
 
 class CpuMatrix(object):
-    def __init__(self, npa):
+    def __init__(self, npa, dtype):
         self.npa = npa
+        self.dtype = dtype
+        self.device_id = None
 
     @property
     def nelems(self):
@@ -70,7 +72,7 @@ class CpuMatrix(object):
         dtype = cls.str_to_dtype(dtype) if dtype else a.dtype
         if a.dtype != dtype:
             a = a.astype(dtype=dtype)
-        return cls(a)
+        return cls(a, dtype)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype=None, device_id=None):
