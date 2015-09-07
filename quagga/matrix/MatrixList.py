@@ -7,10 +7,15 @@ class MatrixList(object):
         self.length = length
 
     def __getitem__(self, k):
-        if -self.length <= k < self.length:
-            return self.matrices[k % self.length]
+        if type(k) is slice:
+            return self.matrices[k]
+        elif type(k) is int:
+            if -self.length <= k < self.length:
+                return self.matrices[k % self.length]
+            else:
+                raise IndexError('MatrixContainer index out of range')
         else:
-            raise IndexError('MatrixContainer index out of range')
+            raise TypeError('MatrixList indices must be integer or slice')
 
     def __iter__(self):
         return iter(self.matrices[:self.length])

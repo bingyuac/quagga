@@ -17,6 +17,9 @@ class SoftmaxCeBlock(object):
         else:
             self.x = x.register_usage(self.context)
         self.true_labels = true_labels.register_usage(self.context)
+
+        # TODO fix here true_labels may be one-hot coding or just numbers
+
         self.probs = Matrix.empty_like(true_labels, device_id=self.context.device_id)
 
         if self.true_labels.dtype == 'int':

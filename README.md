@@ -48,3 +48,6 @@
 - [ ] Add NCE block
 - [ ] Add strides support https://github.com/inducer/pycuda/blob/master/pycuda/gpuarray.py#L1105
 - [ ] Follow pep8 and http://docs.openstack.org/developer/hacking/
+- [ ] add order to GpuMatrix 'C' order can help speed up slicing in EmbeddingBlock
+- [ ] add license
+- [ ] write readme

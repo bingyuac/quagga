@@ -19,16 +19,10 @@ class SequentialMeanPoolingBlock(object):
         self.output = Matrix.empty_like(matrices[0], self.context.device_id)
         self.output = Connector(self.output, self.context, self.context if learning else None)
         self._matrices = matrices
-        self.matrices = []
         if learning:
-            self.dL_dmatrices = []
-        for matrix in matrices:
-            if learning:
-                matrix, dL_dmatrix = matrix.register_usage(self.context, self.context)
-                self.dL_dmatrices.append(dL_dmatrix)
-            else:
-                matrix = matrix.register_usage(self.context)
-            self.matrices.append(matrix)
+            self.matrices, self.dL_dmatrices = zip(*[e.register_usage(self.context, self.context) for e in matrices])
+        else:
+            self.matrices = [e.register_usage(self.context) for e in matrices]
 
     def fprop(self):
         n = len(self._matrices)

@@ -1,20 +1,16 @@
 import os
-import gzip
 import json
 import cPickle
 import logging
 import numpy as np
 from quagga import Model
-from itertools import izip
 from urllib import urlretrieve
 from quagga.matrix import Matrix
 from quagga.context import Context
 from collections import defaultdict
-from collections import OrderedDict
 from quagga.connector import Connector
 from quagga.optimizers import SgdOptimizer
 from quagga.optimizers.observers import Saver
-from sklearn.preprocessing import OneHotEncoder
 from quagga.optimizers.observers import ValidLossTracker
 from quagga.optimizers.observers import TrainLossTracker
 from quagga.optimizers.policies import FixedLearningRatePolicy
@@ -39,7 +35,7 @@ def load_ptb_dataset():
     with open(train_file_path) as f:
         for line in f:
             sentence = line.strip().split()
-            for word in sentence:
+            for word in ['<S>'] + sentence + ['</S>']:
                 if word not in vocab:
                     vocab[word] = len(idx_to_word)
                     idx_to_word.append(word)
@@ -177,13 +173,16 @@ class PtbMiniBatchesGenerator(object):
 
 if __name__ == '__main__':
     ptb_train, ptb_valid, ptb_test, vocab, idx_to_word = load_ptb_dataset()
-    data_block = PtbMiniBatchesGenerator(ptb_train, ptb_valid, batch_size=10, sentence_max_len=500, device_id=1)
-    data_block.blocking_context = data_block.context
-    data_block.set_training_mode()
-    for i in xrange(1000000000):
+    data_block = PtbMiniBatchesGenerator(ptb_train, ptb_valid, batch_size=64, sentence_max_len=200, device_id=1)
+    while True:
         data_block.fprop()
-    sentence_batch = data_block.sentence_batch.to_host()
 
-    mask = data_block.mask.to_host()
-
-    # [vocab[i] for i in sentence_batch[1]]
+    # h = None, h
+    # h = h, None
+    #
+    #
+    #
+    #
+    # data_block.blocking_context = data_block.context
+    #
+    # model = Model(model_definition, data_block)

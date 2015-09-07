@@ -161,6 +161,11 @@ class CpuMatrix(object):
             for _m, m in izip(_matrices, matrices):
                 m.npa[...] = _m
 
+    @staticmethod
+    def batch_horizontal_stack(context, x_sequence, y_sequence, output_sequence):
+        for x, y, out in izip(x_sequence, y_sequence, output_sequence):
+            out.npa[...] = np.hstack((x.npa, y.npa))
+
     def assign_vstack(self, context, matrices):
         nrows = 0
         for matrix in matrices:

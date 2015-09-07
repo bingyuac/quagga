@@ -32,24 +32,17 @@ class Orthogonal(object):
 
 
 class Uniform(object):
-    def __init__(self, nrows, ncols, init_range=None, activation_fun=None):
+    def __init__(self, nrows, ncols, init_range=None):
         self.shape = (nrows, ncols)
         self.nrows = nrows
         self.ncols = ncols
         self.init_range = init_range
-        self.activation_function = activation_fun
 
     def __call__(self):
         if self.init_range is None:
             fan_in, fan_out = self.nrows, self.ncols
-            if self.activation_function == 'tanh':
-                bound = np.sqrt(6.0 / (fan_in + fan_out))
-                init_range = (-bound, bound)
-            elif self.activation_function == 'sigmoid':
-                bound = 4 * np.sqrt(6.0 / (fan_in + fan_out))
-                init_range = (-bound, bound)
-            else:
-                raise ValueError(self.activation_function)
+            bound = np.sqrt(6.0 / (fan_in + fan_out))
+            init_range = (-bound, bound)
         elif isinstance(self.init_range, Number):
             init_range = (-self.init_range, self.init_range)
         else:

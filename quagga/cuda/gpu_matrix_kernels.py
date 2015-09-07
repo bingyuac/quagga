@@ -435,3 +435,17 @@ gpu_matrix_kernels._maskColumnNumbersRowWise.argtypes = [cudart.ct_cuda_stream,
 def mask_column_numbers_row_wise(stream, nrows, ncols, numbers, out):
     status = gpu_matrix_kernels._maskColumnNumbersRowWise(stream, nrows, ncols, numbers, out)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._batchHorizontalStack.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._batchHorizontalStack.argtypes = [cudart.ct_cuda_stream,
+                                                     ct.c_int,
+                                                     ct.c_int,
+                                                     ct.c_int,
+                                                     ct.c_int,
+                                                     ct.POINTER(ct.POINTER(ct.c_float)),
+                                                     ct.POINTER(ct.POINTER(ct.c_float)),
+                                                     ct.POINTER(ct.POINTER(ct.c_float))]
+def batch_horizontal_stack(stream, n, nrows, x_ncols, y_ncols, x_matrices, y_matrices, out_matrices):
+    status = gpu_matrix_kernels._batchHorizontalStack(stream, n, nrows, x_ncols, y_ncols, x_matrices, y_matrices, out_matrices)
+    cudart.check_cuda_status(status)

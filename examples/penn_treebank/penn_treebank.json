@@ -1,5 +1,65 @@
 {
   "data_block": {
-    "blocking_context": ["TODO", "context"]
+    "blocking_context": ["seq_embd_block", "context"]
   },
+  "seq_embd_block": {
+    "type": "SequentialEmbeddingBlock",
+    "x": {"data_block": "sentence_batch"},
+    "embedding_init": ["Uniform", 512, 9999],
+    "device_id": 0
+  },
+  "remove_last_block": {
+    "type": "RemoveLastBlock",
+    "x": {"seq_embd_block": "output"}
+  },
+  "remove_first_block": {
+    "type": "RemoveFirstBlock",
+    "x": {"seq_embd_block": "output"}
+  },
+  "fwd_lstm_block": {
+    "W_z_init": ["Orthogonal", 512, 1024],
+    "W_i_init": ["Orthogonal", 512, 1024],
+    "W_f_init": ["Orthogonal", 512, 1024],
+    "W_o_init": ["Orthogonal", 512, 1024],
+    "R_z_init": ["Orthogonal", 1024, 1024],
+    "R_i_init": ["Orthogonal", 1024, 1024],
+    "R_f_init": ["Orthogonal", 1024, 1024],
+    "R_o_init": ["Orthogonal", 1024, 1024],
+    "x": {"remove_last_block": "output"},
+    "mask": {"data_block": "mask"},
+    "device_id": 0
+  },
+  "bwd_lstm_block": {
+    "W_z_init": ["Orthogonal", 512, 1024],
+    "W_i_init": ["Orthogonal", 512, 1024],
+    "W_f_init": ["Orthogonal", 512, 1024],
+    "W_o_init": ["Orthogonal", 512, 1024],
+    "R_z_init": ["Orthogonal", 1024, 1024],
+    "R_i_init": ["Orthogonal", 1024, 1024],
+    "R_f_init": ["Orthogonal", 1024, 1024],
+    "R_o_init": ["Orthogonal", 1024, 1024],
+    "x": {"remove_first_block": "output"},
+    "mask": {"data_block": "mask"},
+    "device_id": 0
+  },
+  "add_first_block": {
+    "type": "AddFirstBlock",
+    "x": {"fwd_lstm_block": "output"},
+    "value": 0.0
+  },
+  "add_last_block": {
+    "type": "AddLastBlock",
+    "x": {"bwd_lstm_block": "output"},
+    "value": 0.0
+  },
+  "seq_dot_block": {
+    "type": "SequentialDotBlock",
+    "x": {"padding_block": "output"},
+    "target": {"data_block": "sentence_batch"}
+  },
+  "seq_sce_block": {
+    "type": "SequentialSoftmaxCeBlock",
+    "x": {"padding_block": "output"},
+    "target": {"data_block": "sentence_batch"}
+  }
 }

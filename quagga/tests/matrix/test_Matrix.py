@@ -1039,3 +1039,42 @@ class TestMatrix(TestCase):
                 r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N * 2)
+
+    def test_batch_horizontal_stack(self):
+        r = []
+        for i in xrange(self.N):
+            n, nrows = self.rng.random_integers(200, size=2)
+            x_ncols, y_ncols = self.rng.random_integers(3000, size=2)
+            x_sequence = []
+            y_sequence = []
+            output_sequence = []
+            for i in xrange(n):
+                x_sequence.append(self.get_random_array((nrows, x_ncols)))
+                y_sequence.append(self.get_random_array((nrows, y_ncols)))
+                output_sequence.append(np.empty((nrows, x_ncols + y_ncols), dtype=np.float32))
+
+            x_sequence_cpu = []
+            y_sequence_cpu = []
+            output_sequence_cpu = []
+            x_sequence_gpu = []
+            y_sequence_gpu = []
+            output_sequence_gpu = []
+            for x, y, out in izip(x_sequence, y_sequence, output_sequence):
+                x_sequence_cpu.append(CpuMatrix.from_npa(x))
+                y_sequence_cpu.append(CpuMatrix.from_npa(y))
+                output_sequence_cpu.append(CpuMatrix.from_npa(out))
+                x_sequence_gpu.append(GpuMatrix.from_npa(x))
+                y_sequence_gpu.append(GpuMatrix.from_npa(y))
+                output_sequence_gpu.append(GpuMatrix.from_npa(out))
+
+            CpuMatrix.batch_horizontal_stack(self.cpu_context, x_sequence_cpu, y_sequence_cpu, output_sequence_cpu)
+            GpuMatrix.batch_horizontal_stack(self.gpu_context, x_sequence_gpu, y_sequence_gpu, output_sequence_gpu)
+
+            for out_cpu, out_gpu in izip(output_sequence_cpu, output_sequence_gpu):
+                if not np.allclose(out_cpu.to_host(), out_gpu.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), self.N)

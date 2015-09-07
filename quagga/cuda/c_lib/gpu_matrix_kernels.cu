@@ -495,7 +495,48 @@ __global__ void maskColumnNumbersRowWise(int nrows,
 }
 
 
+__global__ void batchHorizontalStack(int n,
+									 int nrows,
+									 int xNcols,
+									 int yNcols,
+									 const float* xMatrices[],
+									 const float* yMatrices[],
+								     float* outMatrices[]) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int xNelems = nrows * xNcols;
+	const int yNelems = nrows * yNcols;
+	const int outNelems = xNelems + yNelems;
+	const int totalNelems = n * outNelems;
+
+	int k;
+	int m;
+	for (int i = start_i; i < totalNelems; i += nthreads) {
+		k = i / outNelems;
+		m = i % outNelems;
+		if (m < xNelems) {
+			outMatrices[k][m] = xMatrices[k][m];
+		} else {
+			outMatrices[k][m] = yMatrices[k][m - xNelems];
+		}
+	}
+}
+
+
 extern "C" {
+	cudaError_t _batchHorizontalStack(cudaStream_t stream,
+									  int n,
+									  int nrows,
+									  int xNcols,
+									  int yNcols,
+									  const float* xMatrices[],
+									  const float* yMatrices[],
+								      float* outMatrices[]) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (n * (nrows * xNcols + nrows * yNcols) - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+       	batchHorizontalStack<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(n, nrows, xNcols, yNcols, xMatrices, yMatrices, outMatrices);
+        return cudaGetLastError();
+	}
+
 	cudaError_t _maskColumnNumbersRowWise(cudaStream_t stream,
                            				  int nrows,
                            				  int ncols,

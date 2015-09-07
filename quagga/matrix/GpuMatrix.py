@@ -335,6 +335,32 @@ class GpuMatrix(object):
             matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
             gpu_matrix_kernels.hotizontal_split(context.cuda_stream, n, ncols, self.nrows, matrices, self.data)
 
+    @staticmethod
+    def batch_horizontal_stack(context, x_sequence, y_sequence, output_sequence):
+        context.activate()
+        n = len(output_sequence)
+        c_dtype = output_sequence[0].c_dtype
+        x_matrices = (ct.POINTER(c_dtype) * n)(*(m.data for m in x_sequence))
+        y_matrices = (ct.POINTER(c_dtype) * n)(*(m.data for m in y_sequence))
+        output_matrices = (ct.POINTER(c_dtype) * n)(*(m.data for m in output_sequence))
+        elem_size = ct.sizeof(ct.POINTER(c_dtype))
+        x_device_pointer = _get_temp_memory(context, 3 * n)
+        cudart.cuda_memcpy_async(x_device_pointer, x_matrices, n * elem_size, 'default', context.cuda_stream)
+
+        void_p = ct.cast(x_device_pointer, ct.c_void_p).value + n * elem_size
+        y_device_pointer = ct.cast(void_p, ct.POINTER(ct.POINTER(c_dtype)))
+        cudart.cuda_memcpy_async(y_device_pointer, y_matrices, n * elem_size, 'default', context.cuda_stream)
+
+        void_p = ct.cast(y_device_pointer, ct.c_void_p).value + n * elem_size
+        output_device_pointer = ct.cast(void_p, ct.POINTER(ct.POINTER(c_dtype)))
+        cudart.cuda_memcpy_async(output_device_pointer, output_matrices, n * elem_size, 'default', context.cuda_stream)
+
+        x_ncols = x_sequence[0].ncols
+        y_ncols = y_sequence[0].ncols
+        nrows = output_sequence[0].nrows
+
+        gpu_matrix_kernels.batch_horizontal_stack(context.cuda_stream, n, nrows, x_ncols, y_ncols, x_device_pointer, y_device_pointer, output_device_pointer)
+
     def assign_vstack(self, context, matrices):
         nrows = 0
         for matrix in matrices:
