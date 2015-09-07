@@ -449,3 +449,17 @@ gpu_matrix_kernels._batchHorizontalStack.argtypes = [cudart.ct_cuda_stream,
 def batch_horizontal_stack(stream, n, nrows, x_ncols, y_ncols, x_matrices, y_matrices, out_matrices):
     status = gpu_matrix_kernels._batchHorizontalStack(stream, n, nrows, x_ncols, y_ncols, x_matrices, y_matrices, out_matrices)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._batchHorizontalSplit.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._batchHorizontalSplit.argtypes = [cudart.ct_cuda_stream,
+                                                     ct.c_int,
+                                                     ct.c_int,
+                                                     ct.c_int,
+                                                     ct.c_int,
+                                                     ct.POINTER(ct.POINTER(ct.c_float)),
+                                                     ct.POINTER(ct.POINTER(ct.c_float)),
+                                                     ct.POINTER(ct.POINTER(ct.c_float))]
+def batch_horizontal_split(stream, n, nrows, x_ncols, y_ncols, matrices, x_matrices, y_matrices):
+    status = gpu_matrix_kernels._batchHorizontalSplit(stream, n, nrows, x_ncols, y_ncols, matrices, x_matrices, y_matrices)
+    cudart.check_cuda_status(status)

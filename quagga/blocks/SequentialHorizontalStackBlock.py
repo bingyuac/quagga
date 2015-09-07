@@ -67,4 +67,6 @@ class SequentialHorizontalStackBlock(object):
         Matrix.batch_horizontal_stack(self.context, self.x_sequence, self.y_sequence, self.output_sequence)
 
     def bprop(self):
-        pass
+        if hasattr(self, 'dL_dx_sequences'):
+            dL_doutput_sequence = [e.backward_matrix for e in self.output_sequence]
+            Matrix.batch_horizontal_split(self.context, dL_doutput_sequence, self.dL_dx_sequences, self.dL_dy_sequences)

@@ -162,9 +162,16 @@ class CpuMatrix(object):
                 m.npa[...] = _m
 
     @staticmethod
-    def batch_horizontal_stack(context, x_sequence, y_sequence, output_sequence):
+    def batch_hstack(context, x_sequence, y_sequence, output_sequence):
         for x, y, out in izip(x_sequence, y_sequence, output_sequence):
             out.npa[...] = np.hstack((x.npa, y.npa))
+
+    @staticmethod
+    def batch_hsplit(context, input_sequence, x_sequence, y_sequence):
+        x_ncols = x_sequence[0].npa.shape[1]
+        for in_matrix, x, y in izip(input_sequence, x_sequence, y_sequence):
+            x.npa[...] = in_matrix.npa[:, :x_ncols]
+            y.npa[...] = in_matrix.npa[:, x_ncols:]
 
     def assign_vstack(self, context, matrices):
         nrows = 0

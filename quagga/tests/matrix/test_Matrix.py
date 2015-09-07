@@ -1040,7 +1040,7 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N * 2)
 
-    def test_batch_horizontal_stack(self):
+    def test_batch_hstack(self):
         r = []
         for i in xrange(self.N):
             n, nrows = self.rng.random_integers(200, size=2)
@@ -1067,11 +1067,50 @@ class TestMatrix(TestCase):
                 y_sequence_gpu.append(GpuMatrix.from_npa(y))
                 output_sequence_gpu.append(GpuMatrix.from_npa(out))
 
-            CpuMatrix.batch_horizontal_stack(self.cpu_context, x_sequence_cpu, y_sequence_cpu, output_sequence_cpu)
-            GpuMatrix.batch_horizontal_stack(self.gpu_context, x_sequence_gpu, y_sequence_gpu, output_sequence_gpu)
+            CpuMatrix.batch_hstack(self.cpu_context, x_sequence_cpu, y_sequence_cpu, output_sequence_cpu)
+            GpuMatrix.batch_hstack(self.gpu_context, x_sequence_gpu, y_sequence_gpu, output_sequence_gpu)
 
             for out_cpu, out_gpu in izip(output_sequence_cpu, output_sequence_gpu):
                 if not np.allclose(out_cpu.to_host(), out_gpu.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_batch_hsplit(self):
+        r = []
+        for i in xrange(self.N):
+            n, nrows = self.rng.random_integers(200, size=2)
+            x_ncols, y_ncols = self.rng.random_integers(3000, size=2)
+            x_sequence = []
+            y_sequence = []
+            input_sequence = []
+            for i in xrange(n):
+                x_sequence.append(np.empty((nrows, x_ncols), dtype=np.float32))
+                y_sequence.append(np.empty((nrows, y_ncols), dtype=np.float32))
+                input_sequence.append(self.get_random_array((nrows, x_ncols + y_ncols)))
+
+            x_sequence_cpu = []
+            y_sequence_cpu = []
+            input_sequence_cpu = []
+            x_sequence_gpu = []
+            y_sequence_gpu = []
+            input_sequence_gpu = []
+            for x, y, out in izip(x_sequence, y_sequence, input_sequence):
+                x_sequence_cpu.append(CpuMatrix.from_npa(x))
+                y_sequence_cpu.append(CpuMatrix.from_npa(y))
+                input_sequence_cpu.append(CpuMatrix.from_npa(out))
+                x_sequence_gpu.append(GpuMatrix.from_npa(x))
+                y_sequence_gpu.append(GpuMatrix.from_npa(y))
+                input_sequence_gpu.append(GpuMatrix.from_npa(out))
+
+            CpuMatrix.batch_hsplit(self.cpu_context, input_sequence_cpu, x_sequence_cpu, y_sequence_cpu)
+            GpuMatrix.batch_hsplit(self.gpu_context, input_sequence_gpu, x_sequence_gpu, y_sequence_gpu)
+
+            for in_cpu, in_gpu in izip(input_sequence_cpu, input_sequence_gpu):
+                if not np.allclose(in_cpu.to_host(), in_gpu.to_host()):
                     r.append(False)
                     break
             else:

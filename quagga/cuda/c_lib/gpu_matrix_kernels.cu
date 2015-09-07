@@ -523,7 +523,48 @@ __global__ void batchHorizontalStack(int n,
 }
 
 
+__global__ void batchHorizontalSplit(int n,
+									 int nrows,
+									 int xNcols,
+									 int yNcols,
+									 const float* matrices[],
+									 float* xMatrices[],
+								     float* yMatrices[]) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int xNelems = nrows * xNcols;
+	const int yNelems = nrows * yNcols;
+	const int outNelems = xNelems + yNelems;
+	const int totalNelems = n * outNelems;
+
+	int k;
+	int m;
+	for (int i = start_i; i < totalNelems; i += nthreads) {
+		k = i / outNelems;
+		m = i % outNelems;
+		if (m < xNelems) {
+			xMatrices[k][m] = matrices[k][m];
+		} else {
+			yMatrices[k][m - xNelems] = matrices[k][m];
+		}
+	}
+}
+
 extern "C" {
+	cudaError_t _batchHorizontalSplit(cudaStream_t stream,
+									  int n,
+									  int nrows,
+									  int xNcols,
+									  int yNcols,
+									  const float* matrices[],
+									  float* xMatrices[],
+								      float* yMatrices[]) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (n * (nrows * xNcols + nrows * yNcols) - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+       	batchHorizontalSplit<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(n, nrows, xNcols, yNcols, matrices, xMatrices, yMatrices);
+        return cudaGetLastError();
+	}
+
+
 	cudaError_t _batchHorizontalStack(cudaStream_t stream,
 									  int n,
 									  int nrows,
@@ -536,6 +577,7 @@ extern "C" {
        	batchHorizontalStack<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(n, nrows, xNcols, yNcols, xMatrices, yMatrices, outMatrices);
         return cudaGetLastError();
 	}
+
 
 	cudaError_t _maskColumnNumbersRowWise(cudaStream_t stream,
                            				  int nrows,
