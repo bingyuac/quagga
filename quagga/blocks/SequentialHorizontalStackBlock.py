@@ -16,7 +16,7 @@ class SequentialHorizontalStackBlock(object):
         elif all(not e.bpropagable for e in chain(x_sequence, y_sequence)):
             learning = False
         else:
-            raise ValueError('All elements of should be bpropagable or '
+            raise ValueError('All elements should be bpropagable or '
                              'non-bpropagable. Mixed state is not allowed!')
         x_ncols = x_sequence[0].ncols
         y_ncols = y_sequence[0].ncols

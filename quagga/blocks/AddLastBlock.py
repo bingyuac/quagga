@@ -9,7 +9,7 @@ class AddLastBlock(object):
         self.x = x
         empty = Matrix.empty_like(x[0])
         self.context = Context(x[0].device_id)
-        empty = Connector(empty, self.context)
+        empty = Connector(empty, self.context, self.context)
         self.output = MatrixList(x[:] + [empty])
 
     def fprop(self):

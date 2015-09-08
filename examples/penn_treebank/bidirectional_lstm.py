@@ -15,6 +15,16 @@ from quagga.optimizers.observers import ValidLossTracker
 from quagga.optimizers.observers import TrainLossTracker
 from quagga.optimizers.policies import FixedLearningRatePolicy
 from quagga.optimizers.stopping_criteria import MaxIterCriterion
+from collections import OrderedDict
+
+
+def get_logger(file_name):
+    logger = logging.getLogger('train_logger')
+    handler = logging.FileHandler(file_name, mode='w')
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s', '%d-%m-%Y %H:%M:%S'))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
 
 
 def load_ptb_dataset():
@@ -174,15 +184,22 @@ class PtbMiniBatchesGenerator(object):
 if __name__ == '__main__':
     ptb_train, ptb_valid, ptb_test, vocab, idx_to_word = load_ptb_dataset()
     data_block = PtbMiniBatchesGenerator(ptb_train, ptb_valid, batch_size=64, sentence_max_len=200, device_id=1)
-    while True:
-        data_block.fprop()
+    with open('penn_treebank.json') as f:
+        model_definition = json.load(f, object_pairs_hook=OrderedDict)
+    model = Model(model_definition, data_block)
+    logger = get_logger('train.log')
+    learning_rate_policy = FixedLearningRatePolicy(0.005)
+    sgd_optimizer = SgdOptimizer(MaxIterCriterion(40000), learning_rate_policy, model)
+    train_loss_tracker = TrainLossTracker(model, 2000, logger)
+    valid_loss_tracker = ValidLossTracker(model, 2000, logger)
+    saver = Saver(model, 5000, 'penn_treebank_trained.json', 'penn_treebank_parameters.hdf5', logger)
+    sgd_optimizer.add_observer(train_loss_tracker)
+    sgd_optimizer.add_observer(valid_loss_tracker)
+    sgd_optimizer.add_observer(saver)
 
-    # h = None, h
-    # h = h, None
-    #
-    #
-    #
-    #
-    # data_block.blocking_context = data_block.context
-    #
-    # model = Model(model_definition, data_block)
+    import time
+    t = time.time()
+    sgd_optimizer.optimize()
+    from quagga.cuda import cudart
+    cudart.cuda_device_synchronize()
+    print time.time() - t

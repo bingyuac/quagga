@@ -4,7 +4,6 @@ from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.matrix import MatrixList
 from quagga.connector import Connector
-from quagga.blocks import SoftmaxCeBlock
 
 
 class SequentialSoftmaxCeBlock(object):
@@ -13,7 +12,7 @@ class SequentialSoftmaxCeBlock(object):
     """
 
     def __init__(self, x_sequence, true_labels, device_id=None):
-        if not all(e.bpropagable for e in x_sequence) or \
+        if not all(e.bpropagable for e in x_sequence) and \
                 not all(not e.bpropagable for e in x_sequence):
             raise ValueError('All elements of x should be bpropagable '
                              'or non-bpropagable. Mixed state is not allowed!')
@@ -21,7 +20,7 @@ class SequentialSoftmaxCeBlock(object):
             self.context = Context(device_id)
             true_labels = true_labels.register_usage(self.context)
             true_labels = [true_labels[:, i] for i in xrange(true_labels.ncols)]
-        self.softmax_ce_blocks = [SoftmaxCeBlock(x, e, device_id) for x, e in izip(x_sequence, true_labels)]
+        self.softmax_ce_blocks = [_SoftmaxCeBlock(x, e, device_id) for x, e in izip(x_sequence, true_labels)]
         self.x_sequence = x_sequence
         self.max_input_sequence_len = len(x_sequence)
 

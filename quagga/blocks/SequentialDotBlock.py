@@ -10,7 +10,7 @@ class SequentialDotBlock(object):
         """
         TODO
         """
-        if not all(e.bpropagable for e in x_sequence) or \
+        if not all(e.bpropagable for e in x_sequence) and \
                 not all(not e.bpropagable for e in x_sequence):
             raise ValueError('All elements of x should be bpropagable '
                              'or non-bpropagable. Mixed state is not allowed!')
