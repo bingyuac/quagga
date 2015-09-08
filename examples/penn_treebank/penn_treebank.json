@@ -5,15 +5,11 @@
   "seq_embd_block": {
     "type": "SequentialEmbeddingBlock",
     "x": {"data_block": "sentence_batch"},
-    "embedding_init": ["Uniform", 512, 9999],
+    "embedding_init": ["Uniform", 10001, 512],
     "device_id": 0
   },
   "remove_last_block": {
     "type": "RemoveLastBlock",
-    "x": {"seq_embd_block": "output"}
-  },
-  "remove_first_block": {
-    "type": "RemoveFirstBlock",
     "x": {"seq_embd_block": "output"}
   },
   "fwd_lstm_block": {
@@ -29,6 +25,10 @@
     "mask": {"data_block": "mask"},
     "device_id": 0
   },
+  "remove_first_block": {
+    "type": "RemoveFirstBlock",
+    "x": {"seq_embd_block": "output"}
+  },
   "bwd_lstm_block": {
     "W_z_init": ["Orthogonal", 512, 1024],
     "W_i_init": ["Orthogonal", 512, 1024],
@@ -40,26 +40,33 @@
     "R_o_init": ["Orthogonal", 1024, 1024],
     "x": {"remove_first_block": "output"},
     "mask": {"data_block": "mask"},
+    "reverse": true,
     "device_id": 0
   },
   "add_first_block": {
     "type": "AddFirstBlock",
-    "x": {"fwd_lstm_block": "output"},
-    "value": 0.0
+    "x": {"fwd_lstm_block": "output"}
   },
   "add_last_block": {
     "type": "AddLastBlock",
-    "x": {"bwd_lstm_block": "output"},
-    "value": 0.0
+    "x": {"bwd_lstm_block": "output"}
+  },
+  "seq_horizontal_stack": {
+    "type": "SequentialHorizontalStackBlock",
+    "x_sequence": {"add_first_block": "output"},
+    "y_sequence": {"add_last_block": "output"},
+    "device_id": 0
   },
   "seq_dot_block": {
     "type": "SequentialDotBlock",
-    "x": {"padding_block": "output"},
-    "target": {"data_block": "sentence_batch"}
+    "W_init": ["Orthogonal", 2048, 10001],
+    "b_init": ["Constant", 1, 10001],
+    "x_sequence": {"seq_horizontal_stack": "output_sequence"},
+    "device_id": 0
   },
   "seq_sce_block": {
     "type": "SequentialSoftmaxCeBlock",
-    "x": {"padding_block": "output"},
-    "target": {"data_block": "sentence_batch"}
+    "x_sequence": {"seq_dot_block": "output_sequence"},
+    "true_labels": {"data_block": "sentence_batch"}
   }
 }

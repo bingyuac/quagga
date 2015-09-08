@@ -14,10 +14,10 @@ class DotBlock(object):
         output = Matrix.empty(x.nrows, self.W.ncols, device_id=device_id)
         self.output = Connector(output, self.context, self.context if learning else None)
         if learning:
-            self.dL_dW = Matrix.empty_like(self.W, device_id)
+            self.dL_dW = Matrix.empty_like(self.W)
             if hasattr(self, 'b'):
-                self.dL_db = Matrix.empty_like(self.b, device_id)
-                self.ones = Matrix.from_npa(np.ones((x.nrows, 1), np.float32), device_id=device_id)
+                self.dL_db = Matrix.empty_like(self.b)
+                self.ones = Matrix.from_npa(np.ones((x.nrows, 1), self.b.np_dtype), device_id=device_id)
             if x.bpropagable:
                 self.x, self.dL_dx = x.register_usage(self.context, self.context)
             else:

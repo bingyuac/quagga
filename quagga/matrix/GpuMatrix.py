@@ -172,6 +172,7 @@ class GpuMatrix(object):
     @classmethod
     def empty_like(cls, other, device_id=None):
         nbytes = other.nelems * ct.sizeof(other.c_dtype)
+        device_id = other.device_id if device_id is None else device_id
         with cudart.device(device_id):
             device_id = cudart.cuda_get_device()
             data = cudart.cuda_malloc(nbytes, other.c_dtype)

@@ -37,7 +37,6 @@
 - [ ] Add compiler functionality for more flexible code generation
 - [ ] Add max margin cost function
 - [ ] Rewrite `_verticalStack` and `_horizontalStack` using kernels instead of cudamemcopy
-- [ ] Change logic into empty like with default device_id borrow it from like matrix
 - [ ] use device api for dropout instead of host api
 - [ ] Think about dropout and scaled layer It should not take to many memory, you should write a mechanism for this
 - [ ] Add broadcasting to Matrix Operations
@@ -46,8 +45,11 @@
 - [ ] Check all np.allclose into test_Matrix tests for the right checking, sometimes there are typos 
 - [ ] Fix blocks tests and unify block interface
 - [ ] Add NCE block
+- [ ] deregistere_b_obtaining_context maybe I should deregistere forward context too in order to avoid unnecessary copy 
 - [ ] Add strides support https://github.com/inducer/pycuda/blob/master/pycuda/gpuarray.py#L1105
 - [ ] Follow pep8 and http://docs.openstack.org/developer/hacking/
 - [ ] add order to GpuMatrix 'C' order can help speed up slicing in EmbeddingBlock
 - [ ] add license
 - [ ] write readme
+- [ ] Add callbacks in streams for observers in order to make code truly async (https://docs.python.org/2/extending/extending.html#calling-python-functions-from-c) begin with CFUNCTYPE in ctypes, dynamically generate cuda callback functions
+- [ ] give proper name for AddLastBlock, AddFirstBlock, RemoveFirstBlock, RemoveLastBlock

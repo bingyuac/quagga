@@ -4,8 +4,7 @@ from quagga.matrix import MatrixList
 class RemoveLastBlock(object):
     def __init__(self, x):
         self.x = x
-        # TODO add here last replacer zeros
-        self.output = MatrixList(x.matrices)
+        self.output = MatrixList(x[:])
 
     def fprop(self):
         self.output.set_length(len(self.x) - 1)

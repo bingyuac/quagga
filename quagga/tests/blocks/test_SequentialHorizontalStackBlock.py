@@ -146,12 +146,7 @@ class TestSequentialHorizontalStackBlock(TestCase):
     def test_theano_grad(self):
         class SequentialHorizontalStackLayer(object):
             def get_output_expr(self, x_sequence, y_sequence):
-                x_sequence = x_sequence.transpose(2, 0, 1)
-                y_sequence = y_sequence.transpose(2, 0, 1)
-                output_sequence, _ = \
-                    theano.scan(lambda x, y: T.concatenate((x, y), axis=1),
-                                sequences=[x_sequence, y_sequence])
-                return output_sequence.transpose(1, 2, 0)
+                return T.concatenate((x_sequence, y_sequence), axis=1)
 
         class SequentialMeanPoolingLayer(object):
             def get_output_expr(self, input_sequence):
@@ -218,13 +213,13 @@ class TestSequentialHorizontalStackBlock(TestCase):
             dL_dy_sequence = [e.backward_matrix.to_host() for e in y]
 
             for i in xrange(dL_dx_sequence_th.shape[-1]):
-                if not np.allclose(dL_dx_sequence[i], dL_dx_sequence_th[..., i]):
+                if not np.allclose(dL_dx_sequence[i], dL_dx_sequence_th[..., i], atol=1.e-6):
                     r.append(False)
                     break
             else:
                 r.append(True)
             for i in xrange(dL_dy_sequence_th.shape[-1]):
-                if not np.allclose(dL_dy_sequence[i], dL_dy_sequence_th[..., i]):
+                if not np.allclose(dL_dy_sequence[i], dL_dy_sequence_th[..., i], atol=1.e-6):
                     r.append(False)
                     break
             else:

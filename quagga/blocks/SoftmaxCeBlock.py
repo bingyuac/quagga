@@ -16,12 +16,9 @@ class SoftmaxCeBlock(object):
             self.x, self.dL_dx = x.register_usage(self.context, self.context)
         else:
             self.x = x.register_usage(self.context)
+        self.probs = Matrix.empty_like(self.x, device_id=self.context.device_id)
         self.true_labels = true_labels.register_usage(self.context)
-
-        # TODO fix here true_labels may be one-hot coding or just numbers
-
-        self.probs = Matrix.empty_like(true_labels, device_id=self.context.device_id)
-
+        # error = (probs - true_labels) / M
         if self.true_labels.dtype == 'int':
             self.bprop = lambda self: self.dL_dx.assign_softmax_ce_derivative(self.context, self.probs, self.true_labels)
         else:
@@ -30,15 +27,12 @@ class SoftmaxCeBlock(object):
     def fprop(self):
         self.x.softmax(self.context, self.probs)
 
-    def bprop(self):
-        # error = (probs - true_labels) / M
-        pass
-
     @property
     def loss(self):
         true_labels = self.true_labels.to_host()
         probs = self.probs.to_host()
         if self.true_labels.dtype == 'int':
-            return - np.mean(np.log(probs[range(probs.shape[0]), true_labels.flatten()] + 1e-20))
+            idxs = range(probs.shape[0]), true_labels.flatten()
+            return - np.mean(np.log(probs[idxs] + 1e-20))
         else:
-            return - np.mean(np.sum(true_labels * np.log(probs + 1e-20), axis=1))
+            return - np.mean(np.log(np.sum(true_labels * probs, axis=1) + 1e-20))

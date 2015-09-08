@@ -31,13 +31,13 @@ class LstmRnnBlock(object):
         self.W = Matrix.empty(input_dim, 4 * hidden_dim, W[0].dtype, device_id)
         self.W.assign_hstack(self.context, W)
         if learning:
-            self.dL_dW = Matrix.empty_like(self.W, device_id)
+            self.dL_dW = Matrix.empty_like(self.W)
 
         R = [Matrix.from_npa(init(), device_id=device_id) for init in [R_z_init, R_i_init, R_f_init, R_o_init]]
         self.R = Matrix.empty(hidden_dim, 4 * hidden_dim, R[0].dtype, device_id)
         self.R.assign_hstack(self.context, R)
         if learning:
-            self.dL_dR = Matrix.empty_like(self.R, device_id)
+            self.dL_dR = Matrix.empty_like(self.R)
 
         self.x = x
         self.mask = mask.register_usage(self.context) if mask else None
@@ -177,7 +177,7 @@ class _LstmBlock(object):
             self.prev_h = prev_h
 
         if learning:
-            self._dzifo_dpre_zifo = Matrix.empty_like(self.zifo, device_id)
+            self._dzifo_dpre_zifo = Matrix.empty_like(self.zifo)
             self.dz_dpre_z = self._dzifo_dpre_zifo[:, 0*dim:1*dim]
             self.di_dpre_i = self._dzifo_dpre_zifo[:, 1*dim:2*dim]
             self.df_dpre_f = self._dzifo_dpre_zifo[:, 2*dim:3*dim]
@@ -187,7 +187,7 @@ class _LstmBlock(object):
             self.dL_dpre_i = self.di_dpre_i
             self.dL_dpre_f = self.df_dpre_f
             self.dL_dpre_o = self.do_dpre_o
-            self._dtanh_c_dc = Matrix.empty_like(self.c, device_id)
+            self._dtanh_c_dc = Matrix.empty_like(self.c)
 
     @property
     def dzifo_dpre_zifo(self):

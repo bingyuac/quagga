@@ -16,7 +16,11 @@ class ValidLossTracker(object):
             try:
                 while True:
                     self.model.fprop()
-                    losses.append(self.model.loss)
+                    loss = self.model.loss
+                    if type(loss) is list:
+                        losses.extend(loss)
+                    else:
+                        losses.append(loss)
             except StopIteration:
                 loss = np.mean(losses)
                 self.logger.info('Iteration {}: valid loss: {:.4f}'.

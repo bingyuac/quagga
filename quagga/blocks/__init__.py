@@ -18,3 +18,9 @@ from quagga.blocks.DropoutBlock import DropoutBlock
 from quagga.blocks.ScaleBlock import ScaleBlock
 from quagga.blocks.SelectorBlock import SelectorBlock
 from quagga.blocks.SequentialHorizontalStackBlock import SequentialHorizontalStackBlock
+from quagga.blocks.SequentialSoftmaxCeBlock import SequentialSoftmaxCeBlock
+from quagga.blocks.SequentialDotBlock import SequentialDotBlock
+from quagga.blocks.RemoveFirstBlock import RemoveFirstBlock
+from quagga.blocks.RemoveLastBlock import RemoveLastBlock
+from quagga.blocks.AddFirstBlock import AddFirstBlock
+from quagga.blocks.AddLastBlock import AddLastBlock
