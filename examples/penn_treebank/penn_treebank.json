@@ -69,6 +69,7 @@
   "seq_sce_block": {
     "type": "SequentialSoftmaxCeBlock",
     "x_sequence": {"seq_dot_block": "output_sequence"},
-    "true_labels": {"data_block": "sentence_batch"}
+    "true_labels": {"data_block": "sentence_batch"},
+    "device_id": 0
   }
 }

@@ -2,7 +2,13 @@ import quagga
 import warnings
 import numpy as np
 import ctypes as ct
-from quagga.cuda import cudart, cublas, cudnn, curand, gpu_matrix_kernels, nonlinearities
+from quagga.cuda import cudnn
+from quagga.cuda import cudart
+from quagga.cuda import cublas
+from quagga.cuda import curand
+from quagga.cuda import nonlinearities
+from quagga.matrix import ShapeElement
+from quagga.cuda import gpu_matrix_kernels
 
 
 warning_messages = ['P2P comunication is not possible between:']
@@ -18,8 +24,8 @@ if len(warning_messages) != 1:
 class GpuMatrix(object):
     def __init__(self, data, nrows, ncols, dtype, device_id, is_owner, strides=None):
         self.data = data
-        self._nrows = nrows
-        self._ncols = ncols
+        self._nrows = nrows if isinstance(nrows, ShapeElement) else ShapeElement(nrows)
+        self._ncols = ncols if isinstance(ncols, ShapeElement) else ShapeElement(ncols)
         self.dtype = dtype
         self.np_dtype, self.c_dtype = self.str_to_dtypes(dtype)
         self._cudnn_tensor_descriptor = None
@@ -31,31 +37,31 @@ class GpuMatrix(object):
             elem_size = ct.sizeof(self.c_dtype)
             self.strides = (elem_size, self.nrows * elem_size)
 
+        def change_cudnn_tensor_descriptor():
+            if self._cudnn_tensor_descriptor:
+                cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
+                self._cudnn_tensor_descriptor = None
+        self._nrows.add_modification_handler(change_cudnn_tensor_descriptor)
+
     @property
     def nelems(self):
         return self.nrows * self.ncols
 
     @property
     def nrows(self):
-        return self._nrows
+        return self._nrows.value
 
     @nrows.setter
     def nrows(self, value):
-        self._nrows = value
-        if self._cudnn_tensor_descriptor:
-            cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
-            self._cudnn_tensor_descriptor = None
+        self._nrows[:] = value
 
     @property
     def ncols(self):
-        return self._ncols
+        return self._ncols.value
 
     @ncols.setter
     def ncols(self, value):
-        self._ncols = value
-        if self._cudnn_tensor_descriptor:
-            cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
-            self._cudnn_tensor_descriptor = None
+        self._ncols[:] = value
 
     @property
     def nbytes(self):
@@ -80,23 +86,59 @@ class GpuMatrix(object):
                 cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
 
     def __getitem__(self, key):
-        if type(key) is int:
+        # get row
+        if isinstance(key, int):
             data = self._get_pointer_to_element(key, 0)
             return GpuMatrix(data, 1, self.ncols, self.dtype, self.device_id, False, self.strides)
-        if type(key) is slice and self.ncols == 1:
+        if isinstance(key, ShapeElement):
+            data = self._get_pointer_to_element(key.value, 0)
+            a = GpuMatrix(data, 1, self.ncols, self.dtype, self.device_id, False, self.strides)
+            modif_handler = lambda: setattr(a, 'data', self._get_pointer_to_element(key.value, 0))
+            key.add_modification_handler(modif_handler)
+            return a
+        if isinstance(key, slice) and self.ncols == 1:
             key = (key, 0)
-        if type(key[0]) is slice and not key[0].step and type(key[1]) is int:
+        # get row slice with one column
+        if isinstance(key[0], slice) and not key[0].step and isinstance(key[1], (int, ShapeElement)):
             stop = key[0].stop if key[0].stop else self.nrows
             start = key[0].start if key[0].start else 0
             nrows = stop - start
-            data = self._get_pointer_to_element(start, key[1])
-            return GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False)
-        if key[0] == slice(None) and type(key[1]) is slice and not key[1].step:
+            if isinstance(key[1], int) and isinstance(start, int):
+                data = self._get_pointer_to_element(start, key[1])
+                return GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides)
+            elif isinstance(key[1], ShapeElement) and isinstance(start, int):
+                data = self._get_pointer_to_element(start, key[1].value)
+                a = GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides)
+                modif_handler = lambda: setattr(a, 'data', self._get_pointer_to_element(start, key[1].value))
+                key[1].add_modification_handler(modif_handler)
+                return a
+            elif isinstance(key[1], int) and isinstance(start, ShapeElement):
+                data = self._get_pointer_to_element(start.value, key[1])
+                a = GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides)
+                modif_handler = lambda: setattr(a, 'data', self._get_pointer_to_element(start.value, key[1]))
+                start.add_modification_handler(modif_handler)
+                return a
+            elif isinstance(key[1], ShapeElement) and isinstance(start, ShapeElement):
+                data = self._get_pointer_to_element(start.value, key[1].value)
+                a = GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides)
+                modif_handler = lambda: setattr(a, 'data', self._get_pointer_to_element(start.value, key[1].value))
+                key[1].add_modification_handler(modif_handler)
+                start.add_modification_handler(modif_handler)
+                return a
+        # get column slice
+        if key[0] == slice(None) and isinstance(key[1], slice) and not key[1].step:
             stop = key[1].stop if key[1].stop else self.ncols
             start = key[1].start if key[1].start else 0
             ncols = stop - start
-            data = self._get_pointer_to_column(start)
-            return GpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id, False)
+            if isinstance(start, int):
+                data = self._get_pointer_to_column(start)
+                return GpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id, False)
+            elif isinstance(start, ShapeElement):
+                data = self._get_pointer_to_column(start)
+                a = GpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id, False)
+                modif_handler = lambda: setattr(a, 'data', self._get_pointer_to_column(start.value))
+                start.add_modification_handler(modif_handler)
+                return a
         raise ValueError('This slice: {} is unsupported!'.format(key))
 
     def __setitem__(self, key, value):
@@ -163,11 +205,11 @@ class GpuMatrix(object):
     def empty(cls, nrows, ncols, dtype=None, device_id=None):
         dtype = dtype if dtype else quagga.dtype
         c_dtype = cls.str_to_dtypes(dtype)[1]
-        nbytes = nrows * ncols * ct.sizeof(c_dtype)
         with cudart.device(device_id):
             device_id = cudart.cuda_get_device()
-            data = cudart.cuda_malloc(nbytes, c_dtype)
-        return cls(data, nrows, ncols, dtype, device_id, True)
+            a = cls(None, nrows, ncols, dtype, device_id, True)
+            a.data = cudart.cuda_malloc(a.nbytes, c_dtype)
+        return a
 
     @classmethod
     def empty_like(cls, other, device_id=None):
@@ -188,7 +230,7 @@ class GpuMatrix(object):
         :param ncols: optional, is used when `a` is a pointer
         """
 
-        if type(a) is np.ndarray:
+        if isinstance(a, np.ndarray):
             if self.np_dtype != a.dtype:
                 raise ValueError("Allocated memory has {} type. "
                                  "Can't transfer {} type".

@@ -1,6 +1,5 @@
 import os
 import json
-import cPickle
 import logging
 import numpy as np
 from quagga import Model
@@ -8,6 +7,7 @@ from urllib import urlretrieve
 from quagga.matrix import Matrix
 from quagga.context import Context
 from collections import defaultdict
+from collections import OrderedDict
 from quagga.connector import Connector
 from quagga.optimizers import SgdOptimizer
 from quagga.optimizers.observers import Saver
@@ -15,7 +15,6 @@ from quagga.optimizers.observers import ValidLossTracker
 from quagga.optimizers.observers import TrainLossTracker
 from quagga.optimizers.policies import FixedLearningRatePolicy
 from quagga.optimizers.stopping_criteria import MaxIterCriterion
-from collections import OrderedDict
 
 
 def get_logger(file_name):
@@ -37,25 +36,31 @@ def load_ptb_dataset():
     if not os.path.exists(valid_file_path):
         urlretrieve('https://github.com/wojzaremba/lstm/raw/master/data/ptb.valid.txt', valid_file_path)
     if not os.path.exists(test_file_path):
-        urlretrieve('https://github.com/wojzaremba/lstm/raw/master/data/ptb.test.txt', test_file_path)
+        urlretrieve('https://github.com/wojzaremba/lstm/raw/master/data/ptb.tests.txt', test_file_path)
 
     vocab = {}
     idx_to_word = []
     ptb_train = []
     with open(train_file_path) as f:
         for line in f:
-            sentence = line.strip().split()
-            for word in ['<S>'] + sentence + ['</S>']:
+            sentence = ['<S>'] + line.strip().split() + ['</S>']
+            for word in sentence:
                 if word not in vocab:
                     vocab[word] = len(idx_to_word)
                     idx_to_word.append(word)
             ptb_train.append([vocab[word] for word in sentence])
 
+    ptb_valid = []
     with open(valid_file_path) as f:
-        ptb_valid = [[vocab[word] for word in line.strip().split()] for line in f]
+        for line in f:
+            sentence = ['<S>'] + line.strip().split() + ['</S>']
+            ptb_valid.append([vocab[word] for word in sentence])
 
+    ptb_test = []
     with open(test_file_path) as f:
-        ptb_test = [[vocab[word] for word in line.strip().split()] for line in f]
+        for line in f:
+            sentence = ['<S>'] + line.strip().split() + ['</S>']
+            ptb_test.append([vocab[word] for word in sentence])
 
     return ptb_train, ptb_valid, ptb_test, vocab, idx_to_word
 
@@ -105,12 +110,14 @@ class HomogeneousDataGenerator(object):
                 b_size = self.b_size - len(batch_offsets)
                 i = available_lengths.index(k)
                 del available_lengths[i]
-                if i != 0:
-                    k = available_lengths[i-1]
-                elif available_lengths:
-                    k = available_lengths[i+1]
-                else:
+                if not available_lengths:
                     break
+                if i == 0:
+                    k = available_lengths[0]
+                elif i >= len(available_lengths) - 1:
+                    k = available_lengths[-1]
+                else:
+                    k = available_lengths[i + self.rng.choice([-1, 1])]
         if batch_offsets:
             yield batch_offsets
 
@@ -166,7 +173,8 @@ class PtbMiniBatchesGenerator(object):
             except StopIteration as e:
                 self.valid_offsets_iterator = iter(self.valid_offsets)
                 raise e
-        self._sent_lengths.fill(0)
+        self._sent_lengths = self._sent_lengths.base[:len(offsets)]
+        self.sentence_batch.nrows = len(offsets)
         for k, offset in enumerate(offsets):
             sent = sents[offset[0]:offset[1]]
             batch_chunk = self._sentence_batch[k]
@@ -183,16 +191,17 @@ class PtbMiniBatchesGenerator(object):
 
 if __name__ == '__main__':
     ptb_train, ptb_valid, ptb_test, vocab, idx_to_word = load_ptb_dataset()
-    data_block = PtbMiniBatchesGenerator(ptb_train, ptb_valid, batch_size=64, sentence_max_len=200, device_id=1)
+    print len(ptb_train), len(ptb_valid), len(ptb_test)
+    data_block = PtbMiniBatchesGenerator(ptb_train, ptb_valid, batch_size=64, sentence_max_len=200, device_id=0)
     with open('penn_treebank.json') as f:
         model_definition = json.load(f, object_pairs_hook=OrderedDict)
     model = Model(model_definition, data_block)
     logger = get_logger('train.log')
     learning_rate_policy = FixedLearningRatePolicy(0.005)
     sgd_optimizer = SgdOptimizer(MaxIterCriterion(40000), learning_rate_policy, model)
-    train_loss_tracker = TrainLossTracker(model, 2000, logger)
-    valid_loss_tracker = ValidLossTracker(model, 2000, logger)
-    saver = Saver(model, 5000, 'penn_treebank_trained.json', 'penn_treebank_parameters.hdf5', logger)
+    train_loss_tracker = TrainLossTracker(model, 350, logger)
+    valid_loss_tracker = ValidLossTracker(model, 350, logger)
+    saver = Saver(model, 700, 'penn_treebank_trained.json', 'penn_treebank_parameters.hdf5', logger)
     sgd_optimizer.add_observer(train_loss_tracker)
     sgd_optimizer.add_observer(valid_loss_tracker)
     sgd_optimizer.add_observer(saver)
