@@ -1,6 +1,6 @@
 from quagga.matrix import Matrix
-from quagga.context import Context
 from collections import defaultdict
+from quagga.matrix import SparseMatrix
 
 
 class Connector(object):
@@ -36,55 +36,60 @@ class Connector(object):
                                 +----------------------+    +-----------------+
     """
 
-    def __init__(self, f_matrix, f_obtaining_context=None, b_usage_context=None):
-        if not f_obtaining_context:
-            f_obtaining_context = Context(f_matrix.device_id)
+    def __init__(self, f_matrix, f_obtaining_context, b_usage_context=None):
         self._f_matrices = {f_obtaining_context.device_id: f_matrix}
         self._f_obtaining_context = f_obtaining_context
         self._f_usage_contexts = list()
-        self._b_matrices = defaultdict(dict)
-        self._b_usage_context = b_usage_context
-        self.zero_bmatrix = None
-        self.deregistered_b_obtaining_contexts = set()
+        if b_usage_context:
+            self._b_matrices = dict()
+            self._b_usage_context = b_usage_context
+            self._b_matrices_pool = defaultdict(dict)
+            self._last_b_obtaining_context = None
 
     @property
     def bpropagable(self):
         return bool(self._b_usage_context)
 
-    def register_usage(self, f_usage_context, b_obtaining_context=None):
+    def register_usage(self, f_usage_context, b_obtaining_context=None, accumulation_method_name=None, is_sparse=False):
         """
-        Register user of connector's forward_matrix.
+        Register usage of connector's forward_matrix.
 
         :param f_usage_context: context in which `forward_matrix` will be used
         :param b_obtaining_context: context in which `backward_matrix`
                                     of the connector will be calculated
         """
+
         if not self._b_usage_context and b_obtaining_context:
             raise ValueError('Nobody is going to use computation from backward '
                              'step. You should not backward propagate!')
-        u_device_id = f_usage_context.device_id
-        o_device_id = self._f_obtaining_context.device_id
-        if u_device_id != o_device_id and u_device_id not in self._f_matrices:
-            self._f_matrices[u_device_id] = Matrix.empty_like(self, u_device_id)
+        fu_device_id = f_usage_context.device_id
+        fo_device_id = self._f_obtaining_context.device_id
+        if fu_device_id != fo_device_id and fu_device_id not in self._f_matrices:
+            self._f_matrices[fu_device_id] = Matrix.empty_like(self, fu_device_id)
         self._f_usage_contexts.append(f_usage_context)
         if not self._b_usage_context:
-            return self._f_matrices[f_usage_context.device_id]
+            return self._f_matrices[fu_device_id]
 
-        u_device_id = self._b_usage_context.device_id
-        o_device_id = b_obtaining_context.device_id
-        b_matrix = Matrix.empty_like(self, o_device_id)
-        if u_device_id != o_device_id:
-            self._b_matrices[b_obtaining_context][u_device_id] = Matrix.empty_like(b_matrix, u_device_id)
-        self._b_matrices[b_obtaining_context][o_device_id] = b_matrix
-        return self._f_matrices[f_usage_context.device_id], b_matrix
+        bu_device_id = self._b_usage_context.device_id
+        bo_device_id = b_obtaining_context.device_id
 
-    def deregistere_b_obtaining_context(self, b_obtaining_context):
-        if b_obtaining_context not in self._b_matrices:
-            raise ValueError("TODO You can't deregistere what you did not register!")
-        self.deregistered_b_obtaining_contexts.add(b_obtaining_context)
+        if (bo_device_id, is_sparse) not in self._b_matrices:
+            if is_sparse:
+                bwd_m = SparseMatrix(bo_device_id)
+            else:
+                bwd_m = Matrix.empty_like(self, bo_device_id)
+            self._b_matrices[bo_device_id, is_sparse] = bwd_m
+            accumulation_method = getattr(bwd_m, accumulation_method_name)
+            setattr(bwd_m, accumulation_method_name, self.decorate_waiting(accumulation_method))
 
-    def remove_from_deregistered_b_obtaining_contexts(self, b_obtaining_context):
-        self.deregistered_b_obtaining_contexts.remove(b_obtaining_context)
+        if bu_device_id != bo_device_id and (bu_device_id, is_sparse) not in self._b_matrices_pool:
+            if is_sparse:
+                bwd_m = SparseMatrix(bu_device_id)
+            else:
+                bwd_m = Matrix.empty_like(self, bu_device_id)
+            self._b_matrices_pool[bu_device_id, is_sparse] = bwd_m
+
+        return self._f_matrices[fu_device_id], self._b_matrices[bo_device_id, is_sparse]
 
     def fprop(self):
         o_device_id = self._f_obtaining_context.device_id
@@ -97,59 +102,42 @@ class Connector(object):
         if not self._b_usage_context:
             raise ValueError('Nobody was going to use computation from backward '
                              'step. You should not backward propagate!')
+        self._last_b_obtaining_context.block(self._b_usage_context)
         u_device_id = self._b_usage_context.device_id
-        backward_matrices = []
-        b_obtaining_contexts = []
-        for b_obtaining_context, matrices in self._b_matrices.iteritems():
-            if b_obtaining_context in self.deregistered_b_obtaining_contexts:
-                continue
-            b_obtaining_contexts.append(b_obtaining_context)
-            o_device_id = b_obtaining_context.device_id
-            if u_device_id != o_device_id:
-                matrices[o_device_id].copy_to(b_obtaining_context, matrices[u_device_id])
-            backward_matrices.append(matrices[u_device_id])
-        self._b_usage_context.wait(*b_obtaining_contexts)
 
-        if backward_matrices:
-            if backward_matrices[1:]:
-                backward_matrices[0].add_sum(self._b_usage_context, backward_matrices[1:])
-            return backward_matrices[0]
-        if not self.zero_bmatrix:
-            self.zero_bmatrix = Matrix.empty_like(self, self._b_usage_context.device_id)
-        self.zero_bmatrix.fill(self._b_usage_context, 0.0)
-        return self.zero_bmatrix
+        for o_device_id in set(zip(*self._b_matrices.keys())[0]):
+            bwd_dense = self._b_matrices.get((o_device_id, False))
+            bwd_sparse = self._b_matrices.get((o_device_id, True))
+            if bwd_dense:
+                if bwd_sparse:
+                    bwd_dense.add(bwd_sparse)
+                if u_device_id != o_device_id:
+                    bwd_dense.copy_to(self._b_usage_context, self._b_matrices_pool[u_device_id, False])
+                self._b_matrices[o_device_id, False].add(self._b_usage_context, self._b_matrices_pool[u_device_id, False])
+                bwd = self._b_matrices[u_device_id, False]
+            else:
+                if u_device_id != o_device_id:
+                    bwd_sparse.copy_to(self._b_usage_context, self._b_matrices_pool[u_device_id, True])
+                self._b_matrices[o_device_id, True].add(self._b_usage_context, self._b_matrices_pool[u_device_id, True])
+                bwd = self._b_matrices[u_device_id, True]
+        self._last_b_obtaining_context = None
+        return bwd
 
     backward_matrix = property(lambda self: self.bprop())
 
     def __getattr__(self, name):
-        attribute = getattr(self._f_matrices[self._f_obtaining_context.device_id], name)
+        forward_matrix = self._f_matrices[self._f_obtaining_context.device_id]
+        attribute = getattr(forward_matrix, name)
         if hasattr(attribute, '__call__'):
             setattr(self, name, attribute)
         else:
-            setattr(Connector, name, property(lambda self: getattr(self._f_matrices[self._f_obtaining_context.device_id], name)))
+            setattr(Connector, name, property(lambda self: getattr(forward_matrix, name)))
         return getattr(self, name)
 
-    @property
-    def nrows(self):
-        return self._f_matrices[self._f_obtaining_context.device_id].nrows
-
-    @nrows.setter
-    def nrows(self, value):
-        raise ValueError('Why do you dou this?')
-        for forward_matrix in self._f_matrices.itervalues():
-            forward_matrix.nrows = value
-        for matrices in self._b_matrices.itervalues():
-            for matrix in matrices.itervalues():
-                matrix.nrows = value
-
-    @property
-    def ncols(self):
-        return self._f_matrices[self._f_obtaining_context.device_id].ncols
-
-    @ncols.setter
-    def ncols(self, value):
-        for forward_matrix in self._f_matrices.itervalues():
-            forward_matrix.ncols = value
-        for matrices in self._b_matrices.itervalues():
-            for matrix in matrices.itervalues():
-                matrix.ncols = value
+    def decorate_waiting(self, accumulation_method):
+        def decorated_accumulation_method(context, *args, **kwargs):
+            if self._last_b_obtaining_context:
+                context.wait(self._last_b_obtaining_context)
+            self._last_b_obtaining_context = context
+            return accumulation_method(context, args, kwargs)
+        return decorated_accumulation_method
