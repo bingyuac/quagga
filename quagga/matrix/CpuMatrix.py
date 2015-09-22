@@ -1,58 +1,106 @@
 import quagga
 import numpy as np
-import ctypes as ct
 from itertools import izip
+from quagga.matrix import ShapeElement
 
 
 class CpuMatrix(object):
-    def __init__(self, npa, dtype):
-        self.npa = npa
+    def __init__(self, data, nrows, ncols, dtype):
+        self.data = data
+        self._nrows = nrows if isinstance(nrows, ShapeElement) else ShapeElement(nrows)
+        self._ncols = ncols if isinstance(ncols, ShapeElement) else ShapeElement(ncols)
         self.dtype = dtype
-        self.device_id = None
+        self.device_id = 0
+
+    @property
+    def npa(self):
+        return self.data[:self.nrows.value, :self.ncols.value]
+
+    @npa.setter
+    def npa(self, value):
+        self.data[:self.nrows.value, :self.ncols.value] = value
 
     @property
     def nelems(self):
-        return self.npa.size
+        return self._nrows.value * self._ncols.value
 
     @property
     def nrows(self):
-        return self.npa.shape[0]
+        return self._nrows
 
     @nrows.setter
     def nrows(self, value):
-        base = self.npa.base
-        if base is None:
-            base = self.npa
-        if value > base.shape[0]:
+        if value > self.data.shape[0]:
             raise ValueError('There is no so many preallocated memory! '
-                             'Maximum for `nrows` is {}'.format(base.shape[0]))
-        self.npa = base[:value]
-        if self.npa.base is None:
-            raise ValueError('TODO Oops!')
+                             'Maximum for `nrows` is {}'.format(self.data.shape[0]))
+        self._nrows[:] = value
 
     @property
     def ncols(self):
-        return self.npa.shape[1]
+        return self._ncols
 
     @ncols.setter
     def ncols(self, value):
-        base = self.npa.base
-        if base is None:
-            base = self.npa
-        if value > base.shape[1]:
+        if value > self.data.shape[1]:
             raise ValueError('There is no so many preallocated memory! '
-                             'Maximum for `ncols` is {}'.format(base.shape[1]))
-        self.npa = base[:, :value]
-        if self.npa.base is None:
-            raise ValueError('TODO Oops!')
+                             'Maximum for `ncols` is {}'.format(self.data.shape[1]))
+        self._ncols[:] = value
 
     def __getitem__(self, key):
+        # get row
         if isinstance(key, int):
-            key = key, np.newaxis
-        a = self.npa[key]
-        if a.base is not self.npa:
-            raise ValueError('This slice: {} is unsupported!'.format(key))
-        return CpuMatrix(a)
+            data = self.npa[key, np.newaxis]
+            return CpuMatrix(data, 1, self.ncols, self.dtype)
+        if isinstance(key, ShapeElement):
+            data = self.npa[key.value, np.newaxis]
+            a = CpuMatrix(data, 1, self.ncols, self.dtype)
+            modif_handler = lambda: setattr(a, 'data', self.npa[key.value, np.newaxis])
+            key.add_modification_handler(modif_handler)
+            return a
+        if isinstance(key, slice) and self.ncols == 1:
+            key = (key, 0)
+        # get row slice with one column
+        if isinstance(key[0], slice) and not key[0].step and isinstance(key[1], (int, ShapeElement)):
+            start = key[0].start if key[0].start else 0
+            stop = key[0].stop if key[0].stop else self.nrows
+            nrows = stop - start
+            if isinstance(start, int) and isinstance(key[1], int):
+                data = self.npa[start:, key[1]]
+                return CpuMatrix(data, nrows, 1, self.dtype)
+            elif isinstance(start, int) and isinstance(key[1], ShapeElement):
+                data = self.npa[start:, key[1].value]
+                a = CpuMatrix(data, nrows, 1, self.dtype)
+                modif_handler = lambda: setattr(a, 'data', self.npa[start:, key[1].value])
+                key[1].add_modification_handler(modif_handler)
+                return a
+            elif isinstance(start, ShapeElement) and isinstance(key[1], int):
+                data = self.npa[start.value:, key[1]]
+                a = CpuMatrix(data, nrows, 1, self.dtype)
+                modif_handler = lambda: setattr(a, 'data', self.npa[start.value:, key[1]])
+                start.add_modification_handler(modif_handler)
+                return a
+            elif isinstance(start, ShapeElement) and isinstance(key[1], ShapeElement):
+                data = self.npa[start.value:, key[1].value]
+                a = CpuMatrix(data, nrows, 1, self.dtype)
+                modif_handler = lambda: setattr(a, 'data', self.npa[start.value:, key[1].value])
+                key[1].add_modification_handler(modif_handler)
+                start.add_modification_handler(modif_handler)
+                return a
+        # get column slice
+        if key[0] == slice(None) and isinstance(key[1], slice) and not key[1].step:
+            stop = key[1].stop if key[1].stop else self.ncols
+            start = key[1].start if key[1].start else 0
+            ncols = stop - start
+            if isinstance(start, int):
+                data = self.npa[:, start:]
+                return CpuMatrix(data, self.nrows, ncols, self.dtype)
+            elif isinstance(start, ShapeElement):
+                data = self.npa[:, start.value:]
+                a = CpuMatrix(data, self.nrows, ncols, self.dtype)
+                modif_handler = lambda: setattr(a, 'data', self.npa[:, start.value:])
+                start.add_modification_handler(modif_handler)
+                return a
+        raise ValueError('This slice: {} is unsupported!'.format(key))
 
     def same_shape(self, other):
         return self.npa.shape == other.npa.shape
@@ -72,63 +120,82 @@ class CpuMatrix(object):
         dtype = cls.str_to_dtype(dtype) if dtype else a.dtype
         if a.dtype != dtype:
             a = a.astype(dtype=dtype)
-        return cls(a, dtype)
+        return cls(np.copy(a), a.shape[0], a.shape[1], dtype)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype=None, device_id=None):
         dtype = dtype if dtype else quagga.dtype
         np_dtype = cls.str_to_dtype(dtype) if type(dtype) is str else dtype
-        return cls.from_npa(np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype)))
+        a = cls(None, nrows, ncols, dtype)
+        nrows = nrows.value if isinstance(nrows, ShapeElement) else nrows
+        ncols = ncols.value if isinstance(ncols, ShapeElement) else ncols
+        a.data = np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype))
+        return a
 
     @classmethod
     def empty_like(cls, other, device_id=None):
-        if hasattr(other, 'npa'):
-            return cls.from_npa(np.nan_to_num(np.empty_like(other.npa)))
         return cls.empty(other.nrows, other.ncols, other.dtype)
 
-    def to_device(self, context, a):
+    def to_host(self, context=None):
+        return np.copy(self.npa)
+
+    def assign(self, context, a):
+        self.npa[:a.nrows.value, :a.ncols.value] = np.copy(a.npa)
+
+    def assign_npa(self, context, a, nrows=None, ncols=None):
+        # TODO(sergii): add support for ctypes pointer
         if self.npa.dtype != a.dtype:
             raise ValueError("Allocated memory has {} type. "
                              "Can't transfer to the device {} type".
                              format(self.npa.dtype, a.dtype))
         if a.ndim != 2:
-            raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
+            raise ValueError('CpuMatrix works only with 2-d numpy arrays!')
         self.nrows, self.ncols = a.shape
-        self.npa[...] = a
+        self.npa = np.copy(a)
 
     def fill(self, context, value):
-        self.npa[...] = value
+        self.npa = value
 
     def sync_fill(self, value):
-        self.npa[...] = value
+        self.npa = value
 
-    def to_host(self):
-        return np.copy(self.npa)
+    def slice_columns(self, context, column_indxs, out, reverse=False):
+        # TODO(sergii): add reverse support
+        out.npa = self.npa[:, column_indxs.npa.flatten()]
 
-    def to_list(self):
-        return [self[:, i] for i in xrange(self.ncols)]
-
-    def copy_to(self, context, out):
+    def add_scaled_columns_slice(self, context, column_indxs, alpha, a):
         """
-        self -> out
+        self[column_indxs] += alpha * a
         """
-        if out.npa.shape != self.npa.shape:
-            out.npa[:, :self.npa.size] = self.npa
-        else:
-            out.npa[...] = np.copy(self.npa)
+        for i, idx in enumerate(column_indxs.npa.flatten()):
+            self.npa[:, idx] += alpha * a.npa[:, i]
 
-    def tile(self, context, axis, a):
-        n = self.nrows if axis == 0 else self.ncols
-        self.npa[...] = np.repeat(a.npa, n, axis)
-
-    def slice_columns(self, context, column_indxs, out):
-        out.npa[...] = self.npa[:, column_indxs.npa.flatten()]
+    def add_columns_slice(self, context, column_indxs, a):
+        """
+        self[column_indxs] += a
+        """
+        self.add_scaled_columns_slice(context, column_indxs, 1.0, a)
 
     def slice_columns_and_transpose(self, context, column_indxs, out):
-        out.npa[...] = self.npa[:, column_indxs.npa.flatten()].T
+        out.npa = self.npa[:, column_indxs.npa.flatten()].T
 
     def slice_rows(self, context, row_indxs, out):
-        out.npa[...] = self.npa[row_indxs.npa.flatten()]
+        out.npa = self.npa[row_indxs.npa.flatten()]
+
+    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
+        n = embd_rows_indxs.ncols
+        for i in xrange(n):
+            dense_matrices[i].npa = self.npa[embd_rows_indxs.npa[:, i]]
+
+    def add_scaled_rows_batch_slice(self, context, embd_rows_indxs, alpha, dense_matrices):
+        """
+        for k in range(K):
+            self[embd_rows_indxs[:, k]] += alpha * dense_matrices[k]
+        """
+
+        for k, m in enumerate(dense_matrices):
+            for i, idx in enumerate(embd_rows_indxs.npa[:, k]):
+                self.npa[idx] += alpha * m.npa[i]
 
     def assign_hstack(self, context, matrices):
         ncols = 0
@@ -140,12 +207,12 @@ class CpuMatrix(object):
         if ncols != self.ncols:
             raise ValueError("The number of columns in the assigning matrix differs"
                              "from the summed numbers of columns in buffers!")
-        self.npa[...] = np.hstack(m.npa for m in matrices)
+        self.npa = np.hstack(m.npa for m in matrices)
 
     def hsplit(self, context, matrices, col_slices=None):
         if col_slices:
             for i, col_slice in enumerate(col_slices):
-                matrices[i].npa[...] = self.npa[:, col_slice[0]:col_slice[1]]
+                matrices[i].npa = self.npa[:, col_slice[0]:col_slice[1]]
         else:
             ncols = 0
             for matrix in matrices:
@@ -161,19 +228,19 @@ class CpuMatrix(object):
                 indices_or_sections.append(indices_or_sections[-1] + m.ncols)
             _matrices = np.hsplit(self.npa, indices_or_sections)
             for _m, m in izip(_matrices, matrices):
-                m.npa[...] = _m
+                m.npa = _m
 
     @staticmethod
     def batch_hstack(context, x_sequence, y_sequence, output_sequence):
         for x, y, out in izip(x_sequence, y_sequence, output_sequence):
-            out.npa[...] = np.hstack((x.npa, y.npa))
+            out.npa = np.hstack((x.npa, y.npa))
 
     @staticmethod
     def batch_hsplit(context, input_sequence, x_sequence, y_sequence):
         x_ncols = x_sequence[0].npa.shape[1]
         for in_matrix, x, y in izip(input_sequence, x_sequence, y_sequence):
-            x.npa[...] = in_matrix.npa[:, :x_ncols]
-            y.npa[...] = in_matrix.npa[:, x_ncols:]
+            x.npa = in_matrix.npa[:, :x_ncols]
+            y.npa = in_matrix.npa[:, x_ncols:]
 
     def assign_vstack(self, context, matrices):
         nrows = 0
@@ -185,12 +252,12 @@ class CpuMatrix(object):
         if nrows != self.nrows:
             raise ValueError("The number of rows in the assigning matrix differs"
                              "from the summed numbers of rows in buffers!")
-        self.npa[...] = np.vstack(m.npa for m in matrices)
+        self.npa = np.vstack(m.npa for m in matrices)
 
     def vsplit(self, context, matrices, row_slices=None):
         if row_slices:
             for i, row_slice in enumerate(row_slices):
-                matrices[i].npa[...] = self.npa[row_slice[0]:row_slice[1], :]
+                matrices[i].npa = self.npa[row_slice[0]:row_slice[1], :]
         else:
             nrows = 0
             for matrix in matrices:
@@ -206,23 +273,58 @@ class CpuMatrix(object):
                 indices_or_sections.append(indices_or_sections[-1] + m.nrows)
             _matrices = np.vsplit(self.npa, indices_or_sections)
             for _m, m in izip(_matrices, matrices):
-                m.npa[...] = _m
+                m.npa = _m
 
-    def scale(self, context, alpha, out=None):
-        if out:
-            out.npa[...] = (self.npa * alpha)
-        else:
-            self.npa *= alpha
+    def assign_sequential_mean_pooling(self, context, matrices):
+        for i in xrange(matrices[0].nrows):
+            self.npa[i] = np.mean([matrix.npa[i] for matrix in matrices], axis=0)
+
+    @staticmethod
+    def sequentially_tile(context, a, matrices):
+        for m in matrices:
+            m.npa = a.npa
+
+    def tile(self, context, axis, a):
+        n = int(self.nrows if axis == 0 else self.ncols)
+        self.npa = np.repeat(a.npa, n, axis)
+
+    @staticmethod
+    def get_random_generator(seed):
+        return np.random.RandomState(seed)
+
+    def dropout(self, context, generator, dropout_prob, out):
+        out.npa = generator.binomial(n=1, p=1-dropout_prob, size=self.npa.shape) * self.npa
+
+    def assign_mask_zeros(self, context, a, b):
+        """
+        self = a * (b != 0)
+        """
+
+        self.npa = a.npa * (b.npa != 0)
+
+    def add_mask_zeros(self, context, a, b):
+        """
+        self += a * (b != 0)
+        """
+
+        self.npa += a.npa * (b.npa != 0)
+
+    def mask_column_numbers_row_wise(self, context, numbers):
+        """
+        self[i, j] = j < numbers[i]
+        """
+        for i in xrange(numbers.npa.shape[0]):
+            self.npa[i] = np.arange(self.npa.shape[1]) < numbers.npa[i]
 
     def tanh(self, context, tanh_matrix, derivative_matrix=None):
         np.tanh(self.npa, tanh_matrix.npa)
         if derivative_matrix:
-            derivative_matrix.npa[...] = 1.0 - tanh_matrix.npa ** 2
+            derivative_matrix.npa = 1.0 - tanh_matrix.npa ** 2
 
     def sigmoid(self, context, sigmoid_matrix, derivative_matrix=None):
-        sigmoid_matrix.npa[...] = 1.0 / (1.0 + np.exp(-self.npa))
+        sigmoid_matrix.npa = 1.0 / (1.0 + np.exp(-self.npa))
         if derivative_matrix:
-            derivative_matrix.npa[...] = sigmoid_matrix.npa * (1.0 - sigmoid_matrix.npa)
+            derivative_matrix.npa = sigmoid_matrix.npa * (1.0 - sigmoid_matrix.npa)
 
     def tanh_sigm(self, context, tanh_sigm_matrix, derivative_matrix=None, axis=0):
         """
@@ -230,40 +332,51 @@ class CpuMatrix(object):
         lstm cell. It calculates for the first 1/4 elements along the axis
         tanh function and sigmoid for the 3/4 remaining elements.
         """
+
         n = self.npa.shape[axis] / 4
         if axis == 0:
             tanh_npa = np.tanh(self.npa[:n])
             sigmoid_npa = 1.0 / (1.0 + np.exp(-self.npa[n:]))
-            tanh_sigm_matrix.npa[...] = np.vstack((tanh_npa, sigmoid_npa))
+            tanh_sigm_matrix.npa = np.vstack((tanh_npa, sigmoid_npa))
         elif axis == 1:
             tanh_npa = np.tanh(self.npa[:, :n])
             sigmoid_npa = 1.0 / (1.0 + np.exp(-self.npa[:, n:]))
-            tanh_sigm_matrix.npa[...] = np.hstack((tanh_npa, sigmoid_npa))
+            tanh_sigm_matrix.npa = np.hstack((tanh_npa, sigmoid_npa))
         else:
             raise ValueError('TODO')
         if derivative_matrix:
             tanh_der_npa = 1.0 - tanh_npa ** 2
             sigmoid_der_npa = sigmoid_npa * (1.0 - sigmoid_npa)
             f = np.hstack if axis else np.vstack
-            derivative_matrix.npa[...] = f((tanh_der_npa, sigmoid_der_npa))
+            derivative_matrix.npa = f((tanh_der_npa, sigmoid_der_npa))
 
     def relu(self, context, relu_matrix, derivative_matrix=None):
-        relu_matrix.npa[...] = np.maximum(self.npa, 0.0)
+        relu_matrix.npa = np.maximum(self.npa, 0.0)
         if derivative_matrix:
-            derivative_matrix.npa[...] = (self.npa > 0).astype(np.float32)
+            derivative_matrix.npa = (self.npa > 0).astype(np.float32)
 
     def softmax(self, context, softmax_matrix):
         maximums = np.max(self.npa, axis=1, keepdims=True)
-        softmax_matrix.npa[...] = self.npa - maximums
+        softmax_matrix.npa = self.npa - maximums
         np.exp(softmax_matrix.npa, softmax_matrix.npa)
         z = np.sum(softmax_matrix.npa, axis=1, keepdims=True)
-        softmax_matrix.npa[...] /= z
+        softmax_matrix.npa /= z
+
+    def assign_softmax_ce_derivative(self, context, probs, target_classes):
+        self.npa = probs.npa / probs.npa.shape[0]
+        self.npa[range(probs.npa.shape[0]), target_classes.npa.flatten()] -= 1.0 / probs.npa.shape[0]
+
+    def scale(self, context, alpha, out=None):
+        if out:
+            out.npa = (self.npa * alpha)
+        else:
+            self.npa *= alpha
 
     def assign_scaled_addition(self, context, alpha, a, b):
         """
         self = alpha * (a + b)
         """
-        self.npa[...] = alpha * (a.npa + b.npa)
+        self.npa = alpha * (a.npa + b.npa)
 
     def assign_add(self, context, a, b):
         self.assign_scaled_addition(context, 1.0, a, b)
@@ -272,15 +385,12 @@ class CpuMatrix(object):
         """
         self = alpha * (a - b)
         """
-        self.npa[...] = alpha * (a.npa - b.npa)
-
-    def assign_softmax_ce_derivative(self, context, probs, target_classes):
-        self.npa[...] = probs.npa / probs.npa.shape[0]
-        self.npa[range(probs.npa.shape[0]), target_classes.npa.flatten()] -= 1.0 / probs.npa.shape[0]
+        self.npa = alpha * (a.npa - b.npa)
 
     def assign_sub(self, context, a, b):
         self.assign_scaled_addition(context, 1.0, a, b)
 
+    # ========== TODO ============
     def add_scaled(self, context, alpha, a):
         """
         self += alpha * a
@@ -290,23 +400,17 @@ class CpuMatrix(object):
     def add(self, context, a):
         self.add_scaled(context, 1.0, a)
 
-    def add_sum(self, context, matrices):
-        for m in matrices:
-            self.npa += m.npa
+    def sub(self, context, a):
+        self.add_scaled(context, -1.0, a)
+    # ============================
 
     def assign_sum(self, context, matrices):
         self.npa = 0.0
         self.add_sum(context, matrices)
 
-    def sub(self, context, a):
-        self.add_scaled(context, -1.0, a)
-
-    def sliced_columns_add_scaled(self, context, column_indxs, alpha, a):
-        """
-        self[column_indxs] += alpha * a
-        """
-        for i, idx in enumerate(column_indxs.npa.flatten()):
-            self.npa[:, idx] += alpha * a.npa[:, i]
+    def add_sum(self, context, matrices):
+        for m in matrices:
+            self.npa += m.npa
 
     def hprod(self, context, a):
         """
@@ -320,9 +424,9 @@ class CpuMatrix(object):
         self = a .* b .* c + alpha * self
         """
         if not c:
-            self.npa[...] = a.npa * b.npa + alpha * self.npa
+            self.npa = a.npa * b.npa + alpha * self.npa
         else:
-            self.npa[...] = a.npa * b.npa * c.npa + alpha * self.npa
+            self.npa = a.npa * b.npa * c.npa + alpha * self.npa
 
     def assign_hprod(self, context, a, b, c=None):
         """
@@ -332,7 +436,7 @@ class CpuMatrix(object):
         if not c:
             np.multiply(a.npa, b.npa, self.npa)
         else:
-            self.npa[...] = a.npa * b.npa * c.npa
+            self.npa = a.npa * b.npa * c.npa
 
     def assign_sum_hprod(self, context, a, b, c, d, e=None, f=None, g=None, h=None, i=None, j=None, k=None):
         """
@@ -370,49 +474,3 @@ class CpuMatrix(object):
         a = a.npa if matrix_operation_a == 'N' else a.npa.T
         b = b.npa if matrix_operation_b == 'N' else b.npa.T
         self.npa += alpha * np.dot(a, b)
-
-    def vdot(self, context, a):
-        return ct.c_float(np.vdot(self.npa, a.npa))
-
-    def assign_sequential_mean_pooling(self, context, matrices):
-        for i in xrange(matrices[0].nrows):
-            self.npa[i] = np.mean([matrix.npa[i] for matrix in matrices], axis=0)
-
-    @staticmethod
-    def sequentially_tile(context, matrices, a):
-        for m in matrices:
-            m.npa[...] = a.npa
-
-    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
-        n = embd_rows_indxs.ncols
-        for i in xrange(n):
-            dense_matrices[i].npa[...] = self.npa[embd_rows_indxs.npa[:, i]]
-
-    def sliced_rows_batch_scaled_add(self, context, embd_rows_indxs, alpha, dense_matrices):
-        """
-        for k in range(K):
-            self[column_indxs[:, k]] += alpha * dense_matrices[k]
-        """
-        for k, m in enumerate(dense_matrices):
-            for i, idx in enumerate(embd_rows_indxs.npa[:, k]):
-                self.npa[idx] += alpha * m.npa[i]
-
-    @staticmethod
-    def get_random_generator(seed):
-        return np.random.RandomState(seed)
-
-    def dropout(self, context, generator, dropout_prob, out):
-        out.npa[...] = generator.binomial(n=1, p=1-dropout_prob, size=self.npa.shape) * self.npa
-
-    def mask_zeros(self, context, mask, out):
-        """
-        out = self * (mask != 0)
-        """
-        out.npa[...] = self.npa * (mask.npa != 0)
-
-    def mask_column_numbers_row_wise(self, context, numbers):
-        """
-        self[i, j] = j < numbers[i]
-        """
-        for i in xrange(numbers.npa.shape[0]):
-            self.npa[i] = np.arange(self.npa.shape[1]) < numbers.npa[i]

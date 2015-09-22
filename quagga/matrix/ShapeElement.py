@@ -24,6 +24,7 @@ class ShapeElement(object):
     def operation(self, other, op):
         if isinstance(other, ShapeElement):
             element = ShapeElement(op(self.value, other.value))
+            # TODO(sergii): here should be weakref maybe.
             modif_handler = lambda: element.__setitem__(slice(None), op(self.value, other.value))
             other.add_modification_handler(modif_handler)
         elif isinstance(other, int):
@@ -43,6 +44,12 @@ class ShapeElement(object):
     def __mul__(self, other):
         return self.operation(other, operator.mul)
 
+    def __div__(self, other):
+        """
+        this function do not create ShapeElement
+        """
+        return other / self.value
+
     def __radd__(self, other):
         return self.__add__(other)
 
@@ -52,17 +59,39 @@ class ShapeElement(object):
     def __rmul__(self, other):
         return self.__mul__(other)
 
+    def __rdiv__(self, other):
+        return self.__div__(other)
+
+    def __eq__(self, other):
+        if isinstance(other, int):
+            return self.value == other
+        return self.value == other.value
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __lt__(self, other):
+        if isinstance(other, int):
+            return self.value < other
+        return self.value < other.value
+
+    def __gt__(self, other):
+        return not (self < other or self == other)
+
+    def __le__(self, other):
+        return not self > other
+
+    def __ge__(self, other):
+        return not self < other
+
+    def __str__(self):
+        return str(self.value)
+
+    def __int__(self):
+        return self.value
+
+    def __float__(self):
+        return float(self.value)
+
     def add_modification_handler(self, fun):
         self.modif_handlers.append(fun)
-
-
-a = ShapeElement(10)
-b = ShapeElement(10)
-f = ShapeElement(None)
-c = a + b
-d = a + 1 + c
-e = 4 * d + a
-f[:] = e
-print a.value, b.value, c.value, d.value, e.value, f.value
-a[:] = 23
-print a.value, b.value, c.value, d.value, e.value, f.value
