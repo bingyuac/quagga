@@ -25,7 +25,7 @@ class SigmoidCeBlock(object):
 
     def bprop(self):
         # error = (probs - true_labels) / M
-        self.dL_dx.assign_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
+        self.dL_dx.add_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
 
     def add_callback(self, callback):
         self.context.add_callback(callback)

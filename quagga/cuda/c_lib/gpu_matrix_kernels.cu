@@ -388,6 +388,20 @@ __global__ void assignScaledSubtraction(int nelems,
 }
 
 
+__global__ void addScaledSubtraction(int nelems,
+							      	 float alpha,
+							      	 const float* __restrict__ a,
+							      	 const float* __restrict__ b,
+							      	 float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] += alpha * (a[i] - b[i]);
+	}
+}
+
+
 __global__ void softmaxCeDerivative(int batchSize,
 									int numClasses,
 							      	const float* __restrict__ probs,
@@ -401,6 +415,22 @@ __global__ void softmaxCeDerivative(int batchSize,
 		derivatives[i] = (probs[i] - (i / batchSize == targetClasses[i % batchSize])) / batchSize;
 	}
 }
+
+
+__global__ void addSoftmaxCeDerivative(int batchSize,
+									   int numClasses,
+							      	   const float* __restrict__ probs,
+							      	   const int* __restrict__ targetClasses,
+							      	   float* __restrict__ derivatives) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = batchSize * numClasses;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		derivatives[i] += (probs[i] - (i / batchSize == targetClasses[i % batchSize])) / batchSize;
+	}
+}
+
 
 
 __global__ void assignSequentialMeanPooling(int nrows,
@@ -1062,6 +1092,18 @@ extern "C" {
 	}
 
 
+	cudaError_t _addScaledSubtraction(cudaStream_t stream,
+                      		   	  	  int nelems,
+							      	  float alpha,
+							      	  const float* __restrict__ a,
+							      	  const float* __restrict__ b,
+							      	  float* __restrict__ out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addScaledSubtraction<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
+        return cudaGetLastError();
+	}
+
+
 	cudaError_t _softmaxCeDerivative(cudaStream_t stream,
                       		   	  	 int batchSize,
 									 int numClasses,
@@ -1070,6 +1112,18 @@ extern "C" {
 							      	 float* __restrict__ derivatives) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (batchSize * numClasses - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         softmaxCeDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(batchSize, numClasses, probs, targetClasses, derivatives);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _addSoftmaxCeDerivative(cudaStream_t stream,
+                      		   	  	    int batchSize,
+									    int numClasses,
+							      	    const float* __restrict__ probs,
+							      	    const int* __restrict__ targetClasses,
+							      	    float* __restrict__ derivatives) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (batchSize * numClasses - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addSoftmaxCeDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(batchSize, numClasses, probs, targetClasses, derivatives);
         return cudaGetLastError();
 	}
 

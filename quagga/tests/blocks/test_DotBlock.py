@@ -220,6 +220,6 @@ class TestDotBlock(TestCase):
                 q_grads.append(dot_b.backward_matrix.to_host())
 
             for th_grad, q_grad in izip(th_grads, q_grads):
-                r.append(np.allclose(th_grad, q_grad))
+                r.append(np.allclose(th_grad, q_grad, atol=1e-7))
 
         self.assertEqual(sum(r), len(r))

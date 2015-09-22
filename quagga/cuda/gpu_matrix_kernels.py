@@ -379,6 +379,18 @@ def assign_scaled_subtraction(stream, nelems, alpha, a, b, out):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._addScaledSubtraction.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addScaledSubtraction.argtypes = [cudart.ct_cuda_stream,
+                                                     ct.c_int,
+                                                     ct.c_float,
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float)]
+def add_scaled_subtraction(stream, nelems, alpha, a, b, out):
+    status = gpu_matrix_kernels._addScaledSubtraction(stream, nelems, alpha, a, b, out)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._softmaxCeDerivative.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._softmaxCeDerivative.argtypes = [cudart.ct_cuda_stream,
                                                     ct.c_int,
@@ -388,6 +400,18 @@ gpu_matrix_kernels._softmaxCeDerivative.argtypes = [cudart.ct_cuda_stream,
                                                     ct.POINTER(ct.c_float)]
 def softmax_ce_derivative(stream, batchSize, num_classes, probs, target_classes, derivatives):
     status = gpu_matrix_kernels._softmaxCeDerivative(stream, batchSize, num_classes, probs, target_classes, derivatives)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addSoftmaxCeDerivative.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addSoftmaxCeDerivative.argtypes = [cudart.ct_cuda_stream,
+                                                       ct.c_int,
+                                                       ct.c_int,
+                                                       ct.POINTER(ct.c_float),
+                                                       ct.POINTER(ct.c_int),
+                                                       ct.POINTER(ct.c_float)]
+def add_softmax_ce_derivative(stream, batchSize, num_classes, probs, target_classes, derivatives):
+    status = gpu_matrix_kernels._addSoftmaxCeDerivative(stream, batchSize, num_classes, probs, target_classes, derivatives)
     cudart.check_cuda_status(status)
 
 

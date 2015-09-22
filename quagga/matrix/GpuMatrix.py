@@ -720,6 +720,12 @@ class GpuMatrix(object):
         context.activate()
         gpu_matrix_kernels.softmax_ce_derivative(context.cuda_stream, probs.nrows, probs.ncols, probs.data, target_classes.data, self.data)
 
+    def add_softmax_ce_derivative(self, context, probs, target_classes):
+        GpuMatrix.wait_matrices(context, probs, target_classes)
+        self.last_modification_context = context
+        context.activate()
+        gpu_matrix_kernels.add_softmax_ce_derivative(context.cuda_stream, probs.nrows, probs.ncols, probs.data, target_classes.data, self.data)
+
     def scale(self, context, alpha, out=None):
         GpuMatrix.wait_matrices(context, self)
         if out:
@@ -758,6 +764,18 @@ class GpuMatrix(object):
         if a.nrows != b.nrows and a.ncols == b.ncols:
             raise ValueError('TODO!')
         gpu_matrix_kernels.assign_scaled_subtraction(context.cuda_stream, self.nelems, alpha, a.data, b.data, self.data)
+
+    def add_scaled_subtraction(self, context, alpha, a, b):
+        """
+        self += alpha * (a - b)
+        """
+
+        GpuMatrix.wait_matrices(context, a, b)
+        self.last_modification_context = context
+        context.activate()
+        if a.nrows != b.nrows and a.ncols == b.ncols:
+            raise ValueError('TODO!')
+        gpu_matrix_kernels.add_scaled_subtraction(context.cuda_stream, self.nelems, alpha, a.data, b.data, self.data)
 
     def assign_sub(self, context, a, b):
         self.assign_scaled_addition(context, 1.0, a, b)

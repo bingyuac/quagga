@@ -21,9 +21,9 @@ class SoftmaxCeBlock(object):
         self.probs_np = None
         # error = (probs - true_labels) / M
         if self.true_labels.dtype == 'int':
-            self.bprop = lambda: self.dL_dx.assign_softmax_ce_derivative(self.context, self.probs, self.true_labels)
+            self.bprop = lambda: self.dL_dx.add_softmax_ce_derivative(self.context, self.probs, self.true_labels)
         else:
-            self.bprop = lambda: self.dL_dx.assign_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
+            self.bprop = lambda: self.dL_dx.add_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
 
     def fprop(self):
         self.x.softmax(self.context, self.probs)

@@ -368,7 +368,12 @@ class CpuMatrix(object):
 
     def assign_softmax_ce_derivative(self, context, probs, target_classes):
         self.npa = probs.npa / probs.npa.shape[0]
-        self.npa[range(probs.npa.shape[0]), target_classes.npa.flatten()] -= 1.0 / probs.npa.shape[0]
+        self.npa[range(probs.nrows), target_classes.npa.flatten()] -= 1.0 / probs.npa.shape[0]
+
+    def add_softmax_ce_derivative(self, context, probs, target_classes):
+        temp = probs.npa / probs.npa.shape[0]
+        temp[range(probs.nrows), target_classes.npa.flatten()] -= 1.0 / probs.npa.shape[0]
+        self.npa += temp
 
     def scale(self, context, alpha, out=None):
         if out:
@@ -390,6 +395,9 @@ class CpuMatrix(object):
         self = alpha * (a - b)
         """
         self.npa = alpha * (a.npa - b.npa)
+
+    def add_scaled_subtraction(self, context, alpha, a, b):
+        self.npa += alpha * (a.npa - b.npa)
 
     def assign_sub(self, context, a, b):
         self.assign_scaled_addition(context, 1.0, a, b)

@@ -786,6 +786,26 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
+    def test_add_softmax_ce_derivative(self):
+        r = []
+        for _ in xrange(self.N):
+            probs = self.get_random_array()
+            target_classes = self.rng.randint(probs.shape[1], size=(probs.shape[0], 1)).astype(np.int32)
+            derivative = self.get_random_array(probs.shape)
+
+            probs_cpu = CpuMatrix.from_npa(probs)
+            target_classes_cpu = CpuMatrix.from_npa(target_classes)
+            derivative_cpu = CpuMatrix.from_npa(derivative)
+            probs_gpu = GpuMatrix.from_npa(probs)
+            target_classes_gpu = GpuMatrix.from_npa(target_classes)
+            derivative_gpu = GpuMatrix.from_npa(derivative)
+
+            derivative_cpu.add_softmax_ce_derivative(self.cpu_context, probs_cpu, target_classes_cpu)
+            derivative_gpu.add_softmax_ce_derivative(self.gpu_context, probs_gpu, target_classes_gpu)
+            r.append(np.allclose(derivative_cpu.to_host(), derivative_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_scale(self):
         r = []
         for _ in xrange(self.N):
@@ -828,6 +848,31 @@ class TestMatrix(TestCase):
 
             c_cpu.assign_scaled_subtraction(self.cpu_context, alpha, a_cpu, b_cpu)
             c_gpu.assign_scaled_subtraction(self.gpu_context, alpha, a_gpu, b_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+            c_cpu.add_scaled_subtraction(self.cpu_context, alpha, a_cpu, b_cpu)
+            c_gpu.add_scaled_subtraction(self.gpu_context, alpha, a_gpu, b_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_add_scaled_subtraction(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = self.get_random_array(a.shape)
+            c = self.get_random_array(a.shape)
+            alpha = 2 * self.rng.rand() - 1
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+
+            c_cpu.add_scaled_subtraction(self.cpu_context, alpha, a_cpu, b_cpu)
+            c_gpu.add_scaled_subtraction(self.gpu_context, alpha, a_gpu, b_gpu)
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
         self.assertEqual(sum(r), len(r))
