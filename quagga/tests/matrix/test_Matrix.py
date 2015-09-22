@@ -23,59 +23,629 @@ class TestMatrix(TestCase):
             a = 4 * cls.rng.rand(nrows, ncols) - 2
         return a.astype(dtype=np.float32)
 
-    def test_from_numpy_array(self):
+    # def test_getitem(self):
+    #     # TODO(sergii) this test is not up-to-date
+    #     r = []
+    #     for i in xrange(self.N):
+    #         a = TestMatrix.get_random_array()
+    #         j = self.rng.randint(a.shape[1])
+    #         option = self.rng.randint(3)
+    #         if option == 0:
+    #             s = j
+    #         elif option == 1:
+    #             s = slice(None, j, None)
+    #         else:
+    #             s = slice(j, None, None)
+    #
+    #         a_cpu = CpuMatrix.from_npa(a)
+    #         a_gpu = GpuMatrix.from_npa(a)
+    #         a_cpu_column = a_cpu[:, s]
+    #         a_gpu_column = a_gpu[:, s]
+    #         r.append(np.allclose(a_cpu_column.to_host(),
+    #                              a_gpu_column.to_host()))
+    #     self.assertEqual(sum(r), self.N)
+
+    def test_from_npa(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
-            a_gpu = GpuMatrix.from_npa(a)
-            r.append(np.allclose(a, a_gpu.to_host()))
+            a_cpu = CpuMatrix.from_npa(a).to_host()
+            a_gpu = GpuMatrix.from_npa(a).to_host()
+            r.append(np.allclose(a_cpu, a_gpu))
         self.assertEqual(sum(r), self.N)
 
-    def test_getitem(self):
+    def test_to_host(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            a_cpu = CpuMatrix.from_npa(a).to_host()
+            a_gpu = GpuMatrix.from_npa(a).to_host()
+            r.append(np.allclose(a, a_cpu))
+            r.append(np.allclose(a, a_gpu))
+        self.assertEqual(sum(r), len(r))
+
+    def test_assign(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.empty_like(a_cpu)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.empty_like(a_gpu)
+            b_cpu.assign(self.cpu_context, a_cpu)
+            b_gpu.assign(self.gpu_context, a_gpu)
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+
+            # strided
+            N = self.rng.random_integers(7000)
+            offset = [self.rng.random_integers(0, N - 1)]
+            offset.append(self.rng.random_integers(offset[0] + 1, N))
+
+            a = self.get_random_array((1, N))
+            b = self.get_random_array((self.rng.random_integers(N), self.rng.random_integers(offset[1] - offset[0], N)))
+            k = self.rng.randint(b.shape[0])
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+
+            chunk_b_cpu = b_cpu[k]
+            chunk_a_cpu = a_cpu[:, offset[0]:offset[1]]
+            chunk_b_gpu = b_gpu[k]
+            chunk_a_gpu = a_gpu[:, offset[0]:offset[1]]
+
+            chunk_b_cpu.assign(self.cpu_context, chunk_a_cpu)
+            chunk_b_gpu.assign(self.gpu_context, chunk_a_gpu)
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_assign_npa(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            a_cpu = CpuMatrix.empty(a.shape[0], a.shape[1])
+            a_gpu = GpuMatrix.empty(a.shape[0], a.shape[1])
+            a_cpu.assign_npa(self.cpu_context, a)
+            a_gpu.assign_npa(self.gpu_context, a)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+            r.append(np.allclose(a_cpu.to_host(), a))
+            r.append(np.allclose(a_gpu.to_host(), a))
+        self.assertEqual(sum(r), len(r))
+
+    def test_fill(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            fill_value = self.rng.rand()
+            a_cpu = CpuMatrix.from_npa(a)
+            a_gpu = GpuMatrix.from_npa(a)
+            a_cpu.fill(self.cpu_context, fill_value)
+            a_gpu.fill(self.gpu_context, fill_value)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+        self.assertEqual(sum(r), self.N)
+
+    def test_sync_fill(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            fill_value = self.rng.rand()
+            a_cpu = CpuMatrix.from_npa(a)
+            a_gpu = GpuMatrix.from_npa(a)
+            a_cpu.sync_fill(fill_value)
+            a_gpu.sync_fill(fill_value)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+        self.assertEqual(sum(r), self.N)
+
+    def test_slice_columns(self):
+        # TODO(sergii): add reverse=True test
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
+            indxs = self.rng.choice(b.shape[1], a.shape[1]).astype(np.int32)
+            indxs = indxs.reshape((1, len(indxs)))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            column_indxs_cpu = CpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            column_indxs_gpu = GpuMatrix.from_npa(indxs)
+
+            b_cpu.slice_columns(self.cpu_context, column_indxs_cpu, a_cpu)
+            b_gpu.slice_columns(self.gpu_context, column_indxs_gpu, a_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_add_scaled_columns_slice(self):
         r = []
         for i in xrange(self.N):
             a = TestMatrix.get_random_array()
-            j = self.rng.randint(a.shape[1])
-            option = self.rng.randint(3)
-            if option == 0:
-                s = j
-            elif option == 1:
-                s = slice(None, j, None)
+            b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
+            indxs = self.rng.choice(b.shape[1], a.shape[1]).astype(np.int32)
+            indxs = indxs.reshape((1, len(indxs)))
+            alpha = 2 * self.rng.rand() - 1
+
+            a_cpu = CpuMatrix.from_npa(a, 'float')
+            b_cpu = CpuMatrix.from_npa(b, 'float')
+            column_indxs_cpu = CpuMatrix.from_npa(indxs)
+            column_indxs_gpu = GpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a, 'float')
+            b_gpu = GpuMatrix.from_npa(b, 'float')
+
+            b_cpu.add_scaled_columns_slice(self.cpu_context, column_indxs_cpu, alpha, a_cpu)
+            b_gpu.add_scaled_columns_slice(self.gpu_context, column_indxs_gpu, ct.c_float(alpha), a_gpu)
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host(), atol=1e-6))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_slice_columns_and_transpose(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array((a.shape[1], a.shape[0]+10000))
+
+            indxs = self.rng.choice(b.shape[1], a.shape[0]).astype(np.int32)
+            indxs = indxs.reshape((1, len(indxs)))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            column_indxs_cpu = CpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            column_indxs_gpu = GpuMatrix.from_npa(indxs)
+
+            b_cpu.slice_columns_and_transpose(self.cpu_context, column_indxs_cpu, a_cpu)
+            b_gpu.slice_columns_and_transpose(self.gpu_context, column_indxs_gpu, a_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_slice_rows(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array((a.shape[0]+10000, a.shape[1]))
+            indxs = self.rng.choice(b.shape[0], a.shape[0]).astype(np.int32)
+            indxs = indxs.reshape((len(indxs), 1))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            row_indxs_cpu = CpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            row_indxs_gpu = GpuMatrix.from_npa(indxs)
+
+            b_cpu.slice_rows(self.cpu_context, row_indxs_cpu, a_cpu)
+            b_gpu.slice_rows(self.gpu_context, row_indxs_gpu, a_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_slice_rows_batch(self):
+        r = []
+        for _ in xrange(self.N):
+            embd_matrix = TestMatrix.get_random_array(high=1000)
+            nrows, k = self.rng.random_integers(1000, size=2)
+            dense_matrices = []
+            for _ in xrange(k):
+                matrix = np.empty((nrows, embd_matrix.shape[1]), np.float32)
+                dense_matrices.append(matrix)
+            embd_rows_indxs = self.rng.randint(embd_matrix.shape[0], size=(nrows, k)).astype(np.int32)
+
+            embd_matrix_cpu = CpuMatrix.from_npa(embd_matrix)
+            embd_rows_indxs_cpu = CpuMatrix.from_npa(embd_rows_indxs)
+            dense_matrices_cpu = [CpuMatrix.from_npa(each) for each in dense_matrices]
+            embd_matrix_gpu = GpuMatrix.from_npa(embd_matrix)
+            embd_rows_indxs_gpu = GpuMatrix.from_npa(embd_rows_indxs)
+            dense_matrices_gpu = [GpuMatrix.from_npa(each) for each in dense_matrices]
+
+            embd_matrix_cpu.slice_rows_batch(self.cpu_context, embd_rows_indxs_cpu, dense_matrices_cpu)
+            embd_matrix_gpu.slice_rows_batch(self.gpu_context, embd_rows_indxs_gpu, dense_matrices_gpu)
+
+            for m_cpu, m_gpu in izip(dense_matrices_cpu, dense_matrices_gpu):
+                if not np.allclose(m_cpu.to_host(), m_gpu.to_host()):
+                    r.append(False)
+                    break
             else:
-                s = slice(j, None, None)
+                r.append(True)
 
-            a_cpu = CpuMatrix.from_npa(a)
-            a_gpu = GpuMatrix.from_npa(a)
-            a_cpu_column = a_cpu[:, s]
-            a_gpu_column = a_gpu[:, s]
-            r.append(np.allclose(a_cpu_column.to_host(),
-                                 a_gpu_column.to_host()))
         self.assertEqual(sum(r), self.N)
 
-    def test_scale(self):
+    def test_add_scaled_rows_batch_slice(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
-            alpha = 2 * self.rng.rand(1)[0] - 1
+            m = []
+            K = self.rng.random_integers(a.shape[0])
+            indxs = []
+            for _ in xrange(self.rng.random_integers(100)):
+                m.append(TestMatrix.get_random_array((K, a.shape[1])))
+                indxs.append(self.rng.choice(a.shape[0], K))
+            indxs = np.array(indxs, np.int32).T
+            alpha = 2 * self.rng.rand() - 1
 
             a_cpu = CpuMatrix.from_npa(a)
-            out_cpu = CpuMatrix.empty_like(a_cpu)
+            m_cpu = [CpuMatrix.from_npa(e) for e in m]
+            indxs_cpu = CpuMatrix.from_npa(indxs)
             a_gpu = GpuMatrix.from_npa(a)
-            out_gpu = GpuMatrix.empty_like(a_gpu)
+            m_gpu = [GpuMatrix.from_npa(e) for e in m]
+            indxs_gpu = GpuMatrix.from_npa(indxs)
 
-            a_cpu.scale(self.cpu_context, alpha, out_cpu)
-            a_gpu.scale(self.gpu_context, alpha, out_gpu)
-            r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host()))
+            a_cpu.add_scaled_rows_batch_slice(self.cpu_context, indxs_cpu, alpha, m_cpu)
+            a_gpu.add_scaled_rows_batch_slice(self.gpu_context, indxs_gpu, alpha, m_gpu)
 
-            a_cpu.scale(self.cpu_context, alpha)
-            a_gpu.scale(self.gpu_context, alpha)
-            r.append(np.allclose(a_cpu.to_host(), out_gpu.to_host()))
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-5))
 
-        self.assertEqual(sum(r), self.N * 2)
+            del a_gpu
+            del indxs_gpu
+            del m_gpu
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_assign_hstack(self):
+        r = []
+        for _ in xrange(self.N):
+            cpu_matrices = []
+            gpu_matrices = []
+            nrows = self.rng.random_integers(1, 7000)
+            ncols = 0
+            for k in xrange(self.rng.random_integers(10)):
+                _ncols = self.rng.random_integers(1000)
+                matrix = self.get_random_array(shape=(nrows, _ncols))
+                ncols += _ncols
+                cpu_matrices.append(CpuMatrix.from_npa(matrix))
+                gpu_matrices.append(GpuMatrix.from_npa(matrix))
+            cpu_stacked = CpuMatrix.empty(nrows, ncols, 'float')
+            gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
+            cpu_stacked.assign_hstack(self.cpu_context, cpu_matrices)
+            gpu_stacked.assign_hstack(self.gpu_context, gpu_matrices)
+            r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_hsplit(self):
+        r = []
+        for _ in xrange(self.N):
+            cpu_matrices = []
+            gpu_matrices = []
+            nrows = self.rng.random_integers(1, 7000)
+            ncols = [0]
+            for k in xrange(self.rng.random_integers(10)):
+                _ncols = self.rng.random_integers(1000)
+                ncols.append(ncols[-1] + _ncols)
+                cpu_matrices.append(CpuMatrix.empty(nrows, _ncols, 'float'))
+                gpu_matrices.append(GpuMatrix.empty(nrows, _ncols, 'float'))
+            a = self.get_random_array((nrows, ncols[-1]))
+            cpu_stacked = CpuMatrix.from_npa(a, 'float')
+            gpu_stacked = GpuMatrix.from_npa(a, 'float')
+
+            indxs = set(self.rng.choice(k+1, max(1, k-5), replace=False))
+            col_slices = []
+            _cpu_matrices = []
+            _gpu_matrices = []
+            for k in indxs:
+                col_slices.append((ncols[k], ncols[k+1]))
+                _cpu_matrices.append(cpu_matrices[k])
+                _gpu_matrices.append(gpu_matrices[k])
+            cpu_stacked.hsplit(self.cpu_context, _cpu_matrices, col_slices)
+            gpu_stacked.hsplit(self.gpu_context, _gpu_matrices, col_slices)
+            for cpu_m, gpu_m in izip(_cpu_matrices, _gpu_matrices):
+                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+            cpu_stacked.hsplit(self.cpu_context, cpu_matrices)
+            gpu_stacked.hsplit(self.gpu_context, gpu_matrices)
+            for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
+                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_batch_hstack(self):
+        r = []
+        for _ in xrange(self.N):
+            n, nrows = self.rng.random_integers(200, size=2)
+            x_ncols, y_ncols = self.rng.random_integers(3000, size=2)
+            x_sequence = []
+            y_sequence = []
+            output_sequence = []
+            for i in xrange(n):
+                x_sequence.append(self.get_random_array((nrows, x_ncols)))
+                y_sequence.append(self.get_random_array((nrows, y_ncols)))
+                output_sequence.append(np.empty((nrows, x_ncols + y_ncols), np.float32))
+
+            x_sequence_cpu = []
+            y_sequence_cpu = []
+            output_sequence_cpu = []
+            x_sequence_gpu = []
+            y_sequence_gpu = []
+            output_sequence_gpu = []
+            for x, y, out in izip(x_sequence, y_sequence, output_sequence):
+                x_sequence_cpu.append(CpuMatrix.from_npa(x))
+                y_sequence_cpu.append(CpuMatrix.from_npa(y))
+                output_sequence_cpu.append(CpuMatrix.from_npa(out))
+                x_sequence_gpu.append(GpuMatrix.from_npa(x))
+                y_sequence_gpu.append(GpuMatrix.from_npa(y))
+                output_sequence_gpu.append(GpuMatrix.from_npa(out))
+
+            CpuMatrix.batch_hstack(self.cpu_context, x_sequence_cpu, y_sequence_cpu, output_sequence_cpu)
+            GpuMatrix.batch_hstack(self.gpu_context, x_sequence_gpu, y_sequence_gpu, output_sequence_gpu)
+
+            for out_cpu, out_gpu in izip(output_sequence_cpu, output_sequence_gpu):
+                if not np.allclose(out_cpu.to_host(), out_gpu.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_batch_hsplit(self):
+        r = []
+        for _ in xrange(self.N):
+            n, nrows = self.rng.random_integers(200, size=2)
+            x_ncols, y_ncols = self.rng.random_integers(3000, size=2)
+            x_sequence = []
+            y_sequence = []
+            input_sequence = []
+            for i in xrange(n):
+                x_sequence.append(np.empty((nrows, x_ncols), dtype=np.float32))
+                y_sequence.append(np.empty((nrows, y_ncols), dtype=np.float32))
+                input_sequence.append(self.get_random_array((nrows, x_ncols + y_ncols)))
+
+            x_sequence_cpu = []
+            y_sequence_cpu = []
+            input_sequence_cpu = []
+            x_sequence_gpu = []
+            y_sequence_gpu = []
+            input_sequence_gpu = []
+            for x, y, out in izip(x_sequence, y_sequence, input_sequence):
+                x_sequence_cpu.append(CpuMatrix.from_npa(x))
+                y_sequence_cpu.append(CpuMatrix.from_npa(y))
+                input_sequence_cpu.append(CpuMatrix.from_npa(out))
+                x_sequence_gpu.append(GpuMatrix.from_npa(x))
+                y_sequence_gpu.append(GpuMatrix.from_npa(y))
+                input_sequence_gpu.append(GpuMatrix.from_npa(out))
+
+            CpuMatrix.batch_hsplit(self.cpu_context, input_sequence_cpu, x_sequence_cpu, y_sequence_cpu)
+            GpuMatrix.batch_hsplit(self.gpu_context, input_sequence_gpu, x_sequence_gpu, y_sequence_gpu)
+
+            for sequence_cpu, y_sequence_gpu in [(x_sequence_cpu, x_sequence_gpu), (y_sequence_cpu, y_sequence_gpu)]:
+                for a_cpu, a_gpu in izip(sequence_cpu, y_sequence_gpu):
+                    if not np.allclose(a_cpu.to_host(), a_gpu.to_host()):
+                        r.append(False)
+                        break
+                else:
+                    r.append(True)
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_assign_vstack(self):
+        r = []
+        for _ in xrange(self.N):
+            cpu_matrices = []
+            gpu_matrices = []
+            ncols = self.rng.random_integers(1, 7000)
+            nrows = 0
+            for k in xrange(self.rng.random_integers(10)):
+                _nrows = self.rng.random_integers(1000)
+                matrix = self.get_random_array(shape=(_nrows, ncols))
+                nrows += _nrows
+                cpu_matrices.append(CpuMatrix.from_npa(matrix))
+                gpu_matrices.append(GpuMatrix.from_npa(matrix))
+            cpu_stacked = CpuMatrix.empty(nrows, ncols, 'float')
+            gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
+            cpu_stacked.assign_vstack(self.cpu_context, cpu_matrices)
+            gpu_stacked.assign_vstack(self.gpu_context, gpu_matrices)
+            r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_vsplit(self):
+        r = []
+        for _ in xrange(self.N):
+            cpu_matrices = []
+            gpu_matrices = []
+            ncols = self.rng.random_integers(1, 7000)
+            nrows = [0]
+            for k in xrange(self.rng.random_integers(10)):
+                _nrows = self.rng.random_integers(1000)
+                nrows.append(nrows[-1] + _nrows)
+                cpu_matrices.append(CpuMatrix.empty(_nrows, ncols, 'float'))
+                gpu_matrices.append(GpuMatrix.empty(_nrows, ncols, 'float'))
+            a = self.get_random_array((nrows[-1], ncols))
+            cpu_stacked = CpuMatrix.from_npa(a, 'float')
+            gpu_stacked = GpuMatrix.from_npa(a, 'float')
+
+            indxs = set(self.rng.choice(k+1, max(1, k-5), replace=False))
+            row_slices = []
+            _cpu_matrices = []
+            _gpu_matrices = []
+            for k in indxs:
+                row_slices.append((nrows[k], nrows[k+1]))
+                _cpu_matrices.append(cpu_matrices[k])
+                _gpu_matrices.append(gpu_matrices[k])
+            cpu_stacked.vsplit(self.cpu_context, _cpu_matrices, row_slices)
+            gpu_stacked.vsplit(self.gpu_context, _gpu_matrices, row_slices)
+            for cpu_m, gpu_m in izip(_cpu_matrices, _gpu_matrices):
+                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+            cpu_stacked.vsplit(self.cpu_context, cpu_matrices)
+            gpu_stacked.vsplit(self.gpu_context, gpu_matrices)
+            for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
+                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_assign_sequential_mean_pooling(self):
+        r = []
+        for _ in xrange(self.N):
+            a = [self.get_random_array(high=1000)]
+            for _ in xrange(self.rng.random_integers(500)):
+                a.append(self.get_random_array(a[-1].shape))
+
+            a_cpu = [CpuMatrix.from_npa(each) for each in a]
+            a_gpu = [GpuMatrix.from_npa(each) for each in a]
+
+            a_cpu[0].assign_sequential_mean_pooling(self.cpu_context, a_cpu[1:])
+            a_gpu[0].assign_sequential_mean_pooling(self.gpu_context, a_gpu[1:])
+
+            r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_sequentially_tile(self):
+        r = []
+        for _ in xrange(self.N):
+            a = [self.get_random_array(high=1000)]
+            for _ in xrange(self.rng.random_integers(500)):
+                a.append(np.empty_like(a[0]))
+
+            a_cpu = [CpuMatrix.from_npa(each) for each in a]
+            a_gpu = [GpuMatrix.from_npa(each) for each in a]
+
+            CpuMatrix.sequentially_tile(self.cpu_context, a_cpu[0], a_cpu[1:])
+            GpuMatrix.sequentially_tile(self.gpu_context, a_gpu[0], a_gpu[1:])
+
+            for a_cpu, a_gpu in izip(a_cpu[1:], a_gpu[1:]):
+                if not np.allclose(a_cpu.to_host(), a_gpu.to_host()):
+                    r.append(False)
+                    break
+            else:
+                r.append(True)
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_tile(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = self.get_random_array((1, a.shape[1]))
+            c = self.get_random_array((a.shape[0], 1))
+            a_cpu = CpuMatrix.from_npa(a, 'float')
+            a_gpu = GpuMatrix.from_npa(a, 'float')
+            b_cpu = CpuMatrix.from_npa(b, 'float')
+            b_gpu = GpuMatrix.from_npa(b, 'float')
+            c_cpu = CpuMatrix.from_npa(c, 'float')
+            c_gpu = GpuMatrix.from_npa(c, 'float')
+
+            a_cpu.tile(self.cpu_context, axis=0, a=b_cpu)
+            a_gpu.tile(self.gpu_context, axis=0, a=b_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+            a_cpu.tile(self.cpu_context, axis=1, a=c_cpu)
+            a_gpu.tile(self.gpu_context, axis=1, a=c_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_dropout(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = np.empty_like(a)
+            dropout_prob = self.rng.uniform()
+            seed = self.rng.randint(1000)
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            generator_cpu = CpuMatrix.get_random_generator(seed)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            generator_gpu = GpuMatrix.get_random_generator(seed)
+
+            a_cpu.dropout(self.cpu_context, generator_cpu, dropout_prob, b_cpu)
+            a_gpu.dropout(self.gpu_context, generator_gpu, dropout_prob, b_gpu)
+
+            b_cpu = b_cpu.to_host()
+            b_gpu = b_gpu.to_host()
+            dropout_prob_cpu = 1.0 - np.count_nonzero(b_cpu) / float(b_cpu.size)
+            dropout_prob_gpu = 1.0 - np.count_nonzero(b_gpu) / float(b_gpu.size)
+
+            r.append(np.isclose(dropout_prob_cpu, dropout_prob_gpu, atol=1e-03) and
+                     np.isclose(dropout_prob_gpu, dropout_prob, atol=1e-03))
+
+        self.assertGreater(sum(r), int(0.9 * self.N))
+
+    def test_assign_mask_zeros(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = (self.rng.randint(2, size=a.shape) * self.rng.rand(*a.shape)).astype(np.float32)
+            c = np.empty_like(b)
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+
+            a_cpu.assign_mask_zeros(self.cpu_context, b_cpu, c_cpu)
+            a_gpu.assign_mask_zeros(self.gpu_context, b_gpu, c_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_add_mask_zeros(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = (self.rng.randint(2, size=a.shape) * self.rng.rand(*a.shape)).astype(np.float32)
+            c = np.empty_like(b)
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+
+            a_cpu.add_mask_zeros(self.cpu_context, b_cpu, c_cpu)
+            a_gpu.add_mask_zeros(self.gpu_context, b_gpu, c_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_mask_column_numbers_row_wise(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            numbers = self.rng.randint(a.shape[1], size=a.shape[0]).astype(np.int32)
+            numbers = numbers.reshape((numbers.size, 1))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            numbers_cpu = CpuMatrix.from_npa(numbers)
+            a_gpu = GpuMatrix.from_npa(a)
+            numbers_gpu = GpuMatrix.from_npa(numbers)
+
+            a_cpu.mask_column_numbers_row_wise(self.cpu_context, numbers_cpu)
+            a_gpu.mask_column_numbers_row_wise(self.gpu_context, numbers_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
 
     def test_tanh(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
 
             a_cpu = CpuMatrix.from_npa(a)
@@ -97,11 +667,11 @@ class TestMatrix(TestCase):
             r.append(np.allclose(derivative_matrix_cpu.to_host(),
                                  derivative_matrix_gpu.to_host()))
 
-        self.assertEqual(sum(r), self.N * 3)
+        self.assertEqual(sum(r), len(r))
 
     def test_sigmoid(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
 
             a_cpu = CpuMatrix.from_npa(a)
@@ -123,11 +693,11 @@ class TestMatrix(TestCase):
             r.append(np.allclose(derivative_matrix_cpu.to_host(),
                                  derivative_matrix_gpu.to_host()))
 
-        self.assertEqual(sum(r), self.N * 3)
+        self.assertEqual(sum(r), len(r))
 
     def test_tanh_sigm(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
             for axis in [0, 1]:
                 a_cpu = CpuMatrix.from_npa(a)
@@ -149,11 +719,11 @@ class TestMatrix(TestCase):
                 r.append(np.allclose(derivative_matrix_cpu.to_host(),
                                      derivative_matrix_gpu.to_host()))
 
-        self.assertEqual(sum(r), self.N * 6)
+        self.assertEqual(sum(r), len(r))
 
     def test_relu(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
 
             a_cpu = CpuMatrix.from_npa(a)
@@ -175,37 +745,101 @@ class TestMatrix(TestCase):
             r.append(np.allclose(derivative_matrix_cpu.to_host(),
                                  derivative_matrix_gpu.to_host()))
 
-        self.assertEqual(sum(r), self.N * 3)
+        self.assertEqual(sum(r), len(r))
 
-    def test_add(self):
+    def test_softmax(self):
         r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            if self.rng.randint(2):
-                b = TestMatrix.get_random_array(a.shape)
-            else:
-                b = TestMatrix.get_random_array((1, a.shape[1]))
+        for _ in xrange(self.N):
+            nrows = self.rng.random_integers(10000)
+            ncols = self.rng.random_integers(1000)
+            a = 4 * self.rng.rand(nrows, ncols).astype(np.float32) - 2
+            b = np.empty_like(a)
 
             a_cpu = CpuMatrix.from_npa(a)
             b_cpu = CpuMatrix.from_npa(b)
             a_gpu = GpuMatrix.from_npa(a)
             b_gpu = GpuMatrix.from_npa(b)
 
-            a_cpu.add(self.cpu_context, b_cpu)
-            a_gpu.add(self.gpu_context, b_gpu)
-
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+            a_cpu.softmax(self.cpu_context, b_cpu)
+            a_gpu.softmax(self.gpu_context, b_gpu)
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
 
         self.assertEqual(sum(r), self.N)
 
+    def test_assign_softmax_ce_derivative(self):
+        r = []
+        for _ in xrange(self.N):
+            probs = self.get_random_array()
+            target_classes = self.rng.randint(probs.shape[1], size=(probs.shape[0], 1)).astype(np.int32)
+            derivative = np.empty_like(probs)
+
+            probs_cpu = CpuMatrix.from_npa(probs)
+            target_classes_cpu = CpuMatrix.from_npa(target_classes)
+            derivative_cpu = CpuMatrix.from_npa(derivative)
+            probs_gpu = GpuMatrix.from_npa(probs)
+            target_classes_gpu = GpuMatrix.from_npa(target_classes)
+            derivative_gpu = GpuMatrix.from_npa(derivative)
+
+            derivative_cpu.assign_softmax_ce_derivative(self.cpu_context, probs_cpu, target_classes_cpu)
+            derivative_gpu.assign_softmax_ce_derivative(self.gpu_context, probs_gpu, target_classes_gpu)
+            r.append(np.allclose(derivative_cpu.to_host(), derivative_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_scale(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            alpha = ct.c_float(2 * self.rng.rand() - 1)
+
+            a_cpu = CpuMatrix.from_npa(a)
+            out_cpu = CpuMatrix.empty_like(a_cpu)
+            a_gpu = GpuMatrix.from_npa(a)
+            out_gpu = GpuMatrix.empty_like(a_gpu)
+
+            a_cpu.scale(self.cpu_context, alpha, out_cpu)
+            a_gpu.scale(self.gpu_context, alpha, out_gpu)
+            r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host()))
+
+            a_cpu.scale(self.cpu_context, alpha)
+            a_gpu.scale(self.gpu_context, alpha)
+            r.append(np.allclose(a_cpu.to_host(), out_gpu.to_host()))
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_scaled_addition_subtraction(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = self.get_random_array(a.shape)
+            c = self.get_random_array(a.shape)
+            alpha = 2 * self.rng.rand() - 1
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+
+            c_cpu.assign_scaled_addition(self.cpu_context, alpha, a_cpu, b_cpu)
+            c_gpu.assign_scaled_addition(self.gpu_context, alpha, a_gpu, b_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+            c_cpu.assign_scaled_subtraction(self.cpu_context, alpha, a_cpu, b_cpu)
+            c_gpu.assign_scaled_subtraction(self.gpu_context, alpha, a_gpu, b_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), len(r))
+
     def test_add_scaled(self):
         r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = TestMatrix.get_random_array(a.shape)
-            c = TestMatrix.get_random_array((1, a.shape[1]))
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = self.get_random_array(a.shape)
+            c = self.get_random_array((1, a.shape[1]))
             d = np.zeros((1, a.shape[1] + 1), dtype=np.float32)
-            alpha = ct.c_float(2 * self.rng.rand(1)[0] - 1)
+            alpha = ct.c_float(2 * self.rng.rand() - 1)
 
             a_cpu = CpuMatrix.from_npa(a)
             b_cpu = CpuMatrix.from_npa(b)
@@ -216,14 +850,6 @@ class TestMatrix(TestCase):
             c_gpu = GpuMatrix.from_npa(c)
             d_gpu = GpuMatrix.from_npa(d)
 
-            a_cpu.add(self.cpu_context, b_cpu)
-            a_gpu.add(self.gpu_context, b_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
-
-            a_cpu.add(self.cpu_context, c_cpu)
-            a_gpu.add(self.gpu_context, c_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
-
             a_cpu.add_scaled(self.cpu_context, alpha, b_cpu)
             a_gpu.add_scaled(self.gpu_context, alpha, b_gpu)
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
@@ -232,40 +858,22 @@ class TestMatrix(TestCase):
             a_gpu.add_scaled(self.gpu_context, alpha, c_gpu)
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
 
-            r.append(True)
             try:
-                a_cpu.add(self.cpu_context, d_cpu)
-                r[-1] &= False
+                a_cpu.add_scaled(self.cpu_context, alpha, d_cpu)
+                r.append(False)
             except ValueError:
-                r[-1] &= True
+                r.append(True)
             try:
-                a_gpu.add(self.gpu_context, d_gpu)
-                r[-1] &= False
+                a_gpu.add_scaled(self.gpu_context, alpha, d_gpu)
+                r.append(False)
             except ValueError:
-                r[-1] &= True
+                r.append(True)
 
-        self.assertEqual(sum(r), self.N * 5)
-
-    def test_add_sum(self):
-        r = []
-        for i in xrange(self.N):
-            a = [TestMatrix.get_random_array()]
-            for _ in xrange(self.rng.random_integers(10)):
-                a.append(TestMatrix.get_random_array(a[-1].shape))
-
-            a_cpu = [CpuMatrix.from_npa(each) for each in a]
-            a_gpu = [GpuMatrix.from_npa(each) for each in a]
-
-            a_cpu[0].add_sum(self.cpu_context, a_cpu[1:])
-            a_gpu[0].add_sum(self.gpu_context, a_gpu[1:])
-
-            r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
-
-        self.assertEqual(sum(r), self.N)
+        self.assertEqual(sum(r), len(r))
 
     def test_assign_sum(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = [TestMatrix.get_random_array()]
             for _ in xrange(self.rng.random_integers(10)):
                 a.append(TestMatrix.get_random_array(a[-1].shape))
@@ -280,31 +888,26 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
-    def test_sliced_add_scaled(self):
+    def test_add_sum(self):
         r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
-            indxs = self.rng.choice(b.shape[1], a.shape[1]).astype(dtype=np.int32)
-            indxs = indxs.reshape((1, len(indxs)))
-            alpha = 2 * self.rng.rand(1)[0] - 1
+        for _ in xrange(self.N):
+            a = [TestMatrix.get_random_array()]
+            for _ in xrange(self.rng.random_integers(10)):
+                a.append(TestMatrix.get_random_array(a[-1].shape))
 
-            a_cpu = CpuMatrix.from_npa(a, 'float')
-            b_cpu = CpuMatrix.from_npa(b, 'float')
-            column_indxs_cpu = CpuMatrix.from_npa(indxs)
-            column_indxs_gpu = GpuMatrix.from_npa(indxs)
-            a_gpu = GpuMatrix.from_npa(a, 'float')
-            b_gpu = GpuMatrix.from_npa(b, 'float')
+            a_cpu = [CpuMatrix.from_npa(each) for each in a]
+            a_gpu = [GpuMatrix.from_npa(each) for each in a]
 
-            b_cpu.sliced_columns_add_scaled(self.cpu_context, column_indxs_cpu, alpha, a_cpu)
-            b_gpu.sliced_columns_add_scaled(self.gpu_context, column_indxs_gpu, ct.c_float(alpha), a_gpu)
-            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host(), atol=1e-6))
+            a_cpu[0].add_sum(self.cpu_context, a_cpu[1:])
+            a_gpu[0].add_sum(self.gpu_context, a_gpu[1:])
+
+            r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), self.N)
 
     def test_hprod(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
             if self.rng.randint(2):
                 b = TestMatrix.get_random_array(a.shape)
@@ -325,12 +928,12 @@ class TestMatrix(TestCase):
 
     def test_add_hprod(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
             b = TestMatrix.get_random_array(a.shape)
             c = TestMatrix.get_random_array(a.shape)
             out = TestMatrix.get_random_array(a.shape)
-            alpha = 2 * self.rng.rand(1)[0] - 1
+            alpha = 2 * self.rng.rand() - 1
 
             a_cpu = CpuMatrix.from_npa(a)
             b_cpu = CpuMatrix.from_npa(b)
@@ -343,17 +946,17 @@ class TestMatrix(TestCase):
 
             out_cpu.add_hprod(self.cpu_context, a_cpu, b_cpu, alpha=alpha)
             out_gpu.add_hprod(self.gpu_context, a_gpu, b_gpu, alpha=alpha)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
             out_cpu.add_hprod(self.cpu_context, a_cpu, b_cpu, c_cpu, alpha)
             out_gpu.add_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu, alpha)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 
-        self.assertEqual(sum(r), self.N * 2)
+        self.assertEqual(sum(r), len(r))
 
     def test_assign_hprod(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
             b = TestMatrix.get_random_array(a.shape)
             c = TestMatrix.get_random_array(a.shape)
@@ -375,7 +978,7 @@ class TestMatrix(TestCase):
             out_gpu.assign_hprod(self.gpu_context, a_gpu, b_gpu)
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host()))
 
-        self.assertEqual(sum(r), self.N * 2)
+        self.assertEqual(sum(r), len(r))
 
     def test_assign_sum_hprod(self):
         r = []
@@ -429,7 +1032,7 @@ class TestMatrix(TestCase):
             out_gpu.assign_sum_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu, d_gpu, e_gpu, f_gpu, g_gpu, h_gpu, i_gpu, j_gpu, k_gpu)
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-5))
 
-        self.assertEqual(sum(r), self.N * 3)
+        self.assertEqual(sum(r), len(r))
 
     def test_assign_hprod_sum(self):
         r = []
@@ -443,7 +1046,7 @@ class TestMatrix(TestCase):
 
             a_gpu = GpuMatrix.from_npa(a)
             b_gpu = GpuMatrix.from_npa(b)
-            out_gpu = GpuMatrix.empty(a_cpu.nrows, 1)
+            out_gpu = GpuMatrix.empty(a_gpu.nrows, 1)
 
             out_cpu.assign_hprod_sum(self.cpu_context, a_cpu, b_cpu)
             out_gpu.assign_hprod_sum(self.gpu_context, a_gpu, b_gpu)
@@ -453,7 +1056,7 @@ class TestMatrix(TestCase):
 
     def test_assign_dot(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
             a_v = TestMatrix.get_random_array((a.shape[0], 1))
             m = self.rng.randint(low=1, high=2000, size=1)[0]
@@ -489,11 +1092,11 @@ class TestMatrix(TestCase):
             a_v_gpu.assign_dot(self.gpu_context, b_gpu, c_v_gpu, mat_op_b, mat_op_c)
             r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))
 
-        self.assertEqual(sum(r), self.N * 2)
+        self.assertEqual(sum(r), len(r))
 
     def test_add_dot(self):
         r = []
-        for i in xrange(self.N):
+        for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
             a_v = TestMatrix.get_random_array((a.shape[0], 1))
             m = self.rng.randint(low=1, high=2000, size=1)[0]
@@ -509,8 +1112,8 @@ class TestMatrix(TestCase):
             else:
                 c = TestMatrix.get_random_array((a.shape[1], m))
                 c_v = TestMatrix.get_random_array((1, m))
-            alpha = 2 * self.rng.rand(1)[0] - 1
-            beta = 2 * self.rng.rand(1)[0] - 1
+            alpha = ct.c_float(2 * self.rng.rand() - 1)
+            beta = ct.c_float(2 * self.rng.rand() - 1)
 
             a_cpu = CpuMatrix.from_npa(a)
             a_v_cpu = CpuMatrix.from_npa(a_v)
@@ -531,589 +1134,25 @@ class TestMatrix(TestCase):
             a_v_gpu.add_dot(self.gpu_context, b_gpu, c_v_gpu, mat_op_b, mat_op_c, alpha, beta)
             r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))
 
-        self.assertEqual(sum(r), self.N * 2)
-
-    def test_vdot(self):
-        r = []
-        for i in xrange(self.N):
-            m = self.rng.randint(low=1, high=7000, size=1)[0]
-            a = TestMatrix.get_random_array((m, 1))
-            b = TestMatrix.get_random_array((m, 1))
-
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-
-            r.append(np.allclose(a_cpu.vdot(self.cpu_context, b_cpu),
-                                 a_gpu.vdot(self.gpu_context, b_gpu), atol=1e-4))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_slice_columns(self):
-        r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = TestMatrix.get_random_array((a.shape[0], a.shape[1]+10000))
-            indxs = self.rng.choice(b.shape[1], a.shape[1]).astype(dtype=np.int32)
-            indxs = indxs.reshape((1, len(indxs)))
-
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            column_indxs_cpu = CpuMatrix.from_npa(indxs)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-            column_indxs_gpu = GpuMatrix.from_npa(indxs)
-
-            b_cpu.slice_columns(self.cpu_context, column_indxs_cpu, a_cpu)
-            b_gpu.slice_columns(self.gpu_context, column_indxs_gpu, a_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_slice_columns_and_transpose(self):
-        r = []
-        for i in xrange(self.N):
-            # a = TestMatrix.get_random_array()
-            # b = TestMatrix.get_random_array((a.shape[1], a.shape[0]+10000))
-
-            a = TestMatrix.get_random_array()
-            b = TestMatrix.get_random_array((a.shape[1], a.shape[0]+10000))
-
-            indxs = self.rng.choice(b.shape[1], a.shape[0]).astype(dtype=np.int32)
-            indxs = indxs.reshape((1, len(indxs)))
-
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            column_indxs_cpu = CpuMatrix.from_npa(indxs)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-            column_indxs_gpu = GpuMatrix.from_npa(indxs)
-
-            b_cpu.slice_columns_and_transpose(self.cpu_context, column_indxs_cpu, a_cpu)
-            b_gpu.slice_columns_and_transpose(self.gpu_context, column_indxs_gpu, a_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_assign_hstack(self):
-        r = []
-        for i in xrange(self.N):
-            cpu_matrices = []
-            gpu_matrices = []
-            nrows = self.rng.random_integers(1, 7000)
-            ncols = 0
-            for k in xrange(self.rng.random_integers(10)):
-                _ncols = self.rng.random_integers(1000)
-                matrix = self.get_random_array(shape=(nrows, _ncols))
-                ncols += _ncols
-                cpu_matrices.append(CpuMatrix.from_npa(matrix))
-                gpu_matrices.append(GpuMatrix.from_npa(matrix))
-            cpu_stacked = CpuMatrix.empty(nrows, ncols, 'float')
-            gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
-            cpu_stacked.assign_hstack(self.cpu_context, cpu_matrices)
-            gpu_stacked.assign_hstack(self.gpu_context, gpu_matrices)
-            r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_assign_vstack(self):
-        r = []
-        for i in xrange(self.N):
-            cpu_matrices = []
-            gpu_matrices = []
-            ncols = self.rng.random_integers(1, 7000)
-            nrows = 0
-            for k in xrange(self.rng.random_integers(10)):
-                _nrows = self.rng.random_integers(1000)
-                matrix = self.get_random_array(shape=(_nrows, ncols))
-                nrows += _nrows
-                cpu_matrices.append(CpuMatrix.from_npa(matrix))
-                gpu_matrices.append(GpuMatrix.from_npa(matrix))
-            cpu_stacked = CpuMatrix.empty(nrows, ncols, 'float')
-            gpu_stacked = GpuMatrix.empty(nrows, ncols, 'float')
-            cpu_stacked.assign_hstack(self.cpu_context, cpu_matrices)
-            gpu_stacked.assign_hstack(self.gpu_context, gpu_matrices)
-            r.append(np.allclose(cpu_stacked.to_host(), gpu_stacked.to_host()))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_vsplit(self):
-        r = []
-        for i in xrange(self.N):
-            cpu_matrices = []
-            gpu_matrices = []
-            ncols = self.rng.random_integers(1, 7000)
-            nrows = [0]
-            for k in xrange(self.rng.random_integers(10)):
-                _nrows = self.rng.random_integers(1000)
-                nrows.append(nrows[-1] + _nrows)
-                cpu_matrices.append(CpuMatrix.empty(_nrows, ncols, 'float'))
-                gpu_matrices.append(GpuMatrix.empty(_nrows, ncols, 'float'))
-            a = self.get_random_array((nrows[-1], ncols))
-            cpu_stacked = CpuMatrix.from_npa(a, 'float')
-            gpu_stacked = GpuMatrix.from_npa(a, 'float')
-
-            indxs = set(self.rng.choice(k+1, max(1, k-5), replace=False))
-            row_slices = []
-            _cpu_matrices = []
-            _gpu_matrices = []
-            for k in indxs:
-                row_slices.append((nrows[k], nrows[k+1]))
-                _cpu_matrices.append(cpu_matrices[k])
-                _gpu_matrices.append(gpu_matrices[k])
-            cpu_stacked.vsplit(self.cpu_context, _cpu_matrices, row_slices)
-            gpu_stacked.vsplit(self.gpu_context, _gpu_matrices, row_slices)
-            for cpu_m, gpu_m in izip(_cpu_matrices, _gpu_matrices):
-                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
-                    r.append(False)
-                    break
-            else:
-                r.append(True)
-
-            cpu_stacked.vsplit(self.cpu_context, cpu_matrices)
-            gpu_stacked.vsplit(self.gpu_context, gpu_matrices)
-            for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
-                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
-                    r.append(False)
-                    break
-            else:
-                r.append(True)
-
-        self.assertEqual(sum(r), 2 * self.N)
-
-    def test_hsplit(self):
-        r = []
-        for i in xrange(self.N):
-            cpu_matrices = []
-            gpu_matrices = []
-            nrows = self.rng.random_integers(1, 7000)
-            ncols = [0]
-            for k in xrange(self.rng.random_integers(10)):
-                _ncols = self.rng.random_integers(1000)
-                ncols.append(ncols[-1] + _ncols)
-                cpu_matrices.append(CpuMatrix.empty(nrows, _ncols, 'float'))
-                gpu_matrices.append(GpuMatrix.empty(nrows, _ncols, 'float'))
-            a = self.get_random_array((nrows, ncols[-1]))
-            cpu_stacked = CpuMatrix.from_npa(a, 'float')
-            gpu_stacked = GpuMatrix.from_npa(a, 'float')
-
-            indxs = set(self.rng.choice(k+1, max(1, k-5), replace=False))
-            col_slices = []
-            _cpu_matrices = []
-            _gpu_matrices = []
-            for k in indxs:
-                col_slices.append((ncols[k], ncols[k+1]))
-                _cpu_matrices.append(cpu_matrices[k])
-                _gpu_matrices.append(gpu_matrices[k])
-            cpu_stacked.hsplit(self.cpu_context, _cpu_matrices, col_slices)
-            gpu_stacked.hsplit(self.gpu_context, _gpu_matrices, col_slices)
-            for cpu_m, gpu_m in izip(_cpu_matrices, _gpu_matrices):
-                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
-                    r.append(False)
-                    break
-            else:
-                r.append(True)
-
-            cpu_stacked.hsplit(self.cpu_context, cpu_matrices)
-            gpu_stacked.hsplit(self.gpu_context, gpu_matrices)
-            for cpu_m, gpu_m in izip(cpu_matrices, gpu_matrices):
-                if not np.allclose(cpu_m.to_host(), gpu_m.to_host()):
-                    r.append(False)
-                    break
-            else:
-                r.append(True)
-
-        self.assertEqual(sum(r), 2 * self.N)
-
-    def test_tile(self):
-        r = []
-        for i in xrange(self.N):
-            a = self.get_random_array()
-            b = self.get_random_array((1, a.shape[1]))
-            c = self.get_random_array((a.shape[0], 1))
-            a_cpu = CpuMatrix.from_npa(a, 'float')
-            a_gpu = GpuMatrix.from_npa(a, 'float')
-            b_cpu = CpuMatrix.from_npa(b, 'float')
-            b_gpu = GpuMatrix.from_npa(b, 'float')
-            c_cpu = CpuMatrix.from_npa(c, 'float')
-            c_gpu = GpuMatrix.from_npa(c, 'float')
-
-            a_cpu.tile(self.cpu_context, axis=0, a=b_cpu)
-            a_gpu.tile(self.gpu_context, axis=0, a=b_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
-
-            a_cpu.tile(self.cpu_context, axis=1, a=c_cpu)
-            a_gpu.tile(self.gpu_context, axis=1, a=c_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
-
-        self.assertEqual(sum(r), 2 * self.N)
-
-    def test_assign_sequential_mean_pooling(self):
-        r = []
-        for i in xrange(self.N):
-            a = [TestMatrix.get_random_array(high=1000)]
-            for _ in xrange(self.rng.random_integers(500)):
-                a.append(TestMatrix.get_random_array(a[-1].shape))
-
-            a_cpu = [CpuMatrix.from_npa(each) for each in a]
-            a_gpu = [GpuMatrix.from_npa(each) for each in a]
-
-            a_cpu[0].assign_sequential_mean_pooling(self.cpu_context, a_cpu[1:])
-            a_gpu[0].assign_sequential_mean_pooling(self.gpu_context, a_gpu[1:])
-
-            r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-6))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_sequentially_tile(self):
-        r = []
-        for i in xrange(self.N):
-            a = [TestMatrix.get_random_array(high=1000)]
-            for _ in xrange(self.rng.random_integers(500)):
-                a.append(np.empty_like(a[0]))
-
-            a_cpu = [CpuMatrix.from_npa(each) for each in a]
-            a_gpu = [GpuMatrix.from_npa(each) for each in a]
-
-            CpuMatrix.sequentially_tile(self.cpu_context, a_cpu[1:], a_cpu[0])
-            GpuMatrix.sequentially_tile(self.gpu_context, a_gpu[1:], a_gpu[0])
-
-            for a_cpu, a_gpu in izip(a_cpu[1:], a_gpu[1:]):
-                if not np.allclose(a_cpu.to_host(), a_gpu.to_host()):
-                    r.append(False)
-                    break
-            else:
-                r.append(True)
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_slice_rows_batch(self):
-        r = []
-        for _ in xrange(self.N):
-            embd_matrix = TestMatrix.get_random_array(high=1000)
-            nrows, k = self.rng.random_integers(1000, size=2)
-            dense_matrices = []
-            for _ in xrange(k):
-                matrix = np.empty((nrows, embd_matrix.shape[1]), dtype=np.float32)
-                dense_matrices.append(matrix)
-            embd_rows_indxs = self.rng.randint(embd_matrix.shape[0], size=(nrows, k)).astype(np.int32)
-
-            embd_matrix_cpu = CpuMatrix.from_npa(embd_matrix)
-            embd_rows_indxs_cpu = CpuMatrix.from_npa(embd_rows_indxs)
-            dense_matrices_cpu = [CpuMatrix.from_npa(each) for each in dense_matrices]
-            embd_matrix_gpu = GpuMatrix.from_npa(embd_matrix)
-            embd_rows_indxs_gpu = GpuMatrix.from_npa(embd_rows_indxs)
-            dense_matrices_gpu = [GpuMatrix.from_npa(each) for each in dense_matrices]
-
-            embd_matrix_cpu.slice_rows_batch(self.cpu_context, embd_rows_indxs_cpu, dense_matrices_cpu)
-            embd_matrix_gpu.slice_rows_batch(self.gpu_context, embd_rows_indxs_gpu, dense_matrices_gpu)
-
-            for m_cpu, m_gpu in izip(dense_matrices_cpu, dense_matrices_gpu):
-                if not np.allclose(m_cpu.to_host(), m_gpu.to_host()):
-                    r.append(False)
-                    break
-            else:
-                r.append(True)
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_scaled_addition_subtraction(self):
-        r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = TestMatrix.get_random_array(a.shape)
-            c = TestMatrix.get_random_array(a.shape)
-            alpha = 2 * self.rng.rand(1)[0] - 1
-
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            c_cpu = CpuMatrix.from_npa(c)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-            c_gpu = GpuMatrix.from_npa(c)
-
-            c_cpu.assign_scaled_addition(self.cpu_context, alpha, a_cpu, b_cpu)
-            c_gpu.assign_scaled_addition(self.gpu_context, alpha, a_gpu, b_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
-
-            c_cpu.assign_scaled_subtraction(self.cpu_context, alpha, a_cpu, b_cpu)
-            c_gpu.assign_scaled_subtraction(self.gpu_context, alpha, a_gpu, b_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-6))
-
-        self.assertEqual(sum(r), self.N * 2)
-
-    def test_assign_softmax_ce_derivative(self):
-        r = []
-        for i in xrange(self.N):
-            probs = TestMatrix.get_random_array((2, 3))
-            target_classes = self.rng.randint(probs.shape[1], size=(probs.shape[0], 1)).astype(np.int32)
-            derivative = np.empty_like(probs)
-
-            probs_cpu = CpuMatrix.from_npa(probs)
-            target_classes_cpu = CpuMatrix.from_npa(target_classes)
-            derivative_cpu = CpuMatrix.from_npa(derivative)
-            probs_gpu = GpuMatrix.from_npa(probs)
-            target_classes_gpu = GpuMatrix.from_npa(target_classes)
-            derivative_gpu = GpuMatrix.from_npa(derivative)
-
-            derivative_cpu.assign_softmax_ce_derivative(self.cpu_context, probs_cpu, target_classes_cpu)
-            derivative_gpu.assign_softmax_ce_derivative(self.gpu_context, probs_gpu, target_classes_gpu)
-            r.append(np.allclose(derivative_cpu.to_host(), derivative_gpu.to_host(), atol=1e-6))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_softmax(self):
-        r = []
-        for i in xrange(self.N):
-            nrows = self.rng.random_integers(10000)
-            ncols = self.rng.random_integers(1000)
-            a = 4 * self.rng.rand(nrows, ncols).astype(np.float32) - 2
-            b = np.empty_like(a)
-
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-
-            a_cpu.softmax(self.cpu_context, b_cpu)
-            a_gpu.softmax(self.gpu_context, b_gpu)
-            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_mask_zeros(self):
-        r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = (self.rng.randint(2, size=a.shape) * self.rng.rand(*a.shape)).astype(np.float32)
-            c = np.empty_like(b)
-
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            c_cpu = CpuMatrix.from_npa(c)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-            c_gpu = GpuMatrix.from_npa(c)
-
-            a_cpu.mask_zeros(self.cpu_context, b_cpu, c_cpu)
-            a_gpu.mask_zeros(self.gpu_context, b_gpu, c_gpu)
-            r.append(np.allclose(c_cpu.to_host(), c_gpu.to_host()))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_dropout(self):
-        r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = np.empty_like(a)
-            dropout_prob = self.rng.uniform()
-            seed = self.rng.randint(1000)
-
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            generator_cpu = CpuMatrix.get_random_generator(seed)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-            generator_gpu = GpuMatrix.get_random_generator(seed)
-
-            a_cpu.dropout(self.cpu_context, generator_cpu, dropout_prob, b_cpu)
-            a_gpu.dropout(self.gpu_context, generator_gpu, dropout_prob, b_gpu)
-
-            b_cpu = b_cpu.to_host()
-            b_gpu = b_gpu.to_host()
-            dropout_prob_cpu = 1.0 - np.count_nonzero(b_cpu) / float(b_cpu.size)
-            dropout_prob_gpu = 1.0 - np.count_nonzero(b_gpu) / float(b_gpu.size)
-
-            r.append(np.isclose(dropout_prob_cpu, dropout_prob_gpu, atol=1e-03) and
-                     np.isclose(dropout_prob_gpu, dropout_prob, atol=1e-03))
-
-        self.assertGreater(sum(r), int(0.9 * self.N))
-
-    def test_sliced_rows_batch_scaled_add(self):
-        r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            m = []
-            K = self.rng.random_integers(a.shape[0])
-            indxs = []
-            for _ in xrange(self.rng.random_integers(100)):
-                m.append(TestMatrix.get_random_array((K, a.shape[1])))
-                indxs.append(self.rng.choice(a.shape[0], K))
-            indxs = np.array(indxs, np.int32).T
-            alpha = 2 * self.rng.rand(1)[0] - 1
-
-            a_cpu = CpuMatrix.from_npa(a)
-            m_cpu = [CpuMatrix.from_npa(e) for e in m]
-            indxs_cpu = CpuMatrix.from_npa(indxs)
-            a_gpu = GpuMatrix.from_npa(a)
-            m_gpu = [GpuMatrix.from_npa(e) for e in m]
-            indxs_gpu = GpuMatrix.from_npa(indxs)
-
-            a_cpu.sliced_rows_batch_scaled_add(self.cpu_context, indxs_cpu, alpha, m_cpu)
-            a_gpu.sliced_rows_batch_scaled_add(self.gpu_context, indxs_gpu, alpha, m_gpu)
-
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-5))
-
-            del a_gpu
-            del indxs_gpu
-            del m_gpu
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_slice_rows(self):
-        r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            b = TestMatrix.get_random_array((a.shape[0]+10000, a.shape[1]))
-            indxs = self.rng.choice(b.shape[0], a.shape[0]).astype(dtype=np.int32)
-            indxs = indxs.reshape((len(indxs), 1))
-
-            a_cpu = CpuMatrix.from_npa(a)
-            b_cpu = CpuMatrix.from_npa(b)
-            row_indxs_cpu = CpuMatrix.from_npa(indxs)
-            a_gpu = GpuMatrix.from_npa(a)
-            b_gpu = GpuMatrix.from_npa(b)
-            row_indxs_gpu = GpuMatrix.from_npa(indxs)
-
-            b_cpu.slice_rows(self.cpu_context, row_indxs_cpu, a_cpu)
-            b_gpu.slice_rows(self.gpu_context, row_indxs_gpu, a_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_mask_column_numbers_row_wise(self):
-        r = []
-        for i in xrange(self.N):
-            a = TestMatrix.get_random_array()
-            numbers = self.rng.randint(a.shape[1], size=a.shape[0]).astype(dtype=np.int32)
-            numbers = numbers.reshape((numbers.size, 1))
-
-            a_cpu = CpuMatrix.from_npa(a)
-            numbers_cpu = CpuMatrix.from_npa(numbers)
-            a_gpu = GpuMatrix.from_npa(a)
-            numbers_gpu = GpuMatrix.from_npa(numbers)
-
-            a_cpu.mask_column_numbers_row_wise(self.cpu_context, numbers_cpu)
-            a_gpu.mask_column_numbers_row_wise(self.gpu_context, numbers_gpu)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_copy(self):
-        r = []
-        for i in xrange(self.N):
-            for strided in [True, False]:
-                if strided:
-                    N = self.rng.random_integers(7000)
-                    offset = [self.rng.random_integers(N)]
-                    offset.append(self.rng.random_integers(offset[0], N))
-                    a = TestMatrix.get_random_array((1, N))
-                    b = TestMatrix.get_random_array((self.rng.random_integers(N), self.rng.randint(offset[1] - offset[0], N)))
-                    k = self.rng.randint(b.shape[0])
-
-                    a_cpu = CpuMatrix.from_npa(a)
-                    b_cpu = CpuMatrix.from_npa(b)
-                    a_gpu = GpuMatrix.from_npa(a)
-                    b_gpu = GpuMatrix.from_npa(b)
-
-                    chunk_b_cpu = b_cpu[k]
-                    chunk_a_cpu = a_cpu[:, offset[0]:offset[1]]
-                    chunk_b_gpu = b_gpu[k]
-                    chunk_a_gpu = a_gpu[:, offset[0]:offset[1]]
-
-                    chunk_a_cpu.copy_to(self.cpu_context, chunk_b_cpu)
-                    chunk_a_gpu.copy_to(self.gpu_context, chunk_b_gpu)
-                else:
-                    a = TestMatrix.get_random_array()
-                    b = TestMatrix.get_random_array(a.shape)
-
-                    a_cpu = CpuMatrix.from_npa(a)
-                    b_cpu = CpuMatrix.from_npa(b)
-                    a_gpu = GpuMatrix.from_npa(a)
-                    b_gpu = GpuMatrix.from_npa(b)
-
-                    a_cpu.copy_to(self.cpu_context, b_cpu)
-                    a_gpu.copy_to(self.gpu_context, b_gpu)
-
-                r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
-
-        self.assertEqual(sum(r), self.N * 2)
-
-    def test_batch_hstack(self):
-        r = []
-        for i in xrange(self.N):
-            n, nrows = self.rng.random_integers(200, size=2)
-            x_ncols, y_ncols = self.rng.random_integers(3000, size=2)
-            x_sequence = []
-            y_sequence = []
-            output_sequence = []
-            for i in xrange(n):
-                x_sequence.append(self.get_random_array((nrows, x_ncols)))
-                y_sequence.append(self.get_random_array((nrows, y_ncols)))
-                output_sequence.append(np.empty((nrows, x_ncols + y_ncols), dtype=np.float32))
-
-            x_sequence_cpu = []
-            y_sequence_cpu = []
-            output_sequence_cpu = []
-            x_sequence_gpu = []
-            y_sequence_gpu = []
-            output_sequence_gpu = []
-            for x, y, out in izip(x_sequence, y_sequence, output_sequence):
-                x_sequence_cpu.append(CpuMatrix.from_npa(x))
-                y_sequence_cpu.append(CpuMatrix.from_npa(y))
-                output_sequence_cpu.append(CpuMatrix.from_npa(out))
-                x_sequence_gpu.append(GpuMatrix.from_npa(x))
-                y_sequence_gpu.append(GpuMatrix.from_npa(y))
-                output_sequence_gpu.append(GpuMatrix.from_npa(out))
-
-            CpuMatrix.batch_hstack(self.cpu_context, x_sequence_cpu, y_sequence_cpu, output_sequence_cpu)
-            GpuMatrix.batch_hstack(self.gpu_context, x_sequence_gpu, y_sequence_gpu, output_sequence_gpu)
-
-            for out_cpu, out_gpu in izip(output_sequence_cpu, output_sequence_gpu):
-                if not np.allclose(out_cpu.to_host(), out_gpu.to_host()):
-                    r.append(False)
-                    break
-            else:
-                r.append(True)
-
-        self.assertEqual(sum(r), self.N)
-
-    def test_batch_hsplit(self):
-        r = []
-        for i in xrange(self.N):
-            n, nrows = self.rng.random_integers(200, size=2)
-            x_ncols, y_ncols = self.rng.random_integers(3000, size=2)
-            x_sequence = []
-            y_sequence = []
-            input_sequence = []
-            for i in xrange(n):
-                x_sequence.append(np.empty((nrows, x_ncols), dtype=np.float32))
-                y_sequence.append(np.empty((nrows, y_ncols), dtype=np.float32))
-                input_sequence.append(self.get_random_array((nrows, x_ncols + y_ncols)))
-
-            x_sequence_cpu = []
-            y_sequence_cpu = []
-            input_sequence_cpu = []
-            x_sequence_gpu = []
-            y_sequence_gpu = []
-            input_sequence_gpu = []
-            for x, y, out in izip(x_sequence, y_sequence, input_sequence):
-                x_sequence_cpu.append(CpuMatrix.from_npa(x))
-                y_sequence_cpu.append(CpuMatrix.from_npa(y))
-                input_sequence_cpu.append(CpuMatrix.from_npa(out))
-                x_sequence_gpu.append(GpuMatrix.from_npa(x))
-                y_sequence_gpu.append(GpuMatrix.from_npa(y))
-                input_sequence_gpu.append(GpuMatrix.from_npa(out))
-
-            CpuMatrix.batch_hsplit(self.cpu_context, input_sequence_cpu, x_sequence_cpu, y_sequence_cpu)
-            GpuMatrix.batch_hsplit(self.gpu_context, input_sequence_gpu, x_sequence_gpu, y_sequence_gpu)
-
-            for in_cpu, in_gpu in izip(input_sequence_cpu, input_sequence_gpu):
-                if not np.allclose(in_cpu.to_host(), in_gpu.to_host()):
-                    r.append(False)
-                    break
-            else:
-                r.append(True)
-
-        self.assertEqual(sum(r), self.N)
+        self.assertEqual(sum(r), len(r))
+
+    # def test_add(self):
+    #     r = []
+    #     for i in xrange(self.N):
+    #         a = TestMatrix.get_random_array()
+    #         if self.rng.randint(2):
+    #             b = TestMatrix.get_random_array(a.shape)
+    #         else:
+    #             b = TestMatrix.get_random_array((1, a.shape[1]))
+    #
+    #         a_cpu = CpuMatrix.from_npa(a)
+    #         b_cpu = CpuMatrix.from_npa(b)
+    #         a_gpu = GpuMatrix.from_npa(a)
+    #         b_gpu = GpuMatrix.from_npa(b)
+    #
+    #         a_cpu.add(self.cpu_context, b_cpu)
+    #         a_gpu.add(self.gpu_context, b_gpu)
+    #
+    #         r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+    #
+    #     self.assertEqual(sum(r), self.N)
