@@ -45,6 +45,10 @@ class Connector(object):
             # self._b_matrices_pool = dict()
         self.context = Context(self._fo_device_id)
 
+        self.__f_matrix_setable_attributes = f_matrix.get_setable_attributes()
+        for attr_name in self.__f_matrix_setable_attributes:
+            getattr(self, attr_name)
+
     @property
     def bpropagable(self):
         return hasattr(self, '_bu_device_id')
@@ -126,5 +130,10 @@ class Connector(object):
         if hasattr(attribute, '__call__'):
             setattr(self, name, attribute)
         else:
-            setattr(Connector, name, property(lambda self: getattr(self._f_matrices[self._fo_device_id], name)))
+            fget = lambda self: getattr(self._f_matrices[self._fo_device_id], name)
+            if name in self.__f_matrix_setable_attributes:
+                fset = lambda self, value: setattr(self._f_matrices[self._fo_device_id], name, value)
+                setattr(Connector, name, property(fget, fset))
+            else:
+                setattr(Connector, name, property(fget))
         return getattr(self, name)

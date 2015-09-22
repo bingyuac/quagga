@@ -9,12 +9,12 @@ class NonlinearityBlock(object):
         device_id = self.context.device_id
         self.learning = x.bpropagable
         if self.learning:
-            self._df_dpref = Matrix.empty_like(x, device_id)
-            self.x, self.dL_dx = x.register_usage(self.context, self.context)
+            self.x, self.dL_dx = x.register_usage(device_id, device_id)
+            self._df_dpref = Matrix.empty_like(self.x, device_id)
         else:
-            self.x = x.register_usage(self.context)
+            self.x = x.register_usage(device_id)
         output = Matrix.empty_like(x, device_id)
-        self.output = Connector(output, self.context, self.context if self.learning else None)
+        self.output = Connector(output, device_id if self.learning else None)
         if nonlinearity == 'sigmoid':
             self.f = self.x.sigmoid
         elif nonlinearity == 'tanh':
@@ -38,7 +38,7 @@ class NonlinearityBlock(object):
         if hasattr(self, 'dL_dx'):
             # dL/dpref = dL/df .* df/dpref
             dL_df = self.output.backward_matrix
-            self.dL_dx.assign_hprod(self.context, dL_df, self.df_dpref)
+            self.dL_dx.add_hprod(self.context, dL_df, self.df_dpref)
 
     def set_training_mode(self):
         self.training_mode = True
