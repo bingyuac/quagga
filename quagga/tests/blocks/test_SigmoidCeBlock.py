@@ -4,7 +4,6 @@ import numpy as np
 from unittest import TestCase
 from theano import tensor as T
 from quagga.matrix import Matrix
-from quagga.context import Context
 from quagga.connector import Connector
 from quagga.blocks import SigmoidCeBlock
 
@@ -13,7 +12,7 @@ class TestSigmoidCeBlock(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rng = np.random.RandomState(seed=42)
-        cls.N = 10
+        cls.N = 50
 
     def test_fprop(self):
         """
@@ -22,13 +21,15 @@ class TestSigmoidCeBlock(TestCase):
         r = []
         for i in xrange(self.N):
             batch_size = self.rng.random_integers(2000)
-            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
-            x = self.rng.randn(batch_size, 1).astype(dtype=np.float32)
+            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(np.float32)
+            x = self.rng.randn(batch_size, 1).astype(np.float32)
 
             quagga.processor_type = 'gpu'
             x_gpu = Connector(Matrix.from_npa(x))
             true_labels_gpu = Connector(Matrix.from_npa(true_labels))
             sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
+            x_gpu.fprop()
+            true_labels_gpu.fprop()
             sigmoid_ce_block.fprop()
             probs_gpu = sigmoid_ce_block.probs.to_host()
 
@@ -36,6 +37,8 @@ class TestSigmoidCeBlock(TestCase):
             x_cpu = Connector(Matrix.from_npa(x))
             true_labels_cpu = Connector(Matrix.from_npa(true_labels))
             sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu)
+            x_cpu.fprop()
+            true_labels_cpu.fprop()
             sigmoid_ce_block.fprop()
             probs_cpu = sigmoid_ce_block.probs.to_host()
 
@@ -52,20 +55,23 @@ class TestSigmoidCeBlock(TestCase):
             batch_size = self.rng.random_integers(2000)
             true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
             x = self.rng.randn(batch_size, 1).astype(dtype=np.float32)
+            device_id = 0
 
             quagga.processor_type = 'gpu'
-            context = Context()
-            x_gpu = Connector(Matrix.from_npa(x), context, context)
+            x_gpu = Connector(Matrix.from_npa(x), device_id)
             true_labels_gpu = Connector(Matrix.from_npa(true_labels))
             sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
+            x_gpu.fprop()
+            true_labels_gpu.fprop()
             sigmoid_ce_block.fprop()
             sigmoid_ce_block.bprop()
             dL_dx_gpu = x_gpu.backward_matrix.to_host()
 
-            context = Context()
-            x_cpu = Connector(Matrix.from_npa(x), context, context)
+            x_cpu = Connector(Matrix.from_npa(x), device_id)
             true_labels_cpu = Connector(Matrix.from_npa(true_labels))
             sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu)
+            x_cpu.fprop()
+            true_labels_cpu.fprop()
             sigmoid_ce_block.fprop()
             sigmoid_ce_block.bprop()
             dL_dx_cpu = x_cpu.backward_matrix.to_host()
@@ -81,6 +87,7 @@ class TestSigmoidCeBlock(TestCase):
             batch_size = self.rng.random_integers(2000)
             true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
             x = self.rng.randn(batch_size, 1).astype(dtype=np.float32)
+            device_id = 0
 
             # Theano model
             th_x = T.fmatrix()
@@ -91,10 +98,11 @@ class TestSigmoidCeBlock(TestCase):
             th_dL_dx = get_theano_grads(x, true_labels)
 
             # quagga model
-            context = Context()
-            x_gpu = Connector(Matrix.from_npa(x), context, context)
+            x_gpu = Connector(Matrix.from_npa(x), device_id)
             true_labels_gpu = Connector(Matrix.from_npa(true_labels))
             sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
+            x_gpu.fprop()
+            true_labels_gpu.fprop()
             sigmoid_ce_block.fprop()
             sigmoid_ce_block.bprop()
             q_dL_dx = x_gpu.backward_matrix.to_host()

@@ -9,30 +9,36 @@ class SoftmaxCeBlock(object):
     """
 
     def __init__(self, x, true_labels, device_id=None):
-        if x.nrows != true_labels.nrows:
-            raise ValueError('TODO!')
         self.context = Context(device_id)
+        device_id = self.context.device_id
         if x.bpropagable:
-            self.x, self.dL_dx = x.register_usage(self.context, self.context)
+            self.x, self.dL_dx = x.register_usage(device_id, device_id)
         else:
-            self.x = x.register_usage(self.context)
-        self.probs = Matrix.empty_like(self.x, device_id=self.context.device_id)
-        self.true_labels = true_labels.register_usage(self.context)
+            self.x = x.register_usage(device_id)
+        self.true_labels = true_labels.register_usage(device_id)
+        self.probs = Matrix.empty_like(self.x)
+        self.true_labels_np = None
+        self.probs_np = None
         # error = (probs - true_labels) / M
         if self.true_labels.dtype == 'int':
-            self.bprop = lambda self: self.dL_dx.assign_softmax_ce_derivative(self.context, self.probs, self.true_labels)
+            self.bprop = lambda: self.dL_dx.assign_softmax_ce_derivative(self.context, self.probs, self.true_labels)
         else:
-            self.bprop = lambda self: self.dL_dx.assign_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
+            self.bprop = lambda: self.dL_dx.assign_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
 
     def fprop(self):
         self.x.softmax(self.context, self.probs)
 
-    @property
-    def loss(self):
-        true_labels = self.true_labels.to_host()
-        probs = self.probs.to_host()
+    def add_callback(self, callback):
+        self.context.add_callback(callback)
+
+    def add_callback_on_loss(self, callback):
+        self.true_labels_np = self.true_labels.to_host(self.context)
+        self.probs_np = self.probs.to_host(self.context)
+        self.add_callback(callback)
+
+    def get_loss(self):
         if self.true_labels.dtype == 'int':
-            idxs = range(probs.shape[0]), true_labels.flatten()
-            return - np.mean(np.log(probs[idxs] + 1e-20))
+            idxs = range(self.probs_np.shape[0]), self.true_labels_np.flatten()
+            return - np.mean(np.log(self.probs_np[idxs] + 1e-20))
         else:
-            return - np.mean(np.log(np.sum(true_labels * probs, axis=1) + 1e-20))
+            return - np.mean(np.log(np.sum(self.true_labels_np * self.probs_np, axis=1) + 1e-20))

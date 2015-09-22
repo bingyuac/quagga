@@ -1,5 +1,5 @@
 from quagga.matrix import Matrix
-from quagga.context import  Context
+from quagga.context import Context
 from quagga.matrix import SparseMatrix
 
 
