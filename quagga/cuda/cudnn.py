@@ -16,7 +16,8 @@ ct_cudnn_tensor_descriptor = ct.c_void_p
 
 data_type = {
     'CUDNN_DATA_FLOAT': 0,
-    'CUDNN_DATA_DOUBLE': 1
+    'CUDNN_DATA_DOUBLE': 1,
+    "CUDNN_DATA_HALF": 2
 }
 
 
@@ -28,7 +29,8 @@ tensor_format = {
 
 softmax_algorithm = {
     'CUDNN_SOFTMAX_FAST': 0,
-    'CUDNN_SOFTMAX_ACCURATE': 1
+    'CUDNN_SOFTMAX_ACCURATE': 1,
+    'CUDNN_SOFTMAX_LOG': 2
 }
 
 
