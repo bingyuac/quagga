@@ -12,6 +12,10 @@ class CpuMatrix(object):
         self.dtype = dtype
         self.device_id = 0
 
+    @staticmethod
+    def get_setable_attributes():
+        return ['nrows', 'ncols', 'npa']
+
     @property
     def npa(self):
         return self.data[:self.nrows.value, :self.ncols.value]

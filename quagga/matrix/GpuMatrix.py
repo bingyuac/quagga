@@ -52,6 +52,10 @@ class GpuMatrix(object):
         self.nrows.add_modification_handler(change_cudnn_tensor_descriptor)
         self.ncols.add_modification_handler(change_cudnn_tensor_descriptor)
 
+    @staticmethod
+    def get_setable_attributes():
+        return ['nrows', 'ncols', 'last_modification_context']
+
     @property
     def nelems(self):
         return self._nrows.value * self._ncols.value

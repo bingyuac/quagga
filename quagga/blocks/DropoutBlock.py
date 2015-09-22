@@ -7,13 +7,14 @@ class DropoutBlock(object):
     def __init__(self, x, dropout_prob, seed=42, device_id=None):
         self.dropout_prob = dropout_prob
         self.context = Context(device_id)
+        device_id = self.context.device_id
         self.generator = Matrix.get_random_generator(seed)
         if x.bpropagable:
-            self.x, self.dL_dx = x.register_usage(self.context, self.context)
+            self.x, self.dL_dx = x.register_usage(device_id, device_id)
         else:
-            self.x = x.register_usage(self.context)
-        self.output = Matrix.empty_like(x, self.context.device_id)
-        self.output = Connector(self.output, self.context, self.context if x.bpropagable else None)
+            self.x = x.register_usage(device_id)
+        self.output = Matrix.empty_like(self.x)
+        self.output = Connector(self.output, device_id if x.bpropagable else None)
         self.training_mode = True
 
     def fprop(self):
@@ -24,9 +25,9 @@ class DropoutBlock(object):
         self.output.fprop()
 
     def bprop(self):
-        if hasattr(self, 'dL_dx'):
+        if hasattr(self, 'dL_dx') and self.training_mode:
             dL_doutput = self.output.backward_matrix
-            dL_doutput.mask_zeros(self.context, self.output, self.dL_dx)
+            self.dL_dx.add_mask_zeros(self.context, dL_doutput, self.output)
 
     def set_training_mode(self):
         self.training_mode = True
