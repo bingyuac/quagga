@@ -369,11 +369,11 @@ def assign_scaled_addition(stream, nelems, alpha, a, b, out):
 
 gpu_matrix_kernels._assignScaledSubtraction.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._assignScaledSubtraction.argtypes = [cudart.ct_cuda_stream,
-                                                     ct.c_int,
-                                                     ct.c_float,
-                                                     ct.POINTER(ct.c_float),
-                                                     ct.POINTER(ct.c_float),
-                                                     ct.POINTER(ct.c_float)]
+                                                        ct.c_int,
+                                                        ct.c_float,
+                                                        ct.POINTER(ct.c_float),
+                                                        ct.POINTER(ct.c_float),
+                                                        ct.POINTER(ct.c_float)]
 def assign_scaled_subtraction(stream, nelems, alpha, a, b, out):
     status = gpu_matrix_kernels._assignScaledSubtraction(stream, nelems, alpha, a, b, out)
     cudart.check_cuda_status(status)
@@ -411,6 +411,17 @@ gpu_matrix_kernels._maskZeros.argtypes = [cudart.ct_cuda_stream,
                                           ct.POINTER(ct.c_float)]
 def mask_zeros(stream, nelems, a, b, out):
     status = gpu_matrix_kernels._maskZeros(stream, nelems, a, b, out)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addMaskZeros.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addMaskZeros.argtypes = [cudart.ct_cuda_stream,
+                                             ct.c_int,
+                                             ct.POINTER(ct.c_float),
+                                             ct.POINTER(ct.c_float),
+                                             ct.POINTER(ct.c_float)]
+def add_mask_zeros(stream, nelems, a, b, out):
+    status = gpu_matrix_kernels._addMaskZeros(stream, nelems, a, b, out)
     cudart.check_cuda_status(status)
 
 
