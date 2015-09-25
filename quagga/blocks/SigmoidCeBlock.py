@@ -17,8 +17,8 @@ class SigmoidCeBlock(object):
             self.x = x.register_usage(device_id)
         self.true_labels = true_labels.register_usage(device_id)
         self.probs = Matrix.empty_like(self.x)
-        self.true_labels_np = None
-        self.probs_np = None
+        self.loss = None
+        self._calculate_ce_loss = Context.callback(self._calculate_ce_loss)
 
     def fprop(self):
         self.x.sigmoid(self.context, self.probs)
@@ -27,14 +27,11 @@ class SigmoidCeBlock(object):
         # error = (probs - true_labels) / M
         self.dL_dx.add_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
 
-    def add_callback(self, callback):
-        self.context.add_callback(callback)
+    def calculate_loss(self, context):
+        true_labels_np = self.true_labels.to_host(context)
+        probs_np = self.probs.to_host(context)
+        context.add_callback(self._calculate_ce_loss, true_labels_np, probs_np)
 
-    def add_callback_on_loss(self, callback):
-        self.true_labels_np = self.true_labels.to_host(self.context)
-        self.probs_np = self.probs.to_host(self.context)
-        self.add_callback(callback)
-
-    def get_loss(self):
-        return - (self.true_labels_np * np.log(self.probs_np + 1e-20) +
-                 (1.0 - self.true_labels_np) * np.log(1. - self.probs_np + 1e-20))
+    def _calculate_ce_loss(self, true_labels_np, probs_np):
+        self.loss = - (true_labels_np * np.log(probs_np + 1e-20) +
+                      (1.0 - true_labels_np) * np.log(1. - probs_np + 1e-20))
