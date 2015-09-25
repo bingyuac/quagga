@@ -1,5 +1,10 @@
+import ctypes as ct
+from collections import deque
 from collections import defaultdict
 from quagga.cuda import cudart, cublas, cudnn
+
+
+ct_py_object_p = ct.POINTER(ct.py_object)
 
 
 def _create_disabled_timing_event():
@@ -12,6 +17,7 @@ class GpuContext(object):
     _events = defaultdict(_create_disabled_timing_event)
     _cublas_handle = None
     _cudnn_handle = None
+    _user_data = defaultdict(deque)
 
     def __init__(self, device_id=None):
         with cudart.device(device_id):
@@ -34,11 +40,11 @@ class GpuContext(object):
         cudnn.set_stream(cudnn_handle, self.cuda_stream)
         return cudnn_handle
 
-    def synchronize(self):
-        cudart.cuda_stream_synchronize(self.cuda_stream)
-
     def activate(self):
         cudart.cuda_set_device(self.device_id)
+
+    def synchronize(self):
+        cudart.cuda_stream_synchronize(self.cuda_stream)
 
     def wait(self, *args):
         """
@@ -60,6 +66,21 @@ class GpuContext(object):
             cudart.cuda_event_record(event, self.cuda_stream)
             context.activate()
             cudart.cuda_stream_wait_event(context.cuda_stream, event)
+
+    def add_callback(self, callback, *args, **kwargs):
+        user_data = ct.py_object((args, kwargs))
+        GpuContext._user_data[self.cuda_stream.value].append(user_data)
+        cudart.cuda_stream_add_callback(self.cuda_stream, callback, ct.byref(user_data))
+
+    @staticmethod
+    def callback(function):
+        def callback(stream, status, user_data):
+            cudart.check_cuda_status(status)
+            args, kwargs = ct.cast(user_data, ct_py_object_p).contents.value
+            function(*args, **kwargs)
+            GpuContext._user_data[ct.cast(stream, ct.c_void_p).value].popleft()
+        return cudart.ct_cuda_callback_type(callback)
+
 
 GpuContext._cublas_handle = []
 GpuContext._cudnn_handle = []
