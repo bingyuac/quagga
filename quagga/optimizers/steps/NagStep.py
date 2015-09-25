@@ -1,0 +1,2 @@
+class NagStep(object):
+    pass
