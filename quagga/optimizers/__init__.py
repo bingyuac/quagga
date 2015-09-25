@@ -1,2 +1,1 @@
-from quagga.optimizers.SgdOptimizer import SgdOptimizer
-from quagga.optimizers.NagOptimizer import NagOptimizer
+from quagga.optimizers.Optimizer import Optimizer

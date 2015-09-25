@@ -1,19 +1,43 @@
 {
-  "data_block": {
-    "blocking_context": ["first_dot_block", "context"]
+  "parameters": {
+    "type": "ParameterContainer",
+    "first_dot_block_W": {
+      "init": ["Orthogonal", 784, 1024],
+      "device_id": 0
+    },
+    "first_dot_block_b": {
+      "init": ["Constant", 1, 1024],
+      "device_id": 0
+    },
+    "second_dot_block_W": {
+      "init": ["Orthogonal", 1024, 512],
+      "device_id": 0
+    },
+    "second_dot_block_b": {
+      "init": ["Constant", 1, 512],
+      "device_id": 0
+    },
+    "sce_dot_block_W": {
+      "init": ["Orthogonal", 512, 10],
+      "device_id": 0
+    },
+    "sce_dot_block_b": {
+      "init": ["Constant", 1, 10],
+      "device_id": 0
+    }
   },
   "input_data_dropout_block": {
     "type": "DropoutBlock",
-    "x": {"data_block": "x_output"},
+    "x": {"data_block": "x"},
     "dropout_prob": 0.2,
-    "device_id": 1
+    "device_id": 0
   },
   "first_dot_block": {
     "type": "DotBlock",
+    "W": {"parameters": "first_dot_block_W"},
+    "b": {"parameters": "first_dot_block_b"},
     "x": {"input_data_dropout_block": "output"},
-    "W_init": ["Orthogonal", 784, 1024],
-    "b_init": ["Constant", 1, 1024],
-    "device_id": 1
+    "device_id": 0
   },
   "first_nonl_block": {
     "type": "NonlinearityBlock",
@@ -29,9 +53,9 @@
   },
   "second_dot_block": {
     "type": "DotBlock",
+    "W": {"parameters": "second_dot_block_W"},
+    "b": {"parameters": "second_dot_block_b"},
     "x": {"first_dropout_block": "output"},
-    "W_init": ["Orthogonal", 1024, 512],
-    "b_init": ["Constant", 1, 512],
     "device_id": 0
   },
   "second_nonl_block": {
@@ -48,15 +72,15 @@
   },
   "sce_dot_block": {
     "type": "DotBlock",
+    "W": {"parameters": "sce_dot_block_W"},
+    "b": {"parameters": "sce_dot_block_b"},
     "x": {"second_dropout_block": "output"},
-    "W_init": ["Orthogonal", 512, 10],
-    "b_init": ["Constant", 1, 10],
     "device_id": 0
   },
   "sce_block": {
     "type": "SoftmaxCeBlock",
     "x": {"sce_dot_block": "output"},
-    "true_labels": {"data_block": "y_output"},
+    "true_labels": {"data_block": "y"},
     "device_id": 0
   }
 }
