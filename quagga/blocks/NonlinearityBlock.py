@@ -5,10 +5,11 @@ from quagga.connector import Connector
 
 class NonlinearityBlock(object):
     def __init__(self, x, nonlinearity, device_id=None):
-        self.context = Context(device_id)
-        device_id = self.context.device_id
+        self.f_context = Context(device_id)
+        device_id = self.f_context.device_id
         self.learning = x.bpropagable
         if self.learning:
+            self.b_context = Context(device_id)
             self.x, self.dL_dx = x.register_usage(device_id, device_id)
             self._df_dpref = Matrix.empty_like(self.x, device_id)
         else:
@@ -31,14 +32,14 @@ class NonlinearityBlock(object):
             return self._df_dpref
 
     def fprop(self):
-        self.f(self.context, self.output, self.df_dpref)
+        self.f(self.f_context, self.output, self.df_dpref)
         self.output.fprop()
 
     def bprop(self):
         if hasattr(self, 'dL_dx'):
             # dL/dpref = dL/df .* df/dpref
             dL_df = self.output.backward_matrix
-            self.dL_dx.add_hprod(self.context, dL_df, self.df_dpref)
+            self.dL_dx.add_hprod(self.b_context, dL_df, self.df_dpref)
 
     def set_training_mode(self):
         self.training_mode = True

@@ -5,9 +5,10 @@ from quagga.connector import Connector
 
 class DotBlock(object):
     def __init__(self, W, b, x, learning=True, device_id=None):
-        self.context = Context(device_id)
-        device_id = self.context.device_id
+        self.f_context = Context(device_id)
+        device_id = self.f_context.device_id
         if learning:
+            self.b_context = Context(device_id)
             self.W, self.dL_dW = W.register_usage(device_id, device_id)
             if b:
                 self.b, self.dL_db = b.register_usage(device_id, device_id)
@@ -26,19 +27,19 @@ class DotBlock(object):
         self.output = Connector(output, device_id if learning else None)
 
     def fprop(self):
-        self.output.assign_dot(self.context, self.x, self.W)
+        self.output.assign_dot(self.f_context, self.x, self.W)
         if hasattr(self, 'b'):
-            self.output.add(self.context, self.b)
+            self.output.add(self.f_context, self.b)
         self.output.fprop()
 
     def bprop(self):
         dL_doutput = self.output.backward_matrix
         # dL/dW = x.T * dL_doutput
-        self.dL_dW.add_dot(self.context, self.x, dL_doutput, 'T')
+        self.dL_dW.add_dot(self.b_context, self.x, dL_doutput, 'T')
         # TODO(sergii): replace this modification with reduction kernel along axis=0
         # dL/db = 1.T * dL_doutput
         if hasattr(self, 'dL_db'):
-            self.dL_db.add_dot(self.context, self.ones, dL_doutput, 'T')
+            self.dL_db.add_dot(self.b_context, self.ones, dL_doutput, 'T')
         # dL/dx = dL_doutput * W.T
         if hasattr(self, 'dL_dx'):
-            self.dL_dx.add_dot(self.context, dL_doutput, self.W, 'N', 'T')
+            self.dL_dx.add_dot(self.b_context, dL_doutput, self.W, 'N', 'T')
