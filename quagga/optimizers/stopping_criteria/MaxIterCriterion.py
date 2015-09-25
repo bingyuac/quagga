@@ -4,5 +4,7 @@ class MaxIterCriterion(object):
         self.iteration = 0
 
     def is_fulfilled(self):
-        self.iteration += 1
         return True if self.iteration > self.max_iter else False
+
+    def notify(self):
+        self.iteration += 1
