@@ -12,6 +12,7 @@ _libcudart = ct.cdll.LoadLibrary('libcudart.so')
 ct_cuda_stream = ct.c_void_p
 ct_cuda_event = ct.c_void_p
 ct_cuda_error = ct.c_int
+ct_cuda_callback_type = ct.CFUNCTYPE(None, ct_cuda_stream, ct_cuda_error, ct.c_void_p)
 
 
 _libcudart.cudaGetErrorString.restype = ct.c_char_p
@@ -266,6 +267,16 @@ def cuda_memcpy2d_async(dst, dpitch, src, spitch, width, height, kind, stream):
     check_cuda_status(status)
 
 
+_libcudart.cudaMemcpy2D.restype = ct_cuda_error
+_libcudart.cudaMemcpy2D.argtypes = [ct.c_void_p, ct.c_size_t,
+                                    ct.c_void_p, ct.c_size_t,
+                                    ct.c_size_t, ct.c_size_t,
+                                    ct.c_int]
+def cuda_memcpy2d(dst, dpitch, src, spitch, width, height, kind):
+    status = _libcudart.cudaMemcpy2D(dst, dpitch, src, spitch, width, height, cuda_memcpy_kinds[kind])
+    check_cuda_status(status)
+
+
 _libcudart.cudaMemcpyPeer.restype = ct_cuda_error
 _libcudart.cudaMemcpyPeer.argtypes = [ct.c_void_p, ct.c_int,
                                       ct.c_void_p, ct.c_int, ct.c_size_t]
@@ -451,6 +462,12 @@ _libcudart.cudaStreamWaitEvent.argtypes = [ct_cuda_stream, ct_cuda_event, ct.c_u
 def cuda_stream_wait_event(stream, event):
     status = _libcudart.cudaStreamWaitEvent(stream, event, 0)
     check_cuda_status(status)
+
+
+_libcudart.cudaStreamAddCallback.restype = ct_cuda_error
+_libcudart.cudaStreamAddCallback.argtypes = [ct_cuda_stream, ct_cuda_callback_type, ct.c_void_p, ct.c_uint]
+def cuda_stream_add_callback(stream, callback, user_data):
+    _libcudart.cudaStreamAddCallback(stream, callback, user_data, 0)
 
 
 cuda_event_flag = {

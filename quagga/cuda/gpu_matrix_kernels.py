@@ -204,16 +204,29 @@ def slice_columns_and_transpose(stream, nrows, ncols, embedding_column_indxs, em
     cudart.check_cuda_status(status)
 
 
-gpu_matrix_kernels._sliceRows.restype = cudart.ct_cuda_error
-gpu_matrix_kernels._sliceRows.argtypes = [cudart.ct_cuda_stream,
-                                          ct.c_int,
-                                          ct.POINTER(ct.c_int),
-                                          ct.POINTER(ct.c_float),
-                                          ct.c_int,
-                                          ct.c_int,
-                                          ct.POINTER(ct.c_float)]
-def slice_rows(stream, embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix):
-    status = gpu_matrix_kernels._sliceRows(stream, embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix)
+gpu_matrix_kernels._sliceRowsFloat.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._sliceRowsFloat.argtypes = [cudart.ct_cuda_stream,
+                                               ct.c_int,
+                                               ct.POINTER(ct.c_int),
+                                               ct.POINTER(ct.c_float),
+                                               ct.c_int,
+                                               ct.c_int,
+                                               ct.POINTER(ct.c_float)]
+def slice_rows_float(stream, embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix):
+    status = gpu_matrix_kernels._sliceRowsFloat(stream, embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._sliceRowsInt.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._sliceRowsInt.argtypes = [cudart.ct_cuda_stream,
+                                             ct.c_int,
+                                             ct.POINTER(ct.c_int),
+                                             ct.POINTER(ct.c_int),
+                                             ct.c_int,
+                                             ct.c_int,
+                                             ct.POINTER(ct.c_int)]
+def slice_rows_int(stream, embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix):
+    status = gpu_matrix_kernels._sliceRowsInt(stream, embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix)
     cudart.check_cuda_status(status)
 
 

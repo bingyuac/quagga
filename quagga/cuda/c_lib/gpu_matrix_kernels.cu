@@ -72,12 +72,13 @@ __global__  void sliceColumnsAndTranspose(int nrows,
 }
 
 
+template <typename T>
 __global__  void sliceRows(int embedding_matrix_nrows,
 						   const int* __restrict__ embedding_row_indxs,
-						   const float* __restrict__ embedding_matrix,
+						   const T* __restrict__ embedding_matrix,
 						   int nrows,
 						   int ncols,
-						   float* __restrict__ dense_matrix) {
+						   T* __restrict__ dense_matrix) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * ncols;
@@ -825,13 +826,26 @@ extern "C" {
 	}
 
 
-	cudaError_t _sliceRows(cudaStream_t stream,
-						   int embedding_matrix_nrows,
-						   const int* __restrict__ embedding_row_indxs,
-						   const float* __restrict__ embedding_matrix,
-						   int nrows,
-						   int ncols,
-						   float* __restrict__ dense_matrix) {
+	cudaError_t _sliceRowsFloat(cudaStream_t stream,
+						   		int embedding_matrix_nrows,
+						   		const int* __restrict__ embedding_row_indxs,
+						   		const float* __restrict__ embedding_matrix,
+						   		int nrows,
+						   		int ncols,
+						   		float* __restrict__ dense_matrix) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+		sliceRows<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix);
+		return cudaGetLastError();
+	}
+
+
+	cudaError_t _sliceRowsInt(cudaStream_t stream,
+						   	  int embedding_matrix_nrows,
+						   	  const int* __restrict__ embedding_row_indxs,
+						   	  const int* __restrict__ embedding_matrix,
+						   	  int nrows,
+						   	  int ncols,
+						   	  int* __restrict__ dense_matrix) {
 		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
 		sliceRows<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix);
 		return cudaGetLastError();
