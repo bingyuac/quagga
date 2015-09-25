@@ -43,6 +43,7 @@ class GpuMatrix(object):
             self.nrows.add_modification_handler(change_strides)
         self.base = base
         self.last_modification_context = None
+        self.last_usage_context = None
 
         def change_cudnn_tensor_descriptor():
             strong_self = weak_self()
@@ -176,6 +177,8 @@ class GpuMatrix(object):
         contexts.discard(None)
         contexts.discard(current_context)
         current_context.wait(*contexts)
+        for e in matrices:
+            e.last_usage_context = current_context
 
     @staticmethod
     def str_to_dtypes(dtype):
@@ -197,7 +200,7 @@ class GpuMatrix(object):
     def from_npa(cls, a, dtype=None, device_id=None):
         if a.ndim != 2:
             raise ValueError('GpuMatrix works only with 2-d numpy arrays!')
-        if dtype:
+        if dtype is not None:
             np_dtype, c_dtype = cls.str_to_dtypes(dtype)
         else:
             dtype, np_dtype, c_dtype = cls.array_to_dtypes(a)
@@ -355,7 +358,10 @@ class GpuMatrix(object):
         GpuMatrix.wait_matrices(context, self, row_indxs)
         out.last_modification_context = context
         context.activate()
-        gpu_matrix_kernels.slice_rows(context.cuda_stream, self.nrows, row_indxs.data, self.data, out.nrows, out.ncols, out.data)
+        if self.dtype == 'float':
+            gpu_matrix_kernels.slice_rows_float(context.cuda_stream, self.nrows, row_indxs.data, self.data, out.nrows, out.ncols, out.data)
+        else:
+            gpu_matrix_kernels.slice_rows_int(context.cuda_stream, self.nrows, row_indxs.data, self.data, out.nrows, out.ncols, out.data)
 
     def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
         GpuMatrix.wait_matrices(context, self, embd_rows_indxs)
