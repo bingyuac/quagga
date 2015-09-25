@@ -1,10 +1,8 @@
-import json
-import h5py
 import copy
 import quagga.blocks
 import quagga.initializers
-from itertools import izip
 from collections import OrderedDict
+from quagga.blocks import ParameterContainer
 
 
 class Model(object):
@@ -15,55 +13,33 @@ class Model(object):
         self.blocks['data_block'] = data_block
         self.model_definition = copy.deepcopy(model_definition)
 
-        blocking_block_name, blocking_context_attr_name = model_definition.popitem(last=False)[1]['blocking_context']
-        h5_file = None
         for block_name, definition in model_definition.iteritems():
             kwargs = {}
             for key, value in definition.iteritems():
                 if key == 'type':
                     BlockClass = getattr(quagga.blocks, value)
-                elif isinstance(value, list):
-                    if len(value) == 1:
-                        if not h5_file:
-                            h5_file = h5py.File(value[0], 'r')
-                        temp = h5_file[block_name + '_' + key][...]
-                        kwargs[key] = (lambda a: lambda: a)(temp)
-                        kwargs[key].nrows = temp.shape[0]
-                        kwargs[key].ncols = temp.shape[1]
-                    else:
-                        InitializerClass = getattr(quagga.initializers, value[0])
-                        kwargs[key] = InitializerClass(*value[1:])
-                elif isinstance(value, dict):
-                    kwargs[key] = getattr(self.blocks[value.keys()[0]], value.values()[0])
+                elif isinstance(value, dict) and BlockClass is not ParameterContainer:
+                    _block_name = value.keys()[0]
+                    connector_name = value[_block_name]
+                    kwargs[key] = getattr(self.blocks[_block_name], connector_name)
                 else:
                     kwargs[key] = value
             self.blocks[block_name] = BlockClass(**kwargs)
-        self.blocks['data_block'].blocking_context = getattr(self.blocks[blocking_block_name], blocking_context_attr_name)
-        if h5_file:
-            h5_file.close()
-        self.blocks_names = self.blocks.keys()
         self.blocks = self.blocks.values()
 
-        self.params = []
-        self.grads = []
-        for block in self.blocks:
-            try:
-                self.params.extend(block.params)
-                self.grads.extend(block.grads)
-            except AttributeError:
-                pass
-
         self.modeable_blocks = []
+        self.loss_block = None
         for block in self.blocks:
-            try:
-                block.set_testing_mode()
-                block.set_training_mode()
+            if hasattr(block, 'set_testing_mode') and \
+                    hasattr(block, 'set_training_mode'):
                 self.modeable_blocks.append(block)
-            except AttributeError:
-                pass
+            if hasattr(block, 'loss'):
+                self.loss_block = block
 
-        self.loss_block = self.blocks[-1]
-        self.bpropable_blocks = list(reversed(self.blocks[1:]))
+        self.bpropable_blocks = []
+        for block in reversed(self.blocks):
+            if hasattr(block, 'bprop'):
+                self.bpropable_blocks.append(block)
 
     def set_training_mode(self):
         for block in self.modeable_blocks:
@@ -80,21 +56,3 @@ class Model(object):
     def bprop(self):
         for block in self.bpropable_blocks:
             block.bprop()
-
-    @property
-    def loss(self):
-        return self.loss_block.loss
-
-    def save(self, definition_file_path, parameters_file_path):
-        model_definition = copy.deepcopy(self.model_definition)
-        with h5py.File(parameters_file_path, 'w') as h5_file:
-            for block, block_name, block_definition in izip(self.blocks, self.blocks_names, model_definition.values()):
-                if not hasattr(block, 'get_parameter_initializers'):
-                    continue
-                initializers = block.get_parameter_initializers()
-                for key, value in block_definition.iteritems():
-                    if isinstance(value, list):
-                        h5_file[block_name + '_' + key] = initializers[key]()
-                        model_definition[block_name][key] = [parameters_file_path]
-        with open(definition_file_path, 'w') as f:
-            json.dump(model_definition, f)
