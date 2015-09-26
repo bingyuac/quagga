@@ -1,14 +1,24 @@
-class MatrixList(object):
-    def __init__(self, matrices):
-        self.matrices = matrices
-        self.length = len(matrices)
+from quagga.matrix import ShapeElement
 
-    def set_length(self, length):
-        self.length = length
+
+class MatrixList(object):
+    def __init__(self, matrices, length=None):
+        self.matrices = matrices
+        length = length if length is not None else len(matrices)
+        self._length = length if isinstance(length, ShapeElement) else ShapeElement(length)
+
+    @property
+    def length(self):
+        return self._length
+
+    @length.setter
+    def length(self, value):
+        self._length[:] = value
 
     def __getitem__(self, k):
         if type(k) is slice:
-            return self.matrices[k]
+            matrices = self.matrices[:self.length]
+            return matrices[k]
         elif type(k) is int:
             if -self.length <= k < self.length:
                 return self.matrices[k % self.length]

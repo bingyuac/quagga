@@ -303,24 +303,31 @@ class CpuMatrix(object):
 
     def assign_mask_zeros(self, context, a, b):
         """
-        self = a * (b != 0)
+        self = a .* (b != 0)
         """
 
         self.npa = a.npa * (b.npa != 0)
 
     def add_mask_zeros(self, context, a, b):
         """
-        self += a * (b != 0)
+        self += a .* (b != 0)
         """
 
         self.npa += a.npa * (b.npa != 0)
 
     def assign_masked_addition(self, context, mask, a, b):
         """
-        self = mask * a + (1 - mask) * b
+        self = mask .* a + (1 - mask) .* b
         """
 
         self.npa = mask.npa * a.npa + (1 - mask.npa) * b.npa
+
+    def add_hprod_one_minus_mask(self, context, mask, a):
+        """
+        self += (1 - mask) .* a
+        """
+
+        self.npa += (1 - mask.npa) * a.npa
 
     def mask_column_numbers_row_wise(self, context, numbers):
         """

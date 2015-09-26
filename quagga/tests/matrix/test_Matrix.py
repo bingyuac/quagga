@@ -651,6 +651,29 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
+    def test_add_hprod_one_minus_mask(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = self.get_random_array(a.shape)
+            if self.rng.randint(2):
+                mask = self.get_random_array(a.shape)
+            else:
+                mask = self.get_random_array((a.shape[0], 1))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            mask_cpu = CpuMatrix.from_npa(mask)
+            a_gpu = CpuMatrix.from_npa(a)
+            b_gpu = CpuMatrix.from_npa(b)
+            mask_gpu = CpuMatrix.from_npa(mask)
+
+            b_cpu.add_hprod_one_minus_mask(self.cpu_context, mask_cpu, a_cpu)
+            b_gpu.add_hprod_one_minus_mask(self.gpu_context, mask_gpu, a_gpu)
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_mask_column_numbers_row_wise(self):
         r = []
         for _ in xrange(self.N):

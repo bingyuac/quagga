@@ -629,7 +629,7 @@ class GpuMatrix(object):
 
     def assign_mask_zeros(self, context, a, b):
         """
-        self = a * (b != 0)
+        self = a .* (b != 0)
         """
 
         GpuMatrix.wait_matrices(context, a, b)
@@ -639,7 +639,7 @@ class GpuMatrix(object):
 
     def add_mask_zeros(self, context, a, b):
         """
-        self += a * (b != 0)
+        self += a .* (b != 0)
         """
 
         GpuMatrix.wait_matrices(context, a, b)
@@ -649,7 +649,7 @@ class GpuMatrix(object):
 
     def assign_masked_addition(self, context, mask, a, b):
         """
-        self = mask * a + (1 - mask) * b
+        self = mask .* a + (1 - mask) .* b
         """
 
         GpuMatrix.wait_matrices(context, mask, a, b)
@@ -662,6 +662,22 @@ class GpuMatrix(object):
             gpu_matrix_kernels.assign_masked_addition_column_broadcasted(context.cuda_stream, self.nrows, self.ncols, mask.data, a.data, b.data, self.data)
         else:
             gpu_matrix_kernels.assign_masked_addition(context.cuda_stream, self.nelems, mask.data, a.data, b.data, self.data)
+
+    def add_hprod_one_minus_mask(self, context, mask, a):
+        """
+        self += (1 - mask) .* a
+        """
+
+        GpuMatrix.wait_matrices(context, self, mask, a)
+        self.last_modification_context = context
+        context.activate()
+
+        if self.ncols != 1 and mask.ncols == 1:
+            if self.nrows != mask.nrows:
+                raise ValueError('Operands could not be broadcast together with shapes ({},{}) ({},{})!'.format(self.nrows, self.ncols, mask.nrows, mask.ncols))
+            gpu_matrix_kernels.add_hprod_one_minus_mask_column_broadcasted(context.cuda_stream, self.nrows, self.ncols, mask.data, a.data, self.data)
+        else:
+            gpu_matrix_kernels.add_hprod_one_minus_mask(context.cuda_stream, self.nelems, mask.data, a.data, self.data)
 
     def mask_column_numbers_row_wise(self, context, numbers):
         """
