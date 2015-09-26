@@ -462,6 +462,32 @@ def add_mask_zeros(stream, nelems, a, b, out):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._assignMaskedAddition.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assignMaskedAddition.argtypes = [cudart.ct_cuda_stream,
+                                                     ct.c_int,
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float),
+                                                     ct.POINTER(ct.c_float)]
+def assign_masked_addition(stream, nelems, mask, a, b, out):
+    status = gpu_matrix_kernels._assignMaskedAddition(stream, nelems, mask, a, b, out)
+    cudart.check_cuda_status(status)
+
+
+
+gpu_matrix_kernels._assignMaskedAdditionColumnBroadcasted.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assignMaskedAdditionColumnBroadcasted.argtypes = [cudart.ct_cuda_stream,
+                                                                      ct.c_int,
+                                                                      ct.c_int,
+                                                                      ct.POINTER(ct.c_float),
+                                                                      ct.POINTER(ct.c_float),
+                                                                      ct.POINTER(ct.c_float),
+                                                                      ct.POINTER(ct.c_float)]
+def assign_masked_addition_column_broadcasted(stream, nrows, ncols, mask, a, b, out):
+    status = gpu_matrix_kernels._assignMaskedAdditionColumnBroadcasted(stream, nrows, ncols, mask, a, b, out)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._matrixVectorColumnHprod.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._matrixVectorColumnHprod.argtypes = [cudart.ct_cuda_stream,
                                                         ct.c_int,

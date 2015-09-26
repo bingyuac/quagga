@@ -510,6 +510,38 @@ __global__ void addMaskZeros(int nelems,
 }
 
 
+__global__ void assignMaskedAddition(int nelems,
+						   			 const float* __restrict__ mask,
+						   			 const float* __restrict__ a,
+					 	   			 const float* __restrict__ b,
+					 	   			 float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = mask[i] * a[i] + (1.0f - mask[i]) * b[i];
+	}
+}
+
+
+__global__ void assignMaskedAdditionColumnBroadcasted(int nrows,
+							      				      int ncols,
+						   			    			  const float* __restrict__ mask,
+						   			    			  const float* __restrict__ a,
+					 	   			    			  const float* __restrict__ b,
+					 	   			    			  float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	float m;
+	for (int i = start_i; i < nelems; i += nthreads) {
+		m = mask[i % nrows];
+		out[i] = m * a[i] + (1.0f - m) * b[i];
+	}
+}
+
+
 __global__ void matrixVectorColumnHprod(int nrows,
 							      		int ncols,
 							      		const float* __restrict__ matrix,
@@ -667,6 +699,30 @@ extern "C" {
         return cudaGetLastError();
 	}
 
+
+	cudaError_t _assignMaskedAddition(cudaStream_t stream,
+								      int nelems,
+						   		      const float* __restrict__ mask,
+						   		      const float* __restrict__ a,
+					 	   		      const float* __restrict__ b,
+					 	   		      float* __restrict__ out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        assignMaskedAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, mask, a, b, out);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _assignMaskedAdditionColumnBroadcasted(cudaStream_t stream,
+												       int nrows,
+							      				       int ncols,
+						   			    			   const float* __restrict__ mask,
+						   			    			   const float* __restrict__ a,
+					 	   			    			   const float* __restrict__ b,
+					 	   			    			   float* __restrict__ out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols- 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        assignMaskedAdditionColumnBroadcasted<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, mask, a, b, out);
+        return cudaGetLastError();
+	}
 
 	cudaError_t _horizontalSliceSplit(cudaStream_t stream,
 						   			  int n,

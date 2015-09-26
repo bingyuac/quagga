@@ -625,6 +625,32 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
+    def test_assign_masked_addition(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            b = self.get_random_array(a.shape)
+            c = np.empty_like(a)
+            if self.rng.randint(2):
+                mask = self.get_random_array(a.shape)
+            else:
+                mask = self.get_random_array((a.shape[0], 1))
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            mask_cpu = CpuMatrix.from_npa(mask)
+            a_gpu = CpuMatrix.from_npa(a)
+            b_gpu = CpuMatrix.from_npa(b)
+            c_gpu = CpuMatrix.from_npa(c)
+            mask_gpu = CpuMatrix.from_npa(mask)
+
+            c_cpu.assign_masked_addition(self.cpu_context, mask_cpu, a_cpu, b_cpu)
+            c_gpu.assign_masked_addition(self.gpu_context, mask_gpu, a_gpu, b_gpu)
+            r.append(np.allclose(c_cpu.to_host(), c_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_mask_column_numbers_row_wise(self):
         r = []
         for _ in xrange(self.N):

@@ -315,6 +315,13 @@ class CpuMatrix(object):
 
         self.npa += a.npa * (b.npa != 0)
 
+    def assign_masked_addition(self, context, mask, a, b):
+        """
+        self = mask * a + (1 - mask) * b
+        """
+
+        self.npa = mask.npa * a.npa + (1 - mask.npa) * b.npa
+
     def mask_column_numbers_row_wise(self, context, numbers):
         """
         self[i, j] = j < numbers[i]
