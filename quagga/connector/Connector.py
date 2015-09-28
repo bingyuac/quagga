@@ -68,7 +68,7 @@ class Connector(object):
         if fu_device_id != self._fo_device_id and fu_device_id not in self._f_matrices:
             self._f_matrices[fu_device_id] = Matrix.empty_like(self, fu_device_id)
             self.context[fu_device_id] = Context(fu_device_id)
-        if not self.bpropagable:
+        if bo_device_id is None:
             return self._f_matrices[fu_device_id]
 
         for device_id in [self._bu_device_id, bo_device_id]:
@@ -114,6 +114,15 @@ class Connector(object):
         if not self.bpropagable:
             raise ValueError('Nobody was going to use computation from backward '
                              'step. You should not backward propagate!')
+
+        if not self._b_matrices:
+            # When no one registered for providing derivatives
+            bwd = Matrix.empty_like(self, self._bu_device_id)
+            if self._bu_device_id not in self.context:
+                self.context[self._bu_device_id] = Context(self._bu_device_id)
+            bwd.fill(self.context[self._bu_device_id], 0.0)
+            self._b_matrices[self._bu_device_id, False] = bwd
+
         for o_device_id in set(zip(*self._b_matrices.keys())[0]):
             bwd_dense = self._b_matrices.get((o_device_id, False))
             bwd_sparse = self._b_matrices.get((o_device_id, True))
