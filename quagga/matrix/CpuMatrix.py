@@ -71,24 +71,24 @@ class CpuMatrix(object):
             stop = key[0].stop if key[0].stop else self.nrows
             nrows = stop - start
             if isinstance(start, int) and isinstance(key[1], int):
-                data = self.npa[start:, key[1]]
+                data = self.npa[start:, key[1], np.newaxis]
                 return CpuMatrix(data, nrows, 1, self.dtype)
             elif isinstance(start, int) and isinstance(key[1], ShapeElement):
-                data = self.npa[start:, key[1].value]
+                data = self.npa[start:, key[1].value, np.newaxis]
                 a = CpuMatrix(data, nrows, 1, self.dtype)
-                modif_handler = lambda: setattr(a, 'data', self.npa[start:, key[1].value])
+                modif_handler = lambda: setattr(a, 'data', self.npa[start:, key[1].value, np.newaxis])
                 key[1].add_modification_handler(modif_handler)
                 return a
             elif isinstance(start, ShapeElement) and isinstance(key[1], int):
-                data = self.npa[start.value:, key[1]]
+                data = self.npa[start.value:, key[1], np.newaxis]
                 a = CpuMatrix(data, nrows, 1, self.dtype)
-                modif_handler = lambda: setattr(a, 'data', self.npa[start.value:, key[1]])
+                modif_handler = lambda: setattr(a, 'data', self.npa[start.value:, key[1], np.newaxis])
                 start.add_modification_handler(modif_handler)
                 return a
             elif isinstance(start, ShapeElement) and isinstance(key[1], ShapeElement):
-                data = self.npa[start.value:, key[1].value]
+                data = self.npa[start.value:, key[1].value, np.newaxis]
                 a = CpuMatrix(data, nrows, 1, self.dtype)
-                modif_handler = lambda: setattr(a, 'data', self.npa[start.value:, key[1].value])
+                modif_handler = lambda: setattr(a, 'data', self.npa[start.value:, key[1].value, np.newaxis])
                 key[1].add_modification_handler(modif_handler)
                 start.add_modification_handler(modif_handler)
                 return a
@@ -119,19 +119,30 @@ class CpuMatrix(object):
             return np.int32
         raise TypeError(u'data type {} not understood'.format(dtype))
 
+    @staticmethod
+    def array_to_dtypes(a):
+        if a.dtype == np.float32:
+            return 'float', np.float32
+        if a.dtype == np.int32:
+            return 'int', np.int32
+        raise TypeError(u'data type {} not understood'.format(a.dtype))
+
     @classmethod
     def from_npa(cls, a, dtype=None, device_id=None):
         if a.ndim != 2:
             raise ValueError('CpuMatrix works only with 2-d numpy arrays!')
-        dtype = cls.str_to_dtype(dtype) if dtype else a.dtype
-        if a.dtype != dtype:
-            a = a.astype(dtype=dtype)
+        if dtype is not None:
+            np_dtype = cls.str_to_dtype(dtype)
+        else:
+            dtype, np_dtype = cls.array_to_dtypes(a)
+        if a.dtype != np_dtype:
+            a = a.astype(dtype=np_dtype)
         return cls(np.copy(a), a.shape[0], a.shape[1], dtype)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype=None, device_id=None):
         dtype = dtype if dtype else quagga.dtype
-        np_dtype = cls.str_to_dtype(dtype) if type(dtype) is str else dtype
+        np_dtype = cls.str_to_dtype(dtype)
         a = cls(None, nrows, ncols, dtype)
         nrows = nrows.value if isinstance(nrows, ShapeElement) else nrows
         ncols = ncols.value if isinstance(ncols, ShapeElement) else ncols

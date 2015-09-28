@@ -22,29 +22,37 @@ class TestSigmoidCeBlock(TestCase):
         for i in xrange(self.N):
             batch_size = self.rng.random_integers(2000)
             true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(np.float32)
+            mask = (self.rng.rand(batch_size, 1) < 0.8).astype(np.float32)
             x = self.rng.randn(batch_size, 1).astype(np.float32)
 
-            quagga.processor_type = 'gpu'
-            x_gpu = Connector(Matrix.from_npa(x))
-            true_labels_gpu = Connector(Matrix.from_npa(true_labels))
-            sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
-            x_gpu.fprop()
-            true_labels_gpu.fprop()
-            sigmoid_ce_block.fprop()
-            probs_gpu = sigmoid_ce_block.probs.to_host()
+            for with_mask in [False, True]:
+                quagga.processor_type = 'gpu'
+                x_gpu = Connector(Matrix.from_npa(x))
+                true_labels_gpu = Connector(Matrix.from_npa(true_labels))
+                mask_gpu = Connector(Matrix.from_npa(mask)) if with_mask else None
+                sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu, mask=mask_gpu)
+                x_gpu.fprop()
+                true_labels_gpu.fprop()
+                if with_mask:
+                    mask_gpu.fprop()
+                sigmoid_ce_block.fprop()
+                probs_gpu = sigmoid_ce_block.probs.to_host()
 
-            quagga.processor_type = 'cpu'
-            x_cpu = Connector(Matrix.from_npa(x))
-            true_labels_cpu = Connector(Matrix.from_npa(true_labels))
-            sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu)
-            x_cpu.fprop()
-            true_labels_cpu.fprop()
-            sigmoid_ce_block.fprop()
-            probs_cpu = sigmoid_ce_block.probs.to_host()
+                quagga.processor_type = 'cpu'
+                x_cpu = Connector(Matrix.from_npa(x))
+                true_labels_cpu = Connector(Matrix.from_npa(true_labels))
+                mask_cpu = Connector(Matrix.from_npa(mask)) if with_mask else None
+                sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu, mask=mask_cpu)
+                x_cpu.fprop()
+                true_labels_cpu.fprop()
+                if with_mask:
+                    mask_cpu.fprop()
+                sigmoid_ce_block.fprop()
+                probs_cpu = sigmoid_ce_block.probs.to_host()
 
-            r.append(np.allclose(probs_gpu, probs_cpu))
+                r.append(np.allclose(probs_gpu, probs_cpu))
 
-        self.assertEqual(sum(r), self.N)
+        self.assertEqual(sum(r), len(r))
 
     def test_bprop(self):
         """
@@ -53,32 +61,40 @@ class TestSigmoidCeBlock(TestCase):
         r = []
         for i in xrange(self.N):
             batch_size = self.rng.random_integers(2000)
-            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
-            x = self.rng.randn(batch_size, 1).astype(dtype=np.float32)
+            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(np.float32)
+            mask = (self.rng.rand(batch_size, 1) < 0.8).astype(np.float32)
+            x = self.rng.randn(batch_size, 1).astype(np.float32)
             device_id = 0
 
-            quagga.processor_type = 'gpu'
-            x_gpu = Connector(Matrix.from_npa(x), device_id)
-            true_labels_gpu = Connector(Matrix.from_npa(true_labels))
-            sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
-            x_gpu.fprop()
-            true_labels_gpu.fprop()
-            sigmoid_ce_block.fprop()
-            sigmoid_ce_block.bprop()
-            dL_dx_gpu = x_gpu.backward_matrix.to_host()
+            for with_mask in [False, True]:
+                quagga.processor_type = 'gpu'
+                x_gpu = Connector(Matrix.from_npa(x), device_id)
+                true_labels_gpu = Connector(Matrix.from_npa(true_labels))
+                mask_gpu = Connector(Matrix.from_npa(mask)) if with_mask else None
+                sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu, mask=mask_gpu)
+                x_gpu.fprop()
+                true_labels_gpu.fprop()
+                if with_mask:
+                    mask_gpu.fprop()
+                sigmoid_ce_block.fprop()
+                sigmoid_ce_block.bprop()
+                dL_dx_gpu = x_gpu.backward_matrix.to_host()
 
-            x_cpu = Connector(Matrix.from_npa(x), device_id)
-            true_labels_cpu = Connector(Matrix.from_npa(true_labels))
-            sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu)
-            x_cpu.fprop()
-            true_labels_cpu.fprop()
-            sigmoid_ce_block.fprop()
-            sigmoid_ce_block.bprop()
-            dL_dx_cpu = x_cpu.backward_matrix.to_host()
+                x_cpu = Connector(Matrix.from_npa(x), device_id)
+                true_labels_cpu = Connector(Matrix.from_npa(true_labels))
+                mask_cpu = Connector(Matrix.from_npa(mask)) if with_mask else None
+                sigmoid_ce_block = SigmoidCeBlock(x_cpu, true_labels_cpu, mask=mask_cpu)
+                x_cpu.fprop()
+                true_labels_cpu.fprop()
+                if with_mask:
+                    mask_cpu.fprop()
+                sigmoid_ce_block.fprop()
+                sigmoid_ce_block.bprop()
+                dL_dx_cpu = x_cpu.backward_matrix.to_host()
 
-            r.append(np.allclose(dL_dx_gpu, dL_dx_cpu))
+                r.append(np.allclose(dL_dx_gpu, dL_dx_cpu))
 
-        self.assertEqual(sum(r), self.N)
+        self.assertEqual(sum(r), len(r))
 
     def test_theano_grad(self):
         quagga.processor_type = 'gpu'
@@ -86,27 +102,40 @@ class TestSigmoidCeBlock(TestCase):
         for i in xrange(self.N):
             batch_size = self.rng.random_integers(2000)
             true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
+            mask = (self.rng.rand(batch_size, 1) < 0.8).astype(np.float32)
             x = self.rng.randn(batch_size, 1).astype(dtype=np.float32)
             device_id = 0
 
-            # Theano model
-            th_x = T.fmatrix()
-            th_true_labels = T.fmatrix()
-            probs = T.nnet.sigmoid(th_x)
-            loss = T.mean(T.nnet.binary_crossentropy(probs, th_true_labels))
-            get_theano_grads = theano.function([th_x, th_true_labels], T.grad(loss, wrt=th_x))
-            th_dL_dx = get_theano_grads(x, true_labels)
+            for with_mask in [False, True]:
+                # Theano model
+                th_x = T.fmatrix()
+                th_mask = T.fmatrix()
+                th_true_labels = T.fmatrix()
+                if with_mask:
+                    probs = T.nnet.sigmoid(th_mask * th_x)
+                else:
+                    probs = T.nnet.sigmoid(th_x)
+                loss = T.mean(T.nnet.binary_crossentropy(probs, th_true_labels))
+                if with_mask:
+                    get_theano_grads = theano.function([th_x, th_true_labels, th_mask], T.grad(loss, wrt=th_x))
+                    th_dL_dx = get_theano_grads(x, true_labels, mask)
+                else:
+                    get_theano_grads = theano.function([th_x, th_true_labels], T.grad(loss, wrt=th_x))
+                    th_dL_dx = get_theano_grads(x, true_labels)
 
-            # quagga model
-            x_gpu = Connector(Matrix.from_npa(x), device_id)
-            true_labels_gpu = Connector(Matrix.from_npa(true_labels))
-            sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu)
-            x_gpu.fprop()
-            true_labels_gpu.fprop()
-            sigmoid_ce_block.fprop()
-            sigmoid_ce_block.bprop()
-            q_dL_dx = x_gpu.backward_matrix.to_host()
+                # quagga model
+                x_gpu = Connector(Matrix.from_npa(x), device_id)
+                true_labels_gpu = Connector(Matrix.from_npa(true_labels))
+                mask_gpu = Connector(Matrix.from_npa(mask)) if with_mask else None
+                sigmoid_ce_block = SigmoidCeBlock(x_gpu, true_labels_gpu, mask=mask_gpu)
+                x_gpu.fprop()
+                true_labels_gpu.fprop()
+                if with_mask:
+                    mask_gpu.fprop()
+                sigmoid_ce_block.fprop()
+                sigmoid_ce_block.bprop()
+                q_dL_dx = x_gpu.backward_matrix.to_host()
 
-            r.append(np.allclose(th_dL_dx, q_dL_dx))
+                r.append(np.allclose(th_dL_dx, q_dL_dx))
 
-        self.assertEqual(sum(r), self.N)
+        self.assertEqual(sum(r), len(r))
