@@ -808,7 +808,7 @@ class GpuMatrix(object):
         self += alpha * (a - b)
         """
 
-        GpuMatrix.wait_matrices(context, a, b)
+        GpuMatrix.wait_matrices(context, a, b, self)
         self.last_modification_context = context
         context.activate()
         if a.nrows != b.nrows and a.ncols == b.ncols:
