@@ -14,3 +14,4 @@
 - [ ] write readme
 - [ ] give proper name for AddLastBlock, AddFirstBlock, RemoveFirstBlock, RemoveLastBlock
 - [ ] add gradient clipping page 5/6 http://arxiv.org/pdf/1308.0850v5.pdf
+- [ ] Review all matrices that go into wait_matrices, it can cause a lot of nasty bugs, that hard to reproduce and catch 

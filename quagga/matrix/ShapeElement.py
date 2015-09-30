@@ -93,5 +93,8 @@ class ShapeElement(object):
     def __float__(self):
         return float(self.value)
 
+    def __index__(self):
+        return self.value
+
     def add_modification_handler(self, fun):
         self.modif_handlers.append(fun)

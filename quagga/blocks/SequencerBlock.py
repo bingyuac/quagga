@@ -60,24 +60,27 @@ class SequencerBlock(object):
             start_k = max_input_sequence_len - self._length.value
             if start_k and self.prev_names:
                 self.connect_block_with_padding(start_k)
-            for k in xrange(start_k, max_input_sequence_len):
-                self.blocks[k].fprop()
+            generator = xrange(start_k, max_input_sequence_len)
         else:
-            for k in xrange(self._length):
-                self.blocks[k].fprop()
+            generator = xrange(self._length)
+        for k in generator:
+            self.blocks[k].fprop()
 
     def bprop(self):
         if self.reverse:
             max_input_sequence_len = len(self.blocks)
             start_k = max_input_sequence_len - self._length.value
-            for k in reversed(xrange(start_k, max_input_sequence_len)):
-                self.blocks[k].bprop()
+            generator = xrange(start_k, max_input_sequence_len)
         else:
-            for k in reversed(xrange(self._length)):
-                self.blocks[k].bprop()
+            generator = xrange(self._length)
+        # If there was no prev_names order is not important.
+        # By not reversing it we can gain speed up.
+        generator = reversed(generator) if self.prev_names else generator
+        for k in generator:
+            self.blocks[k].bprop()
 
     def connect_block_with_padding(self, k):
-        self.disconnect_first_block_with_padding()
+        self.disconnect_prev_first_block_with_padding()
         for name in self.prev_names:
             name = 'prev_' + name
             self.temp_prev.append(getattr(self.blocks[k], name))
@@ -92,7 +95,7 @@ class SequencerBlock(object):
                 self.dL_dtemp_prev.append(None)
         self.k = k
 
-    def disconnect_first_block_with_padding(self):
+    def disconnect_prev_first_block_with_padding(self):
         if self.temp_prev:
             for i, name in enumerate(self.prev_names):
                 name = 'prev_' + name
