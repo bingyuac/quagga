@@ -139,7 +139,6 @@ class TestMatrix(TestCase):
         self.assertEqual(sum(r), self.N)
 
     def test_slice_columns(self):
-        # TODO(sergii): add reverse=True test
         r = []
         for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
@@ -222,6 +221,30 @@ class TestMatrix(TestCase):
             b_cpu.slice_rows(self.cpu_context, row_indxs_cpu, a_cpu)
             b_gpu.slice_rows(self.gpu_context, row_indxs_gpu, a_gpu)
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_add_scaled_rows_slice(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            k = self.rng.random_integers(a.shape[0])
+            m = TestMatrix.get_random_array((k, a.shape[1]))
+            indxs = self.rng.choice(a.shape[0], k)
+            indxs = np.array(indxs, dtype=np.int32, ndmin=2).T
+            alpha = 2 * self.rng.rand() - 1
+
+            a_cpu = CpuMatrix.from_npa(a)
+            m_cpu = CpuMatrix.from_npa(m)
+            indxs_cpu = CpuMatrix.from_npa(indxs)
+            a_gpu = GpuMatrix.from_npa(a)
+            m_gpu = GpuMatrix.from_npa(m)
+            indxs_gpu = GpuMatrix.from_npa(indxs)
+
+            a_cpu.add_scaled_rows_slice(self.cpu_context, indxs_cpu, alpha, m_cpu)
+            a_gpu.add_scaled_rows_slice(self.gpu_context, indxs_gpu, alpha, m_gpu)
+
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-5))
 
         self.assertEqual(sum(r), self.N)
 

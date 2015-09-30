@@ -176,20 +176,19 @@ class CpuMatrix(object):
     def sync_fill(self, value):
         self.npa = value
 
-    def slice_columns(self, context, column_indxs, out, reverse=False):
-        # TODO(sergii): add reverse support
+    def slice_columns(self, context, column_indxs, out):
         out.npa = self.npa[:, column_indxs.npa.flatten()]
 
     def add_scaled_columns_slice(self, context, column_indxs, alpha, a):
         """
-        self[column_indxs] += alpha * a
+        self[:, column_indxs] += alpha * a
         """
         for i, idx in enumerate(column_indxs.npa.flatten()):
             self.npa[:, idx] += alpha * a.npa[:, i]
 
     def add_columns_slice(self, context, column_indxs, a):
         """
-        self[column_indxs] += a
+        self[:, column_indxs] += a
         """
         self.add_scaled_columns_slice(context, column_indxs, 1.0, a)
 
@@ -199,7 +198,24 @@ class CpuMatrix(object):
     def slice_rows(self, context, row_indxs, out):
         out.npa = self.npa[row_indxs.npa.flatten()]
 
+    def add_scaled_rows_slice(self, context, row_indxs, alpha, a):
+        """
+        self[row_indxs] += alpha * a
+        """
+        for i, idx in enumerate(row_indxs.npa.flatten()):
+            self.npa[idx] += alpha * a.npa[i]
+
+    def add_rows_slice(self, context, row_indxs, a):
+        """
+        self[row_indxs] += a
+        """
+        self.add_scaled_rows_slice(context, row_indxs, 1.0, a)
+
     def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
+        """
+        for k in range(K):
+            dense_matrices[k] = self[embd_rows_indxs[:, k]]
+        """
         n = embd_rows_indxs.ncols
         for i in xrange(n):
             dense_matrices[i].npa = self.npa[embd_rows_indxs.npa[:, i]]
@@ -209,10 +225,12 @@ class CpuMatrix(object):
         for k in range(K):
             self[embd_rows_indxs[:, k]] += alpha * dense_matrices[k]
         """
-
         for k, m in enumerate(dense_matrices):
             for i, idx in enumerate(embd_rows_indxs.npa[:, k]):
                 self.npa[idx] += alpha * m.npa[i]
+
+    def add_rows_batch_slice(self, context, embd_rows_indxs, dense_matrices):
+        self.add_scaled_rows_batch_slice(context, embd_rows_indxs, 1.0, dense_matrices)
 
     def assign_hstack(self, context, matrices):
         ncols = 0

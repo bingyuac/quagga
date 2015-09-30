@@ -324,27 +324,27 @@ class GpuMatrix(object):
         with cudart.device(self.device_id):
             cudart.cuda_memcpy(self.data, host_data, self.nbytes, 'default')
 
-    def slice_columns(self, context, column_indxs, out, reverse=False):
+    def slice_columns(self, context, column_indxs, out):
+        """
+        out = self[:, column_indxs]
+        """
         GpuMatrix.wait_matrices(context, self, column_indxs)
         out.last_modification_context = context
         context.activate()
-        if reverse:
-            gpu_matrix_kernels.reverse_slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
-        else:
-            gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
+        gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 
     def add_scaled_columns_slice(self, context, column_indxs, alpha, a):
         """
-        self[column_indxs] += alpha * a
+        self[:, column_indxs] += alpha * a
         """
         GpuMatrix.wait_matrices(context, self, column_indxs, a)
         self.last_modification_context = context
         context.activate()
-        gpu_matrix_kernels.sliced_inplace_add(context.cuda_stream, a.nrows, a.ncols, alpha, a.data, column_indxs.data, self.data)
+        gpu_matrix_kernels.add_scaled_columns_slice(context.cuda_stream, a.nrows, a.ncols, alpha, a.data, column_indxs.data, self.data)
 
     def add_columns_slice(self, context, column_indxs, a):
         """
-        self[column_indxs] += a
+        self[:, column_indxs] += a
         """
         self.add_scaled_columns_slice(context, column_indxs, 1.0, a)
 
@@ -355,6 +355,9 @@ class GpuMatrix(object):
         gpu_matrix_kernels.slice_columns_and_transpose(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 
     def slice_rows(self, context, row_indxs, out):
+        """
+        out = self[row_indxs]
+        """
         GpuMatrix.wait_matrices(context, self, row_indxs)
         out.last_modification_context = context
         context.activate()
@@ -363,7 +366,27 @@ class GpuMatrix(object):
         else:
             gpu_matrix_kernels.slice_rows_int(context.cuda_stream, self.nrows, row_indxs.data, self.data, out.nrows, out.ncols, out.data)
 
+    def add_scaled_rows_slice(self, context, row_indxs, alpha, a):
+        """
+        self[row_indxs] += alpha * a
+        """
+        GpuMatrix.wait_matrices(context, self, row_indxs, a)
+        self.last_modification_context = context
+        context.activate()
+        gpu_matrix_kernels.add_scaled_rows_slice(context.cuda_stream, a.nrows, a.ncols, alpha, a.data, row_indxs.data, self.nrows, self.data)
+
+    def add_rows_slice(self, context, row_indxs, a):
+        """
+        self[row_indxs] += a
+        """
+        self.add_scaled_rows_slice(context, row_indxs, 1.0, a)
+
     def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
+        """
+        for k in range(K):
+            dense_matrices[k] = self[embd_rows_indxs[:, k]]
+        """
+
         GpuMatrix.wait_matrices(context, self, embd_rows_indxs)
         for dense_matrix in dense_matrices:
             dense_matrix.last_modification_context = context
@@ -392,6 +415,9 @@ class GpuMatrix(object):
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         gpu_matrix_kernels.sliced_rows_batch_scaled_add(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, alpha, device_pointer, self.nrows, self.ncols, self.data)
+
+    def add_rows_batch_slice(self, context, embd_rows_indxs, dense_matrices):
+        self.add_scaled_rows_batch_slice(context, embd_rows_indxs, 1.0, dense_matrices)
 
     def assign_hstack(self, context, matrices):
         ncols = 0

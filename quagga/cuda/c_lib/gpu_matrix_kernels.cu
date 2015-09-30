@@ -27,29 +27,6 @@ __global__  void sliceColumns(int nrows,
 }
 
 
-__global__  void reverseSliceColumns(int nrows,
-							  		 int ncols,
-							  		 const int* __restrict__ embedding_column_indxs,
-							  		 const float* __restrict__ embedding_matrix,
-							  		 float* __restrict__ dense_matrix) {
-	const int nthreads = blockDim.x * gridDim.x;
-	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-	const int nelems = nrows * ncols;
-
-	int dense_column_idx;
-	int row_idx;
-	int embedding_offset;
-	int dense_offset;
-	for (int i = start_i; i < nelems; i += nthreads) {
-		dense_column_idx = i / nrows;
-		row_idx = i % nrows;
-		embedding_offset = embedding_column_indxs[dense_column_idx] * nrows + row_idx;
-		dense_offset = nrows * (ncols - 1 - dense_column_idx) + row_idx;
-		dense_matrix[dense_offset] = embedding_matrix[embedding_offset];
-	}
-}
-
-
 __global__  void sliceColumnsAndTranspose(int nrows,
 							  			  int ncols,
 							  			  const int* __restrict__ embedding_column_indxs,
@@ -267,12 +244,12 @@ __global__  void addHadamardProduct(int nelems,
 }
 
 
-__global__  void slicedInplaceAdd(int nrows,
-							      int ncols,
-							      float alpha,
-							      const float* __restrict__ dense_matrix,
-							      const int* __restrict__ embedding_column_indxs,
-							      float* __restrict__ embedding_matrix) {
+__global__  void addScaledColumnsSlice(int nrows,
+							      	   int ncols,
+							      	   float alpha,
+							      	   const float* __restrict__ dense_matrix,
+							      	   const int* __restrict__ embedding_column_indxs,
+							      	   float* __restrict__ embedding_matrix) {
 	const int nthreads = blockDim.x * gridDim.x;
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 	const int nelems = nrows * ncols;
@@ -285,6 +262,29 @@ __global__  void slicedInplaceAdd(int nrows,
 		row_idx = i % nrows;
 		embedding_offset = embedding_column_indxs[dense_column_idx] * nrows + row_idx;
 		atomicAdd(embedding_matrix + embedding_offset, alpha * dense_matrix[i]);
+	}
+}
+
+
+__global__  void addScaledRowsSlice(int nrows,
+							        int ncols,
+							      	float alpha,
+							      	const float* __restrict__ dense_matrix,
+							      	const int* __restrict__ embedding_row_indxs,
+							      	int embd_nrows,
+							      	float* __restrict__ embedding_matrix) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	int embd_col_idx;
+	int embd_row_idx;
+	int embd_offset;
+	for (int i = start_i; i < nelems; i += nthreads) {
+		embd_row_idx = embedding_row_indxs[i % nrows];
+		embd_col_idx = i / nrows;
+		embd_offset = embd_col_idx * embd_nrows + embd_row_idx;
+		atomicAdd(embedding_matrix + embd_offset, alpha * dense_matrix[i]);
 	}
 }
 
@@ -910,18 +910,6 @@ extern "C" {
 	}
 
 
-	cudaError_t _reverseSliceColumns(cudaStream_t stream,
-							  		 int nrows,
-							  		 int ncols,
-							  		 const int* __restrict__ embedding_column_indxs,
-							  		 const float* __restrict__ embedding_matrix,
-							  		 float* __restrict__ dense_matrix) {
-		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-		reverseSliceColumns<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
-		return cudaGetLastError();
-	}
-
-
 	cudaError_t _sliceColumnsAndTranspose(cudaStream_t stream,
 							  			  int nrows,
 							  			  int ncols,
@@ -1098,15 +1086,29 @@ extern "C" {
     }
 
 
-    cudaError_t _slicedInplaceAdd(cudaStream_t stream,
-                                  int nrows,
-							      int ncols,
-							      float alpha,
-							      const float* __restrict__ dense_matrix,
-							      const int* __restrict__ embedding_column_indxs,
-							      float* __restrict__ embedding_matrix) {
+    cudaError_t _addScaledColumnsSlice(cudaStream_t stream,
+                                  	   int nrows,
+							      	   int ncols,
+							      	   float alpha,
+							      	   const float* __restrict__ dense_matrix,
+							      	   const int* __restrict__ embedding_column_indxs,
+							      	   float* __restrict__ embedding_matrix) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
-        slicedInplaceAdd<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, alpha, dense_matrix, embedding_column_indxs, embedding_matrix);
+        addScaledColumnsSlice<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, alpha, dense_matrix, embedding_column_indxs, embedding_matrix);
+        return cudaGetLastError();
+	}
+
+
+	cudaError_t _addScaledRowsSlice(cudaStream_t stream,
+                                    int nrows,
+							      	int ncols,
+							      	float alpha,
+							      	const float* __restrict__ dense_matrix,
+							      	const int* __restrict__ embedding_row_indxs,
+							      	int embd_nrows,
+							      	float* __restrict__ embedding_matrix) {
+        int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addScaledRowsSlice<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, alpha, dense_matrix, embedding_row_indxs, embd_nrows, embedding_matrix);
         return cudaGetLastError();
 	}
 

@@ -48,16 +48,30 @@ def assign_sum(stream, nelems, matrices, n, s):
     cudart.check_cuda_status(status)
 
 
-gpu_matrix_kernels._slicedInplaceAdd.restype = cudart.ct_cuda_error
-gpu_matrix_kernels._slicedInplaceAdd.argtypes = [cudart.ct_cuda_stream,
-                                                 ct.c_int,
-                                                 ct.c_int,
-                                                 ct.c_float,
-                                                 ct.POINTER(ct.c_float),
-                                                 ct.POINTER(ct.c_int),
-                                                 ct.POINTER(ct.c_float)]
-def sliced_inplace_add(stream, nrows, ncols, alpha, dense_matrix, embedding_column_indxs, embedding_matrix):
-    status = gpu_matrix_kernels._slicedInplaceAdd(stream, nrows, ncols, alpha, dense_matrix, embedding_column_indxs, embedding_matrix)
+gpu_matrix_kernels._addScaledColumnsSlice.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addScaledColumnsSlice.argtypes = [cudart.ct_cuda_stream,
+                                                      ct.c_int,
+                                                      ct.c_int,
+                                                      ct.c_float,
+                                                      ct.POINTER(ct.c_float),
+                                                      ct.POINTER(ct.c_int),
+                                                      ct.POINTER(ct.c_float)]
+def add_scaled_columns_slice(stream, nrows, ncols, alpha, dense_matrix, embedding_column_indxs, embedding_matrix):
+    status = gpu_matrix_kernels._addScaledColumnsSlice(stream, nrows, ncols, alpha, dense_matrix, embedding_column_indxs, embedding_matrix)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addScaledRowsSlice.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addScaledRowsSlice.argtypes = [cudart.ct_cuda_stream,
+                                                   ct.c_int,
+                                                   ct.c_int,
+                                                   ct.c_float,
+                                                   ct.POINTER(ct.c_float),
+                                                   ct.POINTER(ct.c_int),
+                                                   ct.c_int,
+                                                   ct.POINTER(ct.c_float)]
+def add_scaled_rows_slice(stream, nrows, ncols, alpha, dense_matrix, embedding_row_indxs, embd_nrows, embedding_matrix):
+    status = gpu_matrix_kernels._addScaledRowsSlice(stream, nrows, ncols, alpha, dense_matrix, embedding_row_indxs, embd_nrows, embedding_matrix)
     cudart.check_cuda_status(status)
 
 
@@ -177,18 +191,6 @@ gpu_matrix_kernels._sliceColumns.argtypes = [cudart.ct_cuda_stream,
                                              ct.POINTER(ct.c_float)]
 def slice_columns(stream, nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix):
     status = gpu_matrix_kernels._sliceColumns(stream, nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix)
-    cudart.check_cuda_status(status)
-
-
-gpu_matrix_kernels._reverseSliceColumns.restype = cudart.ct_cuda_error
-gpu_matrix_kernels._reverseSliceColumns.argtypes = [cudart.ct_cuda_stream,
-                                                    ct.c_int,
-                                                    ct.c_int,
-                                                    ct.POINTER(ct.c_int),
-                                                    ct.POINTER(ct.c_float),
-                                                    ct.POINTER(ct.c_float)]
-def reverse_slice_columns(stream, nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix):
-    status = gpu_matrix_kernels._reverseSliceColumns(stream, nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix)
     cudart.check_cuda_status(status)
 
 
