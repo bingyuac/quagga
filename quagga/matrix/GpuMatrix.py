@@ -381,13 +381,13 @@ class GpuMatrix(object):
         """
         self.add_scaled_rows_slice(context, row_indxs, 1.0, a)
 
-    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
+    def slice_rows_batch(self, context, rows_indxs, dense_matrices):
         """
         for k in range(K):
-            dense_matrices[k] = self[embd_rows_indxs[:, k]]
+            dense_matrices[k] = self[rows_indxs[:, k]]
         """
 
-        GpuMatrix.wait_matrices(context, self, embd_rows_indxs)
+        GpuMatrix.wait_matrices(context, self, rows_indxs)
         for dense_matrix in dense_matrices:
             dense_matrix.last_modification_context = context
         context.activate()
@@ -397,15 +397,15 @@ class GpuMatrix(object):
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
-        gpu_matrix_kernels.slice_rows_batch(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
+        gpu_matrix_kernels.slice_rows_batch(context.cuda_stream, rows_indxs.data, rows_indxs.nrows, rows_indxs.ncols, self.data, self.nrows, self.ncols, device_pointer)
 
-    def add_scaled_rows_batch_slice(self, context, embd_rows_indxs, alpha, dense_matrices):
+    def add_scaled_rows_batch_slice(self, context, rows_indxs, alpha, dense_matrices):
         """
         for k in range(K):
-            self[embd_rows_indxs[:, k]] += alpha * dense_matrices[k]
+            self[rows_indxs[:, k]] += alpha * dense_matrices[k]
         """
 
-        GpuMatrix.wait_matrices(context, embd_rows_indxs, *dense_matrices)
+        GpuMatrix.wait_matrices(context, rows_indxs, *dense_matrices)
         self.last_modification_context = context
         context.activate()
 
@@ -414,10 +414,10 @@ class GpuMatrix(object):
         device_pointer = _get_temp_memory(context, n)
         elem_size = ct.sizeof(ct.POINTER(ct.c_float))
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
-        gpu_matrix_kernels.sliced_rows_batch_scaled_add(context.cuda_stream, embd_rows_indxs.data, embd_rows_indxs.nrows, embd_rows_indxs.ncols, alpha, device_pointer, self.nrows, self.ncols, self.data)
+        gpu_matrix_kernels.sliced_rows_batch_scaled_add(context.cuda_stream, rows_indxs.data, rows_indxs.nrows, rows_indxs.ncols, alpha, device_pointer, self.nrows, self.ncols, self.data)
 
-    def add_rows_batch_slice(self, context, embd_rows_indxs, dense_matrices):
-        self.add_scaled_rows_batch_slice(context, embd_rows_indxs, 1.0, dense_matrices)
+    def add_rows_batch_slice(self, context, rows_indxs, dense_matrices):
+        self.add_scaled_rows_batch_slice(context, rows_indxs, 1.0, dense_matrices)
 
     def assign_hstack(self, context, matrices):
         ncols = 0
@@ -844,37 +844,39 @@ class GpuMatrix(object):
     def assign_sub(self, context, a, b):
         self.assign_scaled_addition(context, 1.0, a, b)
 
-    # ========== TODO ============
     def add_scaled(self, context, alpha, a):
         """
         self += alpha * a
         """
 
-        GpuMatrix.wait_matrices(context, a, self)
-        self.last_modification_context = context
-        context.activate()
-
-        if self.nrows != 1 and a.nrows == 1:
-            if self.ncols != a.ncols:
-                raise ValueError('Operands could not be broadcast together with shapes ({},{}) ({},{})!'.format(self.nrows, self.ncols, a.nrows, a.ncols))
-            gpu_matrix_kernels.matrix_vector_row_addition(context.cuda_stream, self.nrows, self.ncols, self.data, alpha, a.data, self.data)
-        else:
-            cublas.s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
-
-    def add(self, context, a):
-        # TODO(sergii)
         if isinstance(a, GpuMatrix):
-            self.add_scaled(context, ct.c_float(1.0), a)
+            GpuMatrix.wait_matrices(context, a, self)
+            self.last_modification_context = context
+            context.activate()
+            if self.nrows != 1 and a.nrows == 1:
+                if self.ncols != a.ncols:
+                    raise ValueError('Operands could not be broadcast together with shapes ({},{}) ({},{})!'.format(self.nrows, self.ncols, a.nrows, a.ncols))
+                gpu_matrix_kernels.matrix_vector_row_addition(context.cuda_stream, self.nrows, self.ncols, self.data, alpha, a.data, self.data)
+            else:
+                cublas.s_axpy(context.cublas_handle, self.nelems, alpha, a.data, 1, self.data, 1)
         elif isinstance(a, quagga.matrix.SparseMatrix):
-            GpuMatrix.add()
-            GpuMatrix.sliced_columns_add()
-            GpuMatrix.sliced_rows_batch_scaled_add()
+            for column_indxs, v in a.columns.iteritems():
+                for dense_matrix in v:
+                    self.add_scaled_columns_slice(context, column_indxs, alpha, dense_matrix)
+            for row_indxs, v in a.rows.iteritems():
+                for dense_matrix in v:
+                    self.add_scaled_rows_slice(context, row_indxs, alpha, dense_matrix)
+            for rows_indxs, v in a.rows_batch.iteritems():
+                for dense_matrices in v:
+                    self.add_scaled_rows_batch_slice(context, rows_indxs, alpha, dense_matrices)
         else:
             raise ValueError('TODO')
 
+    def add(self, context, a):
+        self.add_scaled(context, ct.c_float(1.0), a)
+
     def sub(self, context, a):
         self.add_scaled(context, ct.c_float(-1.0), a)
-    # ============================
 
     def assign_sum(self, context, matrices):
         GpuMatrix.wait_matrices(context, *matrices)

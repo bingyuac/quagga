@@ -10,7 +10,7 @@ class CpuMemoryBuffer(object):
         pass
 
     def get_matrix_copy(self, context, matrix):
-        return CpuMatrix(np.copy(matrix.data), matrix.nrows, matrix.ncols, matrix.dtype)
+        return CpuMatrix(np.copy(matrix.data), int(matrix.nrows), int(matrix.ncols), matrix.dtype)
 
     def clear(self):
         pass

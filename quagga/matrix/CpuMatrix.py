@@ -211,26 +211,26 @@ class CpuMatrix(object):
         """
         self.add_scaled_rows_slice(context, row_indxs, 1.0, a)
 
-    def slice_rows_batch(self, context, embd_rows_indxs, dense_matrices):
+    def slice_rows_batch(self, context, rows_indxs, dense_matrices):
         """
         for k in range(K):
-            dense_matrices[k] = self[embd_rows_indxs[:, k]]
+            dense_matrices[k] = self[rows_indxs[:, k]]
         """
-        n = embd_rows_indxs.ncols
+        n = rows_indxs.ncols
         for i in xrange(n):
-            dense_matrices[i].npa = self.npa[embd_rows_indxs.npa[:, i]]
+            dense_matrices[i].npa = self.npa[rows_indxs.npa[:, i]]
 
-    def add_scaled_rows_batch_slice(self, context, embd_rows_indxs, alpha, dense_matrices):
+    def add_scaled_rows_batch_slice(self, context, rows_indxs, alpha, dense_matrices):
         """
         for k in range(K):
-            self[embd_rows_indxs[:, k]] += alpha * dense_matrices[k]
+            self[rows_indxs[:, k]] += alpha * dense_matrices[k]
         """
         for k, m in enumerate(dense_matrices):
-            for i, idx in enumerate(embd_rows_indxs.npa[:, k]):
+            for i, idx in enumerate(rows_indxs.npa[:, k]):
                 self.npa[idx] += alpha * m.npa[i]
 
-    def add_rows_batch_slice(self, context, embd_rows_indxs, dense_matrices):
-        self.add_scaled_rows_batch_slice(context, embd_rows_indxs, 1.0, dense_matrices)
+    def add_rows_batch_slice(self, context, rows_indxs, dense_matrices):
+        self.add_scaled_rows_batch_slice(context, rows_indxs, 1.0, dense_matrices)
 
     def assign_hstack(self, context, matrices):
         ncols = 0
@@ -447,19 +447,31 @@ class CpuMatrix(object):
     def assign_sub(self, context, a, b):
         self.assign_scaled_addition(context, 1.0, a, b)
 
-    # ========== TODO ============
     def add_scaled(self, context, alpha, a):
         """
         self += alpha * a
         """
-        self.npa += alpha * a.npa
+
+        if isinstance(a, CpuMatrix):
+            self.npa += alpha * a.npa
+        elif isinstance(a, quagga.matrix.SparseMatrix):
+            for column_indxs, v in a.columns.iteritems():
+                for dense_matrix in v:
+                    self.add_scaled_columns_slice(context, column_indxs, alpha, dense_matrix)
+            for row_indxs, v in a.rows.iteritems():
+                for dense_matrix in v:
+                    self.add_scaled_rows_slice(context, row_indxs, alpha, dense_matrix)
+            for rows_indxs, v in a.rows_batch.iteritems():
+                for dense_matrices in v:
+                    self.add_scaled_rows_batch_slice(context, rows_indxs, alpha, dense_matrices)
+        else:
+            raise ValueError('TODO')
 
     def add(self, context, a):
         self.add_scaled(context, 1.0, a)
 
     def sub(self, context, a):
         self.add_scaled(context, -1.0, a)
-    # ============================
 
     def assign_sum(self, context, matrices):
         self.npa = 0.0

@@ -1,9 +1,13 @@
+import quagga
 import numpy as np
 import ctypes as ct
 from itertools import izip
 from unittest import TestCase
-from quagga.matrix import GpuMatrix, CpuMatrix
-from quagga.context import GpuContext, CpuContext
+from quagga.matrix import GpuMatrix
+from quagga.matrix import CpuMatrix
+from quagga.context import GpuContext
+from quagga.context import CpuContext
+from quagga.matrix import SparseMatrix
 
 
 class TestMatrix(TestCase):
@@ -949,7 +953,7 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), len(r))
 
-    def test_add_scaled(self):
+    def test_add_scaled_dense_matrix(self):
         r = []
         for _ in xrange(self.N):
             a = self.get_random_array()
@@ -985,6 +989,64 @@ class TestMatrix(TestCase):
                 r.append(False)
             except ValueError:
                 r.append(True)
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_add_scaled_sparse_matrix(self):
+        r = []
+        device_id = 0
+        for _ in xrange(self.N):
+            a = self.get_random_array()
+            column_indxs = []
+            column_dense_matrix = []
+            for i in xrange(2):
+                k = self.rng.random_integers(a.shape[1])
+                column_indxs.append(self.rng.choice(a.shape[1], k).astype(np.int32))
+                column_indxs[-1] = column_indxs[-1].reshape((1, k))
+                column_dense_matrix.append(self.get_random_array((a.shape[0], k)))
+            row_indxs = []
+            row_dense_matrix = []
+            for i in xrange(2):
+                k = self.rng.random_integers(a.shape[0])
+                row_indxs.append(self.rng.choice(a.shape[0], k).astype(np.int32))
+                row_indxs[-1] = row_indxs[-1].reshape((k, 1))
+                row_dense_matrix.append(self.get_random_array((k, a.shape[1])))
+            batch_rows_indxs = []
+            dense_matrices = []
+            for i in xrange(2):
+                k = self.rng.random_integers(a.shape[0])
+                m = self.rng.random_integers(50)
+                batch_rows_indxs.append(self.rng.choice(a.shape[0], (k, m)).astype(np.int32))
+                dense_matrices.append([])
+                for i in xrange(m):
+                    dense_matrices[-1].append(self.get_random_array((k, a.shape[1])))
+            alpha = ct.c_float(2 * self.rng.rand() - 1)
+
+            a_gpu = GpuMatrix.from_npa(a)
+            quagga.processor_type = 'gpu'
+            sparse_m_gpu = SparseMatrix(device_id)
+            for i in xrange(2):
+                sparse_m_gpu.add_columns_slice(GpuMatrix.from_npa(column_indxs[i]),
+                                               GpuMatrix.from_npa(column_dense_matrix[i]))
+                sparse_m_gpu.add_rows_slice(GpuMatrix.from_npa(row_indxs[i]),
+                                            GpuMatrix.from_npa(row_dense_matrix[i]))
+                sparse_m_gpu.add_rows_batch_slice(GpuMatrix.from_npa(batch_rows_indxs[i]),
+                                                  [GpuMatrix.from_npa(e) for e in dense_matrices[i]])
+
+            a_cpu = CpuMatrix.from_npa(a)
+            quagga.processor_type = 'cpu'
+            sparse_m_cpu = SparseMatrix(device_id)
+            for i in xrange(2):
+                sparse_m_cpu.add_columns_slice(CpuMatrix.from_npa(column_indxs[i]),
+                                               CpuMatrix.from_npa(column_dense_matrix[i]))
+                sparse_m_cpu.add_rows_slice(CpuMatrix.from_npa(row_indxs[i]),
+                                            CpuMatrix.from_npa(row_dense_matrix[i]))
+                sparse_m_cpu.add_rows_batch_slice(CpuMatrix.from_npa(batch_rows_indxs[i]),
+                                                  [CpuMatrix.from_npa(e) for e in dense_matrices[i]])
+
+            a_cpu.add_scaled(self.cpu_context, alpha, sparse_m_cpu)
+            a_gpu.add_scaled(self.gpu_context, alpha, sparse_m_gpu)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-5))
 
         self.assertEqual(sum(r), len(r))
 

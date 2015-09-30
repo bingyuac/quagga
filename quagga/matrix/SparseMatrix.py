@@ -21,7 +21,7 @@ class SparseMatrix(object):
 
     def assign(self, context, a):
         """
-        self <- out
+        self <- a
         """
 
         self.clear()
