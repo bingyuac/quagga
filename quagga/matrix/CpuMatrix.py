@@ -323,6 +323,22 @@ class CpuMatrix(object):
         n = int(self.nrows if axis == 0 else self.ncols)
         self.npa = np.repeat(a.npa, n, axis)
 
+    def assign_repeat(self, context, a, repeats, axis):
+        reps = [1, 1]
+        reps[axis] = repeats
+        self.npa = np.tile(a.npa, reps)
+
+    def add_repeat_derivative(self, context, a, repeats, axis):
+        n = self.npa.shape[axis]
+        if axis == 0:
+            for i in xrange(repeats):
+                self.npa += a.npa[i*n:(i+1)*n]
+        elif axis == 1:
+            for i in xrange(repeats):
+                self.npa += a.npa[:, i*n:(i+1)*n]
+        else:
+            raise ValueError('TODO')
+
     @staticmethod
     def get_random_generator(seed):
         return np.random.RandomState(seed)

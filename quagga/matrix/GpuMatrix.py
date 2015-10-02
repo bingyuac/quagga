@@ -637,6 +637,28 @@ class GpuMatrix(object):
         else:
             raise ValueError('Invalid axis!')
 
+    def assign_repeat(self, context, a, repeats, axis):
+        GpuMatrix.wait_matrices(context, a)
+        self.last_modification_context = context
+        context.activate()
+        if axis == 0:
+            gpu_matrix_kernels.repeat_along_row(context.cuda_stream, repeats, a.nrows, a.ncols, a.data, self.data)
+        elif axis == 1:
+            gpu_matrix_kernels.repeat_along_col(context.cuda_stream, repeats, a.nrows, a.ncols, a.data, self.data)
+        else:
+            raise ValueError('TODO')
+
+    def add_repeat_derivative(self, context, a, repeats, axis):
+        GpuMatrix.wait_matrices(context, a)
+        self.last_modification_context = context
+        context.activate()
+        if axis == 0:
+            gpu_matrix_kernels.add_repeat_along_row_derivative(context.cuda_stream, repeats, a.data, self.nrows, self.ncols, self.data)
+        elif axis == 1:
+            gpu_matrix_kernels.add_repeat_along_col_derivative(context.cuda_stream, repeats, a.data, self.nrows, self.ncols, self.data)
+        else:
+            raise ValueError('TODO')
+
     @staticmethod
     def get_random_generator(seed):
         generator = curand.ct_curand_generator()

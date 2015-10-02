@@ -654,7 +654,138 @@ __global__ void batchHorizontalSplit(int n,
 	}
 }
 
+
+__global__ void repeatAlongRow(int repeats,
+					   		   int nrows,
+					   		   int ncols,
+					   		   const float* __restrict__ a,
+					   		   float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	int row_idx;
+	int col_idx;
+	int offset;
+	int col_stride = repeats * nrows;
+	for (int j = 0; j < repeats; j++) {
+		offset = nrows * j;
+		for (int i = start_i; i < nelems; i += nthreads) {
+			row_idx = i % nrows;
+			col_idx = i / nrows;
+			out[offset + col_stride * col_idx + row_idx] = a[i];
+		}
+	}
+}
+
+
+__global__ void addRepeatAlongRowDerivative(int repeats,
+					   			 			const float* __restrict__ a,
+					   			 			int nrows,
+					   			 			int ncols,
+					   			 			float* __restrict__ derivative) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	int row_idx;
+	int col_idx;
+	int offset;
+	int col_stride = repeats * nrows;
+	for (int j = 0; j < repeats; j++) {
+		offset = nrows * j;
+		for (int i = start_i; i < nelems; i += nthreads) {
+			row_idx = i % nrows;
+			col_idx = i / nrows;
+			derivative[i] += a[offset + col_stride * col_idx + row_idx];
+		}
+	}
+}
+
+
+__global__ void repeatAlongCol(int repeats,
+					   		   int nrows,
+					   		   int ncols,
+					   		   const float* __restrict__ a,
+					   		   float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	int offset;
+	for (int j = 0; j < repeats; j++) {
+		offset = nelems * j;
+		for (int i = start_i; i < nelems; i += nthreads) {
+			out[offset + i] = a[i];
+		}
+	}
+}
+
+
+__global__ void addRepeatAlongColDerivative(int repeats,
+					   			 			const float* __restrict__ a,
+					   			 			int nrows,
+					   			 			int ncols,
+					   			 			float* __restrict__ derivative) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+	int offset;
+	for (int j = 0; j < repeats; j++) {
+		offset = nelems * j;
+		for (int i = start_i; i < nelems; i += nthreads) {
+			derivative[i] += a[offset + i];
+		}
+	}
+}
+
+
 extern "C" {
+	cudaError_t _repeatAlongRow(cudaStream_t stream,
+								int repeats,
+					   			int nrows,
+					   			int ncols,
+					   			const float* __restrict__ a,
+					   			float* __restrict__ out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        repeatAlongRow<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(repeats, nrows, ncols, a, out);
+        return cudaGetLastError();
+    }
+
+	cudaError_t _addRepeatAlongRowDerivative(cudaStream_t stream,
+											 int repeats,
+					   			 			 const float* __restrict__ a,
+					   			 			 int nrows,
+					   			 			 int ncols,
+					   			 			 float* __restrict__ derivative) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addRepeatAlongRowDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(repeats, a, nrows, ncols, derivative);
+        return cudaGetLastError();
+	}
+
+	cudaError_t _repeatAlongCol(cudaStream_t stream,
+								int repeats,
+					   			int nrows,
+					   			int ncols,
+					   			const float* __restrict__ a,
+					   			float* __restrict__ out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        repeatAlongCol<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(repeats, nrows, ncols, a, out);
+        return cudaGetLastError();
+	}
+
+	cudaError_t _addRepeatAlongColDerivative(cudaStream_t stream,
+											 int repeats,
+					   			 			 const float* __restrict__ a,
+					   			 			 int nrows,
+					   			 			 int ncols,
+					   			 			 float* __restrict__ derivative) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addRepeatAlongColDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(repeats, a, nrows, ncols, derivative);
+        return cudaGetLastError();
+	}
+
 	cudaError_t _batchHorizontalSplit(cudaStream_t stream,
 									  int n,
 									  int nrows,
@@ -747,7 +878,7 @@ extern "C" {
 						   			    			   const float* __restrict__ a,
 					 	   			    			   const float* __restrict__ b,
 					 	   			    			   float* __restrict__ out) {
-		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols- 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignMaskedAdditionColumnBroadcasted<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, mask, a, b, out);
         return cudaGetLastError();
 	}

@@ -562,3 +562,51 @@ gpu_matrix_kernels._batchHorizontalSplit.argtypes = [cudart.ct_cuda_stream,
 def batch_horizontal_split(stream, n, nrows, x_ncols, y_ncols, matrices, x_matrices, y_matrices):
     status = gpu_matrix_kernels._batchHorizontalSplit(stream, n, nrows, x_ncols, y_ncols, matrices, x_matrices, y_matrices)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._repeatAlongRow.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._repeatAlongRow.argtypes = [cudart.ct_cuda_stream,
+                                               ct.c_int,
+                                               ct.c_int,
+                                               ct.c_int,
+                                               ct.POINTER(ct.c_float),
+                                               ct.POINTER(ct.c_float)]
+def repeat_along_row(stream, repeats, nrows, ncols, a, out):
+    status = gpu_matrix_kernels._repeatAlongRow(stream, repeats, nrows, ncols, a, out)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addRepeatAlongRowDerivative.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addRepeatAlongRowDerivative.argtypes = [cudart.ct_cuda_stream,
+                                                            ct.c_int,
+                                                            ct.POINTER(ct.c_float),
+                                                            ct.c_int,
+                                                            ct.c_int,
+                                                            ct.POINTER(ct.c_float)]
+def add_repeat_along_row_derivative(stream, repeats, a, nrows, ncols, derivative):
+    status = gpu_matrix_kernels._addRepeatAlongRowDerivative(stream, repeats, a, nrows, ncols, derivative)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._repeatAlongCol.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._repeatAlongCol.argtypes = [cudart.ct_cuda_stream,
+                                               ct.c_int,
+                                               ct.c_int,
+                                               ct.c_int,
+                                               ct.POINTER(ct.c_float),
+                                               ct.POINTER(ct.c_float)]
+def repeat_along_col(stream, repeats, nrows, ncols, a, out):
+    status = gpu_matrix_kernels._repeatAlongCol(stream, repeats, nrows, ncols, a, out)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addRepeatAlongColDerivative.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addRepeatAlongColDerivative.argtypes = [cudart.ct_cuda_stream,
+                                                            ct.c_int,
+                                                            ct.POINTER(ct.c_float),
+                                                            ct.c_int,
+                                                            ct.c_int,
+                                                            ct.POINTER(ct.c_float)]
+def add_repeat_along_col_derivative(stream, repeats, a, nrows, ncols, derivative):
+    status = gpu_matrix_kernels._addRepeatAlongColDerivative(stream, repeats, a, nrows, ncols, derivative)
+    cudart.check_cuda_status(status)

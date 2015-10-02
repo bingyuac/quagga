@@ -584,6 +584,44 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), len(r))
 
+    def test_assign_repeat(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array(high=4200)
+            axis = self.rng.randint(2)
+            repeats = self.rng.random_integers(42)
+            if axis == 0:
+                b = np.empty((a.shape[0] * repeats, a.shape[1]), np.float32)
+            else:
+                b = np.empty((a.shape[0], a.shape[1] * repeats), np.float32)
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            b_gpu.assign_repeat(self.gpu_context, a_gpu, repeats, axis)
+            b_cpu.assign_repeat(self.cpu_context, a_cpu, repeats, axis)
+            r.append(np.allclose(b_gpu.to_host(), b_cpu.to_host()))
+        self.assertEqual(sum(r), len(r))
+
+    def test_add_repeat_derivative(self):
+        r = []
+        for _ in xrange(self.N):
+            a = self.get_random_array(high=4200)
+            axis = self.rng.randint(2)
+            repeats = self.rng.random_integers(42)
+            if axis == 0:
+                b = self.get_random_array((a.shape[0] * repeats, a.shape[1]))
+            else:
+                b = self.get_random_array((a.shape[0], a.shape[1] * repeats))
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            a_gpu.add_repeat_derivative(self.gpu_context, b_gpu, repeats, axis)
+            a_cpu.add_repeat_derivative(self.cpu_context, b_cpu, repeats, axis)
+            r.append(np.allclose(a_gpu.to_host(), a_cpu.to_host()))
+        self.assertEqual(sum(r), len(r))
+
     def test_dropout(self):
         r = []
         for _ in xrange(self.N):
