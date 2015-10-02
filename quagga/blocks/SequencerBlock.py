@@ -1,6 +1,7 @@
 from itertools import izip
+
 from quagga.context import Context
-from quagga.matrix import MatrixList
+from quagga.utils import List
 
 
 class SequencerBlock(object):
@@ -10,7 +11,7 @@ class SequencerBlock(object):
 
         :param block_class:
         :param params:
-        :param sequences: sequences for izip-like iteration, must be MatrixList
+        :param sequences: sequences for izip-like iteration, must be List
         :param output_names: attribute names from block
         :param mask:
         :param prev_names: attributes from previous block that will be fed
@@ -51,7 +52,7 @@ class SequencerBlock(object):
                 outputs[i].append(getattr(self.blocks[-1], output_name))
         for output_name, output in izip(output_names, outputs):
             output = output[::-1] if reverse else output
-            output = MatrixList(output, self._length)
+            output = List(output, self._length)
             setattr(self, output_name, output)
 
     def fprop(self):

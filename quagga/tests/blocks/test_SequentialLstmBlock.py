@@ -1,14 +1,16 @@
-import quagga
-import theano
-import numpy as np
 from itertools import izip
 from unittest import TestCase
+
+import theano
+import numpy as np
 from theano import tensor as T
+
+import quagga
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.blocks import DotBlock
 from quagga.blocks import LstmBlock
-from quagga.matrix import MatrixList
+from quagga.utils import List
 from quagga.connector import Connector
 from quagga.blocks import SoftmaxCeBlock
 from quagga.blocks import SigmoidCeBlock
@@ -62,7 +64,7 @@ class TestSequentialLstmBlock(TestCase):
                     for processor_type in ['gpu', 'cpu']:
                         quagga.processor_type = processor_type
                         context = Context()
-                        qx = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
+                        qx = List([Connector(Matrix.from_npa(e)) for e in x])
                         qmask = Connector(Matrix.empty(batch_size, qx.length, 'float'))
                         qh_0 = Connector(Matrix.from_npa(h_0))
                         qc_0 = Connector(Matrix.from_npa(c_0))
@@ -129,8 +131,8 @@ class TestSequentialLstmBlock(TestCase):
                         for processor_type in ['gpu', 'cpu']:
                             quagga.processor_type = processor_type
                             context = Context()
-                            qx = MatrixList([Connector(Matrix.from_npa(e), device_id) for e in x])
-                            qtrue_labels = MatrixList([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
+                            qx = List([Connector(Matrix.from_npa(e), device_id) for e in x])
+                            qtrue_labels = List([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
                             qmask = Connector(Matrix.empty(batch_size, qx.length, 'float'))
                             qh_0 = Connector(Matrix.from_npa(h_0), device_id if learn_inital_states else None)
                             qc_0 = Connector(Matrix.from_npa(c_0), device_id if learn_inital_states else None)
@@ -180,7 +182,7 @@ class TestSequentialLstmBlock(TestCase):
                             if learn_inital_states:
                                 quagga_grads[processor_type].append(qc_0.backward_matrix.to_host())
                                 quagga_grads[processor_type].append(qh_0.backward_matrix.to_host())
-                            quagga_grads[processor_type].extend([e.backward_matrix.to_host() for e in qx])
+                            quagga_grads[processor_type].extend(e.backward_matrix.to_host() for e in qx)
 
                         for grad_gpu, grad_cpu in izip(quagga_grads['gpu'], quagga_grads['cpu']):
                             r.append(np.allclose(grad_gpu, grad_cpu, atol=1e-6))
@@ -213,7 +215,7 @@ class TestSequentialLstmBlock(TestCase):
             for reverse in [False, True]:
                 for with_mask in [False, True]:
                     context = Context()
-                    qx = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
+                    qx = List([Connector(Matrix.from_npa(e)) for e in x])
                     qmask = Connector(Matrix.empty(batch_size, qx.length, 'float'))
                     qh_0 = Connector(Matrix.from_npa(h_0))
                     qc_0 = Connector(Matrix.from_npa(c_0))
@@ -285,8 +287,8 @@ class TestSequentialLstmBlock(TestCase):
                     for learn_inital_states in [False, True]:
                         # quagga model
                         context = Context()
-                        qx = MatrixList([Connector(Matrix.from_npa(e), device_id) for e in x])
-                        qtrue_labels = MatrixList([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
+                        qx = List([Connector(Matrix.from_npa(e), device_id) for e in x])
+                        qtrue_labels = List([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
                         qmask = Connector(Matrix.empty(batch_size, qx.length, 'float'))
                         qh_0 = Connector(Matrix.from_npa(h_0), device_id if learn_inital_states else None)
                         qc_0 = Connector(Matrix.from_npa(c_0), device_id if learn_inital_states else None)

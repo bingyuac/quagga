@@ -1,13 +1,14 @@
-import quagga
-import theano
-import numpy as np
 from itertools import izip
 from unittest import TestCase
+
+import theano
+import numpy as np
 from theano import tensor as T
+
+import quagga
+from quagga.utils import List
 from quagga.matrix import Matrix
-from quagga.context import Context
 from quagga.blocks import DotBlock
-from quagga.matrix import MatrixList
 from quagga.connector import Connector
 from quagga.blocks import SoftmaxCeBlock
 from quagga.blocks import SequencerBlock
@@ -43,12 +44,15 @@ class TestSequentialDotBlock(TestCase):
             W = self.get_orthogonal_matrix(input_dim, hidden_dim)
             b = self.rng.rand(1, hidden_dim).astype(np.float32)
 
+            from quagga.cuda import cudart
+            cudart.cuda_set_device(1)
+
             qoutput = {}
             for reverse in [False, True]:
                 for with_bias in [False, True]:
                     for processor_type in ['gpu', 'cpu']:
                         quagga.processor_type = processor_type
-                        qx = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
+                        qx = List([Connector(Matrix.from_npa(e)) for e in x])
                         qW = Connector(Matrix.from_npa(W))
                         qb = Connector(Matrix.from_npa(b)) if with_bias else None
                         seq_dot_block = SequencerBlock(block_class=DotBlock,
@@ -57,20 +61,19 @@ class TestSequentialDotBlock(TestCase):
                                                        output_names=['output'],
                                                        reverse=reverse)
                         qx.length = sequence_len
-                        for e in qx:
-                            e.fprop()
+                        qx.fprop()
                         qW.fprop()
                         if qb:
                             qb.fprop()
                         seq_dot_block.fprop()
                         qoutput[processor_type] = seq_dot_block.output.to_host()
 
-                for output_gpu, output_cpu in izip(qoutput['gpu'], qoutput['cpu']):
-                    if not np.allclose(output_gpu, output_cpu, atol=1e-5):
-                        r.append(False)
-                        break
-                else:
-                    r.append(True)
+                    for output_gpu, output_cpu in izip(qoutput['gpu'], qoutput['cpu']):
+                        if not np.allclose(output_gpu, output_cpu, atol=1e-5):
+                            r.append(False)
+                            break
+                    else:
+                        r.append(True)
 
         self.assertEqual(sum(r), len(r))
 
@@ -86,21 +89,18 @@ class TestSequentialDotBlock(TestCase):
             batch_size = self.rng.random_integers(256)
             input_dim, hidden_dim = self.rng.random_integers(1500, size=2)
             x = [self.rng.randn(batch_size, input_dim).astype(np.float32) for _ in xrange(max_input_sequence_len)]
+            true_labels = [self.rng.randint(hidden_dim, size=(batch_size, 1)).astype(np.int32) for _ in xrange(max_input_sequence_len)]
             W = self.get_orthogonal_matrix(input_dim, hidden_dim)
             b = self.rng.rand(1, hidden_dim).astype(np.float32)
             device_id = 0
 
-            state = self.rng.get_state()
-            dL_dW = {}
-            dL_db = {}
-            dL_dx = {}
+            quagga_grads = {}
             for reverse in [False, True]:
                 for with_bias in [False, True]:
                     for processor_type in ['gpu', 'cpu']:
-                        self.rng.set_state(state)
                         quagga.processor_type = processor_type
-                        context = Context()
-                        qx = MatrixList([Connector(Matrix.from_npa(e), device_id) for e in x])
+                        qx = List([Connector(Matrix.from_npa(e), device_id) for e in x])
+                        qtrue_labels = List([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
                         qW = Connector(Matrix.from_npa(W), device_id)
                         qb = Connector(Matrix.from_npa(b), device_id) if with_bias else None
                         seq_dot_block = SequencerBlock(block_class=DotBlock,
@@ -108,33 +108,27 @@ class TestSequentialDotBlock(TestCase):
                                                        sequences=[qx],
                                                        output_names=['output'],
                                                        reverse=reverse)
-                        dL_doutput = zip(*[output.register_usage(device_id, device_id) for output in seq_dot_block.output])[1]
-
+                        seq_sce_block = SequencerBlock(block_class=SoftmaxCeBlock,
+                                                       params=[],
+                                                       sequences=[seq_dot_block.output, qtrue_labels],
+                                                       reverse=reverse)
                         qx.length = sequence_len
-                        for e in qx:
-                            e.fprop()
+                        qx.fprop()
+                        qtrue_labels.fprop()
                         qW.fprop()
                         if qb:
                             qb.fprop()
                         seq_dot_block.fprop()
-                        for _, dL_doutput in izip(seq_dot_block.output, dL_doutput):
-                            random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                            dL_doutput.assign(context, Matrix.from_npa(random_matrix, 'float'))
+                        seq_sce_block.fprop()
+                        seq_sce_block.bprop()
                         seq_dot_block.bprop()
-                        dL_dW[processor_type] = qW.backward_matrix.to_host()
+                        quagga_grads[processor_type] = [qW.backward_matrix.to_host()]
                         if with_bias:
-                            dL_db[processor_type] = qb.backward_matrix.to_host()
-                        dL_dx[processor_type] = [e.backward_matrix.to_host() for e in qx]
+                            quagga_grads[processor_type].append(qb.backward_matrix.to_host())
+                        quagga_grads[processor_type].extend(e.backward_matrix.to_host() for e in qx)
 
-                    r.append(np.allclose(dL_dW['gpu'], dL_dW['cpu'], atol=1e-5))
-                    if with_bias:
-                        r.append(np.allclose(dL_db['gpu'], dL_db['cpu'], atol=1e-5))
-                    for dL_dx_gpu, dL_dx_cpu in izip(dL_dx['gpu'], dL_dx['cpu']):
-                        if not np.allclose(dL_dx_gpu, dL_dx_cpu, atol=1e-5):
-                            r.append(False)
-                            break
-                    else:
-                        r.append(True)
+                    for grad_gpu, grad_cpu in izip(quagga_grads['gpu'], quagga_grads['cpu']):
+                        r.append(np.allclose(grad_gpu, grad_cpu, atol=1e-5))
 
         self.assertEqual(sum(r), len(r))
 
@@ -152,7 +146,7 @@ class TestSequentialDotBlock(TestCase):
 
             for reverse in [False, True]:
                 for with_bias in [False, True]:
-                    qx = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
+                    qx = List([Connector(Matrix.from_npa(e)) for e in x])
                     qW = Connector(Matrix.from_npa(W))
                     qb = Connector(Matrix.from_npa(b)) if with_bias else None
                     seq_dot_block = SequencerBlock(block_class=DotBlock,
@@ -161,8 +155,7 @@ class TestSequentialDotBlock(TestCase):
                                                    output_names=['output'],
                                                    reverse=reverse)
                     qx.length = sequence_len
-                    for e in qx:
-                        e.fprop()
+                    qx.fprop()
                     qW.fprop()
                     if qb:
                         qb.fprop()
@@ -199,8 +192,8 @@ class TestSequentialDotBlock(TestCase):
 
             for reverse in [False, True]:
                 for with_bias in [False, True]:
-                    qx = MatrixList([Connector(Matrix.from_npa(e), device_id) for e in x])
-                    qtrue_labels = MatrixList([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
+                    qx = List([Connector(Matrix.from_npa(e), device_id) for e in x])
+                    qtrue_labels = List([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
                     qW = Connector(Matrix.from_npa(W), device_id)
                     qb = Connector(Matrix.from_npa(b), device_id) if with_bias else None
                     seq_dot_block = SequencerBlock(block_class=DotBlock,
@@ -213,8 +206,8 @@ class TestSequentialDotBlock(TestCase):
                                                    sequences=[seq_dot_block.output, qtrue_labels],
                                                    reverse=reverse)
                     qx.length = sequence_len
-                    for e in qx:
-                        e.fprop()
+                    qx.fprop()
+                    qtrue_labels.fprop()
                     qW.fprop()
                     if qb:
                         qb.fprop()
@@ -225,7 +218,7 @@ class TestSequentialDotBlock(TestCase):
                     quagga_grads = [qW.backward_matrix.to_host()]
                     if with_bias:
                         quagga_grads.append(qb.backward_matrix.to_host())
-                    quagga_grads.append([e.backward_matrix.to_host() for e in qx])
+                    quagga_grads.append(e.backward_matrix.to_host() for e in qx)
 
                     seq_dot_layer = SequentialDotLayer(W, b if with_bias else None, reverse)
                     seq_sce_layer = SequentialSoftmaxLayer()
