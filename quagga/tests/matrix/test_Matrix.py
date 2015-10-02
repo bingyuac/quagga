@@ -1015,7 +1015,7 @@ class TestMatrix(TestCase):
             dense_matrices = []
             for i in xrange(2):
                 k = self.rng.random_integers(a.shape[0])
-                m = self.rng.random_integers(50)
+                m = self.rng.random_integers(20)
                 batch_rows_indxs.append(self.rng.choice(a.shape[0], (k, m)).astype(np.int32))
                 dense_matrices.append([])
                 for i in xrange(m):
@@ -1314,24 +1314,3 @@ class TestMatrix(TestCase):
             r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))
 
         self.assertEqual(sum(r), len(r))
-
-    # def test_add(self):
-    #     r = []
-    #     for i in xrange(self.N):
-    #         a = TestMatrix.get_random_array()
-    #         if self.rng.randint(2):
-    #             b = TestMatrix.get_random_array(a.shape)
-    #         else:
-    #             b = TestMatrix.get_random_array((1, a.shape[1]))
-    #
-    #         a_cpu = CpuMatrix.from_npa(a)
-    #         b_cpu = CpuMatrix.from_npa(b)
-    #         a_gpu = GpuMatrix.from_npa(a)
-    #         b_gpu = GpuMatrix.from_npa(b)
-    #
-    #         a_cpu.add(self.cpu_context, b_cpu)
-    #         a_gpu.add(self.gpu_context, b_gpu)
-    #
-    #         r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
-    #
-    #     self.assertEqual(sum(r), self.N)

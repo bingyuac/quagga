@@ -44,7 +44,10 @@ class Connector(object):
             self._bu_device_id = bu_device_id
             self._b_matrices = dict()
             self._b_matrices_pool = dict()
-
+            self._b_sparse_matrix = None
+        # We need do this trick because instead we will add attribute
+        # to the Connector instance by setting it
+        # instead of setting attribute in f_matrix
         self.__f_matrix_setable_attributes = f_matrix.get_setable_attributes()
         for attr_name in self.__f_matrix_setable_attributes:
             getattr(self, attr_name)
@@ -53,7 +56,18 @@ class Connector(object):
     def bpropagable(self):
         return hasattr(self, '_bu_device_id')
 
-    def register_usage(self, fu_device_id, bo_device_id=None, is_sparse=False):
+    def register_usage_with_sparse_backward_matrix(self):
+        if self._bu_device_id != self._fo_device_id:
+            raise ValueError("Registering usage with sparse backward matrix "
+                             "requires equal forward obtaining device and "
+                             "backward usage device.")
+        fwd_matrix = self._f_matrices[self._fo_device_id]
+        if self._b_sparse_matrix:
+            return fwd_matrix, self._b_sparse_matrix
+        self._b_sparse_matrix = SparseMatrix(self._bu_device_id)
+        return fwd_matrix, self._b_sparse_matrix
+
+    def register_usage(self, fu_device_id, bo_device_id=None):
         """
         Register usage of connector's forward_matrix.
 
@@ -63,8 +77,8 @@ class Connector(object):
         """
 
         if not self.bpropagable and bo_device_id:
-            raise ValueError('Nobody is going to use computation from backward '
-                             'step. You should not backward propagate!')
+            raise ValueError("Nobody is going to use computation from backward step. "
+                             "You mustn't register for backward propagate!")
         if fu_device_id != self._fo_device_id and fu_device_id not in self._f_matrices:
             self._f_matrices[fu_device_id] = Matrix.empty_like(self, fu_device_id)
             self.context[fu_device_id] = Context(fu_device_id)
@@ -72,23 +86,13 @@ class Connector(object):
             return self._f_matrices[fu_device_id]
 
         for device_id in [self._bu_device_id, bo_device_id]:
-            if (device_id, is_sparse) not in self._b_matrices:
-                if is_sparse:
-                    bwd_m = SparseMatrix(device_id)
-                else:
-                    bwd_m = Matrix.empty_like(self, device_id)
-                self._b_matrices[device_id, is_sparse] = bwd_m
+            if device_id not in self._b_matrices:
+                self._b_matrices[device_id] = Matrix.empty_like(self, device_id)
                 if device_id not in self.context:
                     self.context[device_id] = Context(device_id)
-
-        if self._bu_device_id != bo_device_id and (self._bu_device_id, is_sparse) not in self._b_matrices_pool:
-            if is_sparse:
-                bwd_pool_m = SparseMatrix(self._bu_device_id)
-            else:
-                bwd_pool_m = Matrix.empty_like(self, self._bu_device_id)
-            self._b_matrices_pool[self._bu_device_id, is_sparse] = bwd_pool_m
-
-        return self._f_matrices[fu_device_id], self._b_matrices[bo_device_id, is_sparse]
+        if self._bu_device_id != bo_device_id and self._bu_device_id not in self._b_matrices_pool:
+            self._b_matrices_pool[self._bu_device_id] = Matrix.empty_like(self, self._bu_device_id)
+        return self._f_matrices[fu_device_id], self._b_matrices[bo_device_id]
 
     def fprop(self):
         for u_device_id, forward_matrix in self._f_matrices.iteritems():
@@ -96,52 +100,43 @@ class Connector(object):
                 forward_matrix.assign(self.context[u_device_id], self._f_matrices[self._fo_device_id])
 
         if self.bpropagable:
-            for (o_device_id, is_sparse), matrix in self._b_matrices.iteritems():
-                if is_sparse:
-                    matrix.clear()
+            for bo_device_id, matrix in self._b_matrices.iteritems():
+                if bo_device_id == self._bu_device_id and matrix.last_usage_context:
+                    # one must use last_usage_context because we use this
+                    # matrix in update statement, otherwise we could be
+                    # modifying matrix while updating parameters or
+                    # propagating derivatives.
+                    context = matrix.last_usage_context
                 else:
-                    if o_device_id == self._bu_device_id and matrix.last_usage_context:
-                        # one must use last_usage_context because we use this
-                        # matrix in update statement, otherwise we could be
-                        # modifying matrix while updating parameters or
-                        # propagating derivatives.
-                        context = matrix.last_usage_context
-                    else:
-                        context = self.context[matrix.device_id]
-                    matrix.fill(context, 0.0)
+                    context = self.context[matrix.device_id]
+                matrix.fill(context, 0.0)
+            if self._b_sparse_matrix:
+                self._b_sparse_matrix.clear()
 
     def bprop(self):
         if not self.bpropagable:
             raise ValueError('Nobody was going to use computation from backward '
                              'step. You should not backward propagate!')
-
-        if not self._b_matrices:
-            # When no one registered for providing derivatives
+        if not self._b_matrices and not self._b_sparse_matrix:
+            # When no one registered for providing derivatives zero dense
+            # matrix will be returned
             bwd = Matrix.empty_like(self, self._bu_device_id)
             if self._bu_device_id not in self.context:
                 self.context[self._bu_device_id] = Context(self._bu_device_id)
             bwd.fill(self.context[self._bu_device_id], 0.0)
-            self._b_matrices[self._bu_device_id, False] = bwd
+            self._b_matrices[self._bu_device_id] = bwd
+            return bwd
 
-        for o_device_id in set(zip(*self._b_matrices.keys())[0]):
-            bwd_dense = self._b_matrices.get((o_device_id, False))
-            bwd_sparse = self._b_matrices.get((o_device_id, True))
-            if bwd_dense:
-                if bwd_sparse:
-                    # TODO(sergii) bwd_dense.add(context, bwd_sparse)
-                    pass
-                if self._bu_device_id != o_device_id:
-                    self._b_matrices_pool[self._bu_device_id, False].assign(self.context[self._bu_device_id], bwd_dense)
-                    self._b_matrices[self._bu_device_id, False].add(self.context[self._bu_device_id], self._b_matrices_pool[self._bu_device_id, False])
-            else:
-                if self._bu_device_id != o_device_id:
-                    bwd_sparse.copy_to(self.context, self._b_matrices_pool[self._bu_device_id, True])
-                self._b_matrices[o_device_id, True].add(self._b_matrices_pool[self._bu_device_id, True])
+        if not self._b_matrices and self._b_sparse_matrix:
+            return self._b_sparse_matrix
 
-        if (self._bu_device_id, False) in self._b_matrices:
-            return self._b_matrices[self._bu_device_id, False]
-        else:
-            return self._b_matrices[self._bu_device_id, True]
+        for bo_device_id, bwd_matrix in self._b_matrices.iteritems():
+            if self._bu_device_id != bo_device_id:
+                self._b_matrices_pool[self._bu_device_id].assign(self.context[self._bu_device_id], bwd_matrix)
+                self._b_matrices[self._bu_device_id].add(self.context[self._bu_device_id], self._b_matrices_pool[self._bu_device_id])
+        if self._b_sparse_matrix:
+            self._b_matrices[self._bu_device_id].add(self.context[self._bu_device_id], self._b_sparse_matrix)
+        return self._b_matrices[self._bu_device_id]
 
     backward_matrix = property(lambda self: self.bprop())
 
