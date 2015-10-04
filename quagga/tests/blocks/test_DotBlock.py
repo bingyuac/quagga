@@ -33,16 +33,15 @@ class TestDotBlock(TestCase):
         r = []
         for i in xrange(self.N):
             batch_size, x_dim, output_dim = self.rng.random_integers(2000, size=3)
-            x = self.rng.rand(batch_size, x_dim).astype(dtype=np.float32)
+            x = self.rng.rand(batch_size, x_dim).astype(np.float32)
             W = self.get_orthogonal_matrix(x_dim, output_dim)
-            b = self.rng.rand(1, output_dim).astype(dtype=np.float32) if self.rng.randint(2) else None
+            b = self.rng.rand(1, output_dim).astype(np.float32) if self.rng.randint(2) else None
 
-            state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             x_gpu = Connector(Matrix.from_npa(x))
             W_gpu = Connector(Matrix.from_npa(W))
             b_gpu = Connector(Matrix.from_npa(b)) if b is not None else b
-            dot_block_gpu = DotBlock(W_gpu, b_gpu, x_gpu, learning=False)
+            dot_block_gpu = DotBlock(W_gpu, b_gpu, x_gpu)
             x_gpu.fprop()
             W_gpu.fprop()
             if b_gpu:
@@ -50,12 +49,11 @@ class TestDotBlock(TestCase):
             dot_block_gpu.fprop()
             output_gpu = dot_block_gpu.output.to_host()
 
-            self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             x_cpu = Connector(Matrix.from_npa(x))
             W_cpu = Connector(Matrix.from_npa(W))
             b_cpu = Connector(Matrix.from_npa(b)) if b is not None else b
-            dot_block_cpu = DotBlock(W_cpu, b_cpu, x_cpu, learning=False)
+            dot_block_cpu = DotBlock(W_cpu, b_cpu, x_cpu)
             x_cpu.fprop()
             W_cpu.fprop()
             if b_cpu:
@@ -74,9 +72,9 @@ class TestDotBlock(TestCase):
         r = []
         for i in xrange(self.N):
             batch_size, x_dim, output_dim = self.rng.random_integers(2000, size=3)
-            x = self.rng.rand(batch_size, x_dim).astype(dtype=np.float32)
+            x = self.rng.rand(batch_size, x_dim).astype(np.float32)
             W = self.get_orthogonal_matrix(x_dim, output_dim)
-            b = self.rng.rand(1, output_dim).astype(dtype=np.float32) if self.rng.randint(2) else None
+            b = self.rng.rand(1, output_dim).astype(np.float32) if self.rng.randint(2) else None
             device_id = 0
 
             state = self.rng.get_state()
@@ -157,12 +155,12 @@ class TestDotBlock(TestCase):
         r = []
         for i in xrange(self.N):
             batch_size, x_dim, output_dim = self.rng.random_integers(2000, size=3)
-            x = self.rng.rand(batch_size, x_dim).astype(dtype=np.float32)
+            x = self.rng.rand(batch_size, x_dim).astype(np.float32)
             dot_W = self.get_orthogonal_matrix(x_dim, output_dim)
-            dot_b = self.rng.rand(1, output_dim).astype(dtype=np.float32) if self.rng.randint(2) else None
+            dot_b = self.rng.rand(1, output_dim).astype(np.float32) if self.rng.randint(2) else None
             lr_dot_W = self.get_orthogonal_matrix(output_dim, 1)
-            lr_dot_b = self.rng.rand(1, 1).astype(dtype=np.float32) if self.rng.randint(2) else None
-            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
+            lr_dot_b = self.rng.rand(1, 1).astype(np.float32) if self.rng.randint(2) else None
+            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(np.float32)
             device_id = 0
 
             # Theano model
