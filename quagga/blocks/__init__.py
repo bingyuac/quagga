@@ -7,11 +7,9 @@ from quagga.blocks.SoftmaxCeBlock import SoftmaxCeBlock
 from quagga.blocks.NonlinearityBlock import NonlinearityBlock
 from quagga.blocks.SseBlock import SseBlock
 from quagga.blocks.DropoutBlock import DropoutBlock
-from quagga.blocks.SelectorBlock import SelectorBlock
 from quagga.blocks.SequentialHorizontalStackBlock import SequentialHorizontalStackBlock
 from quagga.blocks.SequencerBlock import SequencerBlock
-from quagga.blocks.RemoveFirstBlock import RemoveFirstBlock
-from quagga.blocks.RemoveLastBlock import RemoveLastBlock
-from quagga.blocks.AddFirstBlock import AddFirstBlock
-from quagga.blocks.AddLastBlock import AddLastBlock
+from quagga.blocks.LastSelectorBlock import LastSelectorBlock
 from quagga.blocks.ParameterContainer import ParameterContainer
+from quagga.blocks.RowSlicingBlock import RowSlicingBlock
+from quagga.blocks.RepeatBlock import RepeatBlock

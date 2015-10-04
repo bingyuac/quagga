@@ -76,4 +76,3 @@ _libcusparse.cusparseSetStream.argtypes = [ct_cusparse_handle,
 def set_stream(handle, stream):
     status = _libcusparse.cusparseSetStream(handle, stream)
     check_status(status)
-
