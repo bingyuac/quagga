@@ -35,7 +35,7 @@ class TestSoftmaxCeBlock(TestCase):
                     x_gpu = Connector(Matrix.from_npa(x))
                     true_labels_gpu = Connector(Matrix.from_npa(true_labels))
                     mask_gpu = Connector(Matrix.from_npa(mask)) if with_mask else None
-                    softmax_ce_block = SoftmaxCeBlock(x_gpu, true_labels_gpu, mask=mask_gpu)
+                    softmax_ce_block = SoftmaxCeBlock(x_gpu, true_labels_gpu, mask_gpu)
                     x_gpu.fprop()
                     true_labels_gpu.fprop()
                     if with_mask:
@@ -47,7 +47,7 @@ class TestSoftmaxCeBlock(TestCase):
                     x_cpu = Connector(Matrix.from_npa(x))
                     true_labels_cpu = Connector(Matrix.from_npa(true_labels))
                     mask_cpu = Connector(Matrix.from_npa(mask)) if with_mask else None
-                    softmax_ce_block = SoftmaxCeBlock(x_cpu, true_labels_cpu, mask=mask_cpu)
+                    softmax_ce_block = SoftmaxCeBlock(x_cpu, true_labels_cpu, mask_cpu)
                     x_cpu.fprop()
                     true_labels_cpu.fprop()
                     if with_mask:
@@ -81,7 +81,7 @@ class TestSoftmaxCeBlock(TestCase):
                     x_gpu = Connector(Matrix.from_npa(x), device_id)
                     true_labels_gpu = Connector(Matrix.from_npa(true_labels))
                     mask_gpu = Connector(Matrix.from_npa(mask)) if with_mask else None
-                    softmax_ce_block = SoftmaxCeBlock(x_gpu, true_labels_gpu, mask=mask_gpu)
+                    softmax_ce_block = SoftmaxCeBlock(x_gpu, true_labels_gpu, mask_gpu)
                     x_gpu.fprop()
                     true_labels_gpu.fprop()
                     if with_mask:
@@ -94,7 +94,7 @@ class TestSoftmaxCeBlock(TestCase):
                     x_cpu = Connector(Matrix.from_npa(x), device_id)
                     true_labels_cpu = Connector(Matrix.from_npa(true_labels))
                     mask_cpu = Connector(Matrix.from_npa(mask)) if with_mask else None
-                    softmax_ce_block = SoftmaxCeBlock(x_cpu, true_labels_cpu, mask=mask_cpu)
+                    softmax_ce_block = SoftmaxCeBlock(x_cpu, true_labels_cpu, mask_cpu)
                     x_cpu.fprop()
                     true_labels_cpu.fprop()
                     if with_mask:
@@ -143,7 +143,7 @@ class TestSoftmaxCeBlock(TestCase):
                     x_gpu = Connector(Matrix.from_npa(x), device_id)
                     true_labels_gpu = Connector(Matrix.from_npa(true_labels))
                     mask_gpu = Connector(Matrix.from_npa(mask)) if with_mask else None
-                    softmax_ce_block = SoftmaxCeBlock(x_gpu, true_labels_gpu, mask=mask_gpu)
+                    softmax_ce_block = SoftmaxCeBlock(x_gpu, true_labels_gpu, mask_gpu)
                     x_gpu.fprop()
                     true_labels_gpu.fprop()
                     if with_mask:

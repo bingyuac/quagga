@@ -1,11 +1,11 @@
 from itertools import izip
 
-from quagga.context import Context
 from quagga.utils import List
+from quagga.context import Context
 
 
 class SequencerBlock(object):
-    def __init__(self, block_class, params, sequences, output_names=None, prev_names=None, paddings=None, reverse=False, device_id=None, mask=None):
+    def __init__(self, block_class, params, sequences, output_names=None, prev_names=None, paddings=None, reverse=False, device_id=None):
         """
         TODO
 
@@ -13,7 +13,6 @@ class SequencerBlock(object):
         :param params:
         :param sequences: sequences for izip-like iteration, must be List
         :param output_names: attribute names from block
-        :param mask:
         :param prev_names: attributes from previous block that will be fed
                            into the current
         :param paddings:
@@ -23,14 +22,12 @@ class SequencerBlock(object):
         self.context = Context(device_id)
         device_id = self.context.device_id
         self.reverse = reverse
-        if mask:
-            self.mask = mask.register_usage(device_id)
         self.prev_names = prev_names
         if prev_names and reverse:
             self.temp_prev = []
             self.dL_dtemp_prev = []
             self.k = None
-        self._length = sequences[0].length
+        self._length = sequences[0]._length
         self.blocks = []
         output_names = output_names if output_names else []
         outputs = [[] for _ in output_names]
@@ -45,8 +42,6 @@ class SequencerBlock(object):
                     prevs = [getattr(prev_block, name) for name in prev_names]
                 args += prevs
             args.append(device_id)
-            if mask:
-                args.append(self.mask[:, k])
             self.blocks.append(block_class(*args))
             for i, output_name in enumerate(output_names):
                 outputs[i].append(getattr(self.blocks[-1], output_name))
