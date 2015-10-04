@@ -1,6 +1,5 @@
 import os
 import gzip
-import json
 import cPickle
 import logging
 import numpy as np
@@ -9,14 +8,20 @@ from quagga.cuda import cudart
 from urllib import urlretrieve
 from quagga.matrix import Matrix
 from quagga.context import Context
-from collections import OrderedDict
+from quagga.blocks import DotBlock
+from quagga.blocks import DropoutBlock
 from quagga.connector import Connector
 from quagga.optimizers import Optimizer
-from quagga.optimizers.steps import SgdStep
+from quagga.blocks import SoftmaxCeBlock
+from quagga.optimizers.steps import NagStep
+from quagga.blocks import NonlinearityBlock
 from quagga.blocks import ParameterContainer
-from quagga.optimizers.observers import Saver
+from quagga.utils.initializers import Constant
+from quagga.utils.initializers import Orthogonal
+from quagga.optimizers.observers import Hdf5Saver
 from quagga.optimizers.observers import ValidLossTracker
 from quagga.optimizers.observers import TrainLossTracker
+from quagga.optimizers.policies import FixedMomentumPolicy
 from quagga.optimizers.policies import FixedLearningRatePolicy
 from quagga.optimizers.stopping_criteria import MaxIterCriterion
 
@@ -30,7 +35,7 @@ def get_logger(file_name):
     return logger
 
 
-def load_mnis_dataset():
+def load_mnist_dataset():
     filename = 'mnist.pkl.gz'
     if not os.path.exists(filename):
         urlretrieve('http://deeplearning.net/data/mnist/mnist.pkl.gz', filename)
@@ -105,24 +110,64 @@ class MnistMiniBatchesGenerator(object):
 
 
 if __name__ == '__main__':
-    with open('mnist.json') as f:
-        model_definition = json.load(f, object_pairs_hook=OrderedDict)
+    train_x, train_y, valid_x, valid_y, _, _ = load_mnist_dataset()
+    p = ParameterContainer(first_dot_block_W={'init': Orthogonal(784, 1024),
+                                              'device_id': 0},
+                           first_dot_block_b={'init': Constant(1, 1024),
+                                              'device_id': 0},
+                           second_dot_block_W={'init': Orthogonal(1024, 512),
+                                               'device_id': 0},
+                           second_dot_block_b={'init': Constant(1, 512),
+                                               'device_id': 0},
+                           sce_dot_block_W={'init': Orthogonal(512, 10),
+                                            'device_id': 0},
+                           sce_dot_block_b={'init': Constant(1, 10),
+                                            'device_id': 0})
+    data_block = MnistMiniBatchesGenerator(train_x, train_y, valid_x, valid_y,
+                                           batch_size=1024, device_id=0)
+    input_data_dropout_block = DropoutBlock(x=data_block.x,
+                                            dropout_prob=0.2,
+                                            device_id=0)
+    first_dot_block = DotBlock(W=p['first_dot_block_W'],
+                               b=p['first_dot_block_b'],
+                               x=input_data_dropout_block.output,
+                               device_id=0)
+    first_nonl_block = NonlinearityBlock(x=first_dot_block.output,
+                                         nonlinearity='relu',
+                                         device_id=0)
+    first_dropout_block = DropoutBlock(x=first_nonl_block.output,
+                                       dropout_prob=0.5,
+                                       device_id=0)
+    second_dot_block = DotBlock(W=p['second_dot_block_W'],
+                                b=p['second_dot_block_b'],
+                                x=first_dropout_block.output,
+                                device_id=0)
+    second_nonl_block = NonlinearityBlock(x=second_dot_block.output,
+                                          nonlinearity='relu',
+                                          device_id=0)
+    second_dropout_block = DropoutBlock(x=second_nonl_block.output,
+                                        dropout_prob=0.5,
+                                        device_id=0)
+    sce_dot_block = DotBlock(W=p['sce_dot_block_W'],
+                             b=p['sce_dot_block_b'],
+                             x=second_dropout_block.output,
+                             device_id=0)
+    sce_block = SoftmaxCeBlock(x=sce_dot_block.output,
+                               true_labels=data_block.y,
+                               device_id=0)
+    model = Model([p, data_block, input_data_dropout_block,
+                   first_dot_block, first_nonl_block, first_dropout_block,
+                   second_dot_block, second_nonl_block, second_dropout_block,
+                   sce_dot_block, sce_block])
 
-    train_x, train_y, valid_x, valid_y, _, _ = load_mnis_dataset()
-    data_block = MnistMiniBatchesGenerator(train_x, train_y, valid_x, valid_y, batch_size=1024, device_id=0)
-    model = Model(model_definition, data_block)
     logger = get_logger('train.log')
     learning_rate_policy = FixedLearningRatePolicy(0.01)
+    momentum_policy = FixedMomentumPolicy(0.95)
     train_loss_tracker = TrainLossTracker(model, 200, logger)
     valid_loss_tracker = ValidLossTracker(model, 200, logger)
-    saver = Saver(model, 5000, 'mnist_trained.json', 'mnist_parameters.hdf5', logger)
+    saver = Hdf5Saver(p, 5000, 'mnist_parameters.hdf5', logger)
 
-    trainable_params = []
-    for block in model.blocks:
-        if isinstance(block, ParameterContainer):
-            for param in block.parameters.itervalues():
-                trainable_params.append(param)
-    sgd_step = SgdStep(trainable_params, learning_rate_policy)
+    sgd_step = NagStep(p.parameters.values(), learning_rate_policy, momentum_policy)
     data_block.blocking_contexts = sgd_step.blocking_contexts
     criterion = MaxIterCriterion(20000)
 
