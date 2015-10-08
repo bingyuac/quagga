@@ -33,23 +33,20 @@ class GpuMatrix(object):
         self._cudnn_tensor_descriptor = None
         self.device_id = device_id
         self.is_owner = is_owner
-        weak_self = weakref.ref(self)
+        self_proxy = weakref.proxy(self)
         if strides:
             self.strides = strides
         else:
             elem_size = ct.sizeof(self.c_dtype)
             self.strides = [elem_size, self.nrows * elem_size]
-            change_strides = lambda: weak_self().strides.__setitem__(1, weak_self().nrows * elem_size)
-            self.nrows.add_modification_handler(change_strides)
-        self.base = base
+        self.base = base  # for avoiding memory deallocation
         self.last_modification_context = None
         self.last_usage_context = None
 
         def change_cudnn_tensor_descriptor():
-            strong_self = weak_self()
-            if strong_self._cudnn_tensor_descriptor:
-                cudnn.destroy_tensor_descriptor(strong_self._cudnn_tensor_descriptor)
-                strong_self._cudnn_tensor_descriptor = None
+            if self_proxy._cudnn_tensor_descriptor:
+                cudnn.destroy_tensor_descriptor(self_proxy._cudnn_tensor_descriptor)
+                self_proxy._cudnn_tensor_descriptor = None
         self.nrows.add_modification_handler(change_cudnn_tensor_descriptor)
         self.ncols.add_modification_handler(change_cudnn_tensor_descriptor)
 
@@ -101,14 +98,15 @@ class GpuMatrix(object):
 
     def __getitem__(self, key):
         # get row
-        weak_self = weakref.ref(self)
+        self_proxy = weakref.proxy(self)
         if isinstance(key, int):
             data = self._get_pointer_to_element(key, 0)
             return GpuMatrix(data, 1, self.ncols, self.dtype, self.device_id, False, self.strides, self)
         if isinstance(key, ShapeElement):
             data = self._get_pointer_to_element(key.value, 0)
             a = GpuMatrix(data, 1, self.ncols, self.dtype, self.device_id, False, self.strides, self)
-            modif_handler = lambda: setattr(a, 'data', weak_self()._get_pointer_to_element(key.value, 0))
+            a_proxy = weakref.proxy(a)
+            modif_handler = lambda: setattr(a_proxy, 'data', self_proxy._get_pointer_to_element(key.value, 0))
             key.add_modification_handler(modif_handler)
             return a
         if isinstance(key, slice) and self.ncols == 1:
@@ -124,19 +122,22 @@ class GpuMatrix(object):
             elif isinstance(start, int) and isinstance(key[1], ShapeElement):
                 data = self._get_pointer_to_element(start, key[1].value)
                 a = GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides, self)
-                modif_handler = lambda: setattr(a, 'data', weak_self()._get_pointer_to_element(start, key[1].value))
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy._get_pointer_to_element(start, key[1].value))
                 key[1].add_modification_handler(modif_handler)
                 return a
             elif isinstance(start, ShapeElement) and isinstance(key[1], int):
                 data = self._get_pointer_to_element(start.value, key[1])
                 a = GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides, self)
-                modif_handler = lambda: setattr(a, 'data', weak_self()._get_pointer_to_element(start.value, key[1]))
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy._get_pointer_to_element(start.value, key[1]))
                 start.add_modification_handler(modif_handler)
                 return a
             elif isinstance(start, ShapeElement) and isinstance(key[1], ShapeElement):
                 data = self._get_pointer_to_element(start.value, key[1].value)
                 a = GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides, self)
-                modif_handler = lambda: setattr(a, 'data', weak_self()._get_pointer_to_element(start.value, key[1].value))
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy._get_pointer_to_element(start.value, key[1].value))
                 key[1].add_modification_handler(modif_handler)
                 start.add_modification_handler(modif_handler)
                 return a
@@ -151,7 +152,8 @@ class GpuMatrix(object):
             elif isinstance(start, ShapeElement):
                 data = self._get_pointer_to_column(start.value)
                 a = GpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id, False, base=self)
-                modif_handler = lambda: setattr(a, 'data', weak_self()._get_pointer_to_column(start.value))
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy._get_pointer_to_column(start.value))
                 start.add_modification_handler(modif_handler)
                 return a
         raise ValueError('This slice: {} is unsupported!'.format(key))
@@ -310,7 +312,15 @@ class GpuMatrix(object):
                                  format(self.dtype, a._type_))
             self.nrows, self.ncols = nrows, ncols
             host_data = a
-        cudart.cuda_memcpy_async(self.data, host_data, self.nbytes, 'default', context.cuda_stream)
+        # TODO(sergii): add real stride support
+        if isinstance(a, np.ndarray) and a.shape[0] == 1 and self.nrows == 1 and self.strides[0] != self.strides[1]:
+            dpitch = ct.c_size_t(self.strides[1])
+            spitch = ct.c_size_t(self.strides[0])
+            width = ct.c_size_t(self.strides[0])
+            height = ct.c_size_t(a.size)
+            cudart.cuda_memcpy2d_async(self.data, dpitch, host_data, spitch, width, height, 'default', context.cuda_stream)
+        else:
+            cudart.cuda_memcpy_async(self.data, host_data, self.nbytes, 'default', context.cuda_stream)
 
     def fill(self, context, value):
         self.last_modification_context = context
@@ -737,6 +747,14 @@ class GpuMatrix(object):
         context.activate()
         gpu_matrix_kernels.mask_column_numbers_row_wise(context.cuda_stream, self.nrows, self.ncols, numbers.data, self.data)
 
+    def clip(self, context, min_value, max_value, out=None):
+        GpuMatrix.wait_matrices(context, self)
+        if out is None:
+            out = self
+        out.last_modification_context = context
+        context.activate()
+        gpu_matrix_kernels.clip(context.cuda_stream, self.nelems, min_value, max_value, self.data, out.data)
+
     def tanh(self, context, tanh_matrix, derivative_matrix=None):
         GpuMatrix.wait_matrices(context, self)
         tanh_matrix.last_modification_context = context
@@ -956,6 +974,15 @@ class GpuMatrix(object):
         else:
             gpu_matrix_kernels.add_hadamard_product_3(context.cuda_stream, self.nelems, a.data, b.data, c.data, alpha, self.data)
 
+    def add_scaled_hprod(self, context, a, b, alpha, beta):
+        """
+        self = alpha * self + beta * a .* b
+        """
+        GpuMatrix.wait_matrices(context, self, a, b)
+        self.last_modification_context = context
+        context.activate()
+        gpu_matrix_kernels.add_scaled_hadamard_product(context.cuda_stream, self.nelems, a.data, b.data, alpha, beta, self.data)
+
     def assign_hprod(self, context, a, b, c=None):
         """
         self = a .* b       or
@@ -1000,6 +1027,15 @@ class GpuMatrix(object):
         self.last_modification_context = context
         context.activate()
         gpu_matrix_kernels.hprod_sum(context.cuda_stream, a.nrows, a.ncols, a.data, b.data, self.data)
+
+    def add_scaled_div_sqrt(self, context, alpha, a, b, epsilon):
+        """
+        self += alpha * a ./ sqrt(b + epsilon)
+        """
+        GpuMatrix.wait_matrices(context, a, b)
+        self.last_modification_context = context
+        context.activate()
+        gpu_matrix_kernels.add_scaled_div_sqrt(context.cuda_stream, self.nelems, alpha, a.data, b.data, epsilon, self.data)
 
     def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
         self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=ct.c_float(0.0))

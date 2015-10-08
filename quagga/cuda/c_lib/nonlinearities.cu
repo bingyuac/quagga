@@ -147,7 +147,7 @@ __global__ void relu(int nelems,
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for (int i = start_i; i < nelems; i += nthreads) {
-		reluData[i] = fmaxf(0.0, data[i]);
+		reluData[i] = fmaxf(0.0f, data[i]);
 	}
 }
 
@@ -160,7 +160,7 @@ __global__ void relu(int nelems,
 	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for (int i = start_i; i < nelems; i += nthreads) {
-		reluData[i] = fmaxf(0.0, data[i]);
+		reluData[i] = fmaxf(0.0f, data[i]);
 		derivative[i] = !signbit(data[i]);
 	}
 }

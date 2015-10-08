@@ -757,6 +757,31 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
+    def test_clip(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = np.empty_like(a)
+            min_value = 2 * self.rng.rand() - 1
+            max_value = 2 * self.rng.rand() - 1
+            if min_value > max_value:
+                min_value, max_value = max_value, min_value
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+
+            a_cpu.clip(self.cpu_context, min_value, max_value, b_cpu)
+            a_gpu.clip(self.gpu_context, min_value, max_value, b_gpu)
+            r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+
+            a_cpu.clip(self.cpu_context, min_value, max_value)
+            a_gpu.clip(self.gpu_context, min_value, max_value)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), len(r))
+
     def test_tanh(self):
         r = []
         for _ in xrange(self.N):
@@ -1163,11 +1188,33 @@ class TestMatrix(TestCase):
 
             out_cpu.add_hprod(self.cpu_context, a_cpu, b_cpu, alpha=alpha)
             out_gpu.add_hprod(self.gpu_context, a_gpu, b_gpu, alpha=alpha)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+            r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-6))
 
             out_cpu.add_hprod(self.cpu_context, a_cpu, b_cpu, c_cpu, alpha)
             out_gpu.add_hprod(self.gpu_context, a_gpu, b_gpu, c_gpu, alpha)
-            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+            r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-6))
+
+        self.assertEqual(sum(r), len(r))
+
+    def test_add_scaled_hprod(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = TestMatrix.get_random_array(a.shape)
+            c = TestMatrix.get_random_array(a.shape)
+            alpha = 2 * self.rng.rand() - 1
+            beta = 2 * self.rng.rand() - 1
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+
+            c_cpu.add_scaled_hprod(self.cpu_context, a_cpu, b_cpu, alpha, beta)
+            c_gpu.add_scaled_hprod(self.gpu_context, a_gpu, b_gpu, alpha, beta)
+            r.append(np.allclose(c_cpu.to_host(), c_gpu.to_host(), atol=1e-6))
 
         self.assertEqual(sum(r), len(r))
 
@@ -1270,6 +1317,28 @@ class TestMatrix(TestCase):
             r.append(np.allclose(out_cpu.to_host(), out_gpu.to_host(), atol=1e-3))
 
         self.assertEqual(sum(r), self.N)
+
+    def test_add_scaled_div_sqrt(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+            b = np.abs(TestMatrix.get_random_array(a.shape))
+            c = TestMatrix.get_random_array(a.shape)
+            alpha = 2 * self.rng.rand() - 1
+            epsilon = 2 * self.rng.rand() + 0.1
+
+            a_cpu = CpuMatrix.from_npa(a)
+            b_cpu = CpuMatrix.from_npa(b)
+            c_cpu = CpuMatrix.from_npa(c)
+            a_gpu = GpuMatrix.from_npa(a)
+            b_gpu = GpuMatrix.from_npa(b)
+            c_gpu = GpuMatrix.from_npa(c)
+
+            c_cpu.add_scaled_div_sqrt(self.cpu_context, alpha, a_cpu, b_cpu, epsilon)
+            c_gpu.add_scaled_div_sqrt(self.gpu_context, alpha, a_gpu, b_gpu, epsilon)
+            r.append(np.allclose(c_cpu.to_host(), c_gpu.to_host()))
+
+        self.assertEqual(sum(r), len(r))
 
     def test_assign_dot(self):
         r = []

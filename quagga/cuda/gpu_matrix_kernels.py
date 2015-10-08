@@ -100,6 +100,19 @@ def add_hadamard_product_3(stream, nelems, a, b, c, alpha, d):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._addScaledHadamardProduct.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addScaledHadamardProduct.argtypes = [cudart.ct_cuda_stream,
+                                                         ct.c_int,
+                                                         ct.POINTER(ct.c_float),
+                                                         ct.POINTER(ct.c_float),
+                                                         ct.c_float,
+                                                         ct.c_float,
+                                                         ct.POINTER(ct.c_float)]
+def add_scaled_hadamard_product(stream, nelems, a, b, alpha, beta, c):
+    status = gpu_matrix_kernels._addScaledHadamardProduct(stream, nelems, a, b, alpha, beta, c)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._hadamardProduct2.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._hadamardProduct2.argtypes = [cudart.ct_cuda_stream,
                                                  ct.c_int,
@@ -609,4 +622,29 @@ gpu_matrix_kernels._addRepeatAlongColDerivative.argtypes = [cudart.ct_cuda_strea
                                                             ct.POINTER(ct.c_float)]
 def add_repeat_along_col_derivative(stream, repeats, a, nrows, ncols, derivative):
     status = gpu_matrix_kernels._addRepeatAlongColDerivative(stream, repeats, a, nrows, ncols, derivative)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addScaledDivSqrt.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addScaledDivSqrt.argtypes = [cudart.ct_cuda_stream,
+                                                 ct.c_int,
+                                                 ct.c_float,
+                                                 ct.POINTER(ct.c_float),
+                                                 ct.POINTER(ct.c_float),
+                                                 ct.c_float,
+                                                 ct.POINTER(ct.c_float)]
+def add_scaled_div_sqrt(stream, nelems, alpha, a, b, epsilon, c):
+    status = gpu_matrix_kernels._addScaledDivSqrt(stream, nelems, alpha, a, b, epsilon, c)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._clip.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._clip.argtypes = [cudart.ct_cuda_stream,
+                                     ct.c_int,
+                                     ct.c_float,
+                                     ct.c_float,
+                                     ct.POINTER(ct.c_float),
+                                     ct.POINTER(ct.c_float)]
+def clip(stream, nelems, min_value, max_value, data, out):
+    status = gpu_matrix_kernels._clip(stream, nelems, min_value, max_value, data, out)
     cudart.check_cuda_status(status)

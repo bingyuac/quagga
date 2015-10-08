@@ -1,4 +1,5 @@
 import quagga
+import weakref
 import numpy as np
 from itertools import izip
 from quagga.matrix import ShapeElement
@@ -36,7 +37,8 @@ class CpuMatrix(object):
 
     @nrows.setter
     def nrows(self, value):
-        if value > self.data.shape[0]:
+        data = self.data.base if self.data.base is not None else self.data
+        if value > data.shape[0]:
             raise ValueError('There is no so many preallocated memory! '
                              'Maximum for `nrows` is {}'.format(self.data.shape[0]))
         self._nrows[:] = value
@@ -47,21 +49,32 @@ class CpuMatrix(object):
 
     @ncols.setter
     def ncols(self, value):
-        if value > self.data.shape[1]:
+        data = self.data.base if self.data.base is not None else self.data
+        if value > data.shape[1]:
             raise ValueError('There is no so many preallocated memory! '
                              'Maximum for `ncols` is {}'.format(self.data.shape[1]))
         self._ncols[:] = value
 
     def __getitem__(self, key):
         # get row
+        self_proxy = weakref.proxy(self)
         if isinstance(key, int):
             data = self.npa[key, np.newaxis]
-            return CpuMatrix(data, 1, self.ncols, self.dtype)
+            a = CpuMatrix(data, 1, self.ncols, self.dtype)
+            a_proxy = weakref.proxy(a)
+            if isinstance(self.ncols, ShapeElement):
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[key, np.newaxis])
+                self.ncols.add_modification_handler(modif_handler)
+            return a
         if isinstance(key, ShapeElement):
             data = self.npa[key.value, np.newaxis]
             a = CpuMatrix(data, 1, self.ncols, self.dtype)
-            modif_handler = lambda: setattr(a, 'data', self.npa[key.value, np.newaxis])
+            a_proxy = weakref.proxy(a)
+            modif_handler = lambda: setattr(a, 'data', self_proxy.npa[key.value, np.newaxis])
             key.add_modification_handler(modif_handler)
+            if isinstance(self.ncols, ShapeElement):
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[key.value, np.newaxis])
+                self.ncols.add_modification_handler(modif_handler)
             return a
         if isinstance(key, slice) and self.ncols == 1:
             key = (key, 0)
@@ -72,23 +85,31 @@ class CpuMatrix(object):
             nrows = stop - start
             if isinstance(start, int) and isinstance(key[1], int):
                 data = self.npa[start:, key[1], np.newaxis]
-                return CpuMatrix(data, nrows, 1, self.dtype)
+                a = CpuMatrix(data, nrows, 1, self.dtype)
+                a_proxy = weakref.proxy(a)
+                if isinstance(nrows, ShapeElement):
+                    modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[start:, key[1], np.newaxis])
+                    nrows.add_modification_handler(modif_handler)
+                return a
             elif isinstance(start, int) and isinstance(key[1], ShapeElement):
                 data = self.npa[start:, key[1].value, np.newaxis]
                 a = CpuMatrix(data, nrows, 1, self.dtype)
-                modif_handler = lambda: setattr(a, 'data', self.npa[start:, key[1].value, np.newaxis])
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[start:, key[1].value, np.newaxis])
                 key[1].add_modification_handler(modif_handler)
                 return a
             elif isinstance(start, ShapeElement) and isinstance(key[1], int):
                 data = self.npa[start.value:, key[1], np.newaxis]
                 a = CpuMatrix(data, nrows, 1, self.dtype)
-                modif_handler = lambda: setattr(a, 'data', self.npa[start.value:, key[1], np.newaxis])
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[start.value:, key[1], np.newaxis])
                 start.add_modification_handler(modif_handler)
                 return a
             elif isinstance(start, ShapeElement) and isinstance(key[1], ShapeElement):
                 data = self.npa[start.value:, key[1].value, np.newaxis]
                 a = CpuMatrix(data, nrows, 1, self.dtype)
-                modif_handler = lambda: setattr(a, 'data', self.npa[start.value:, key[1].value, np.newaxis])
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[start.value:, key[1].value, np.newaxis])
                 key[1].add_modification_handler(modif_handler)
                 start.add_modification_handler(modif_handler)
                 return a
@@ -99,12 +120,21 @@ class CpuMatrix(object):
             ncols = stop - start
             if isinstance(start, int):
                 data = self.npa[:, start:]
-                return CpuMatrix(data, self.nrows, ncols, self.dtype)
+                a = CpuMatrix(data, self.nrows, ncols, self.dtype)
+                a_proxy = weakref.proxy(a)
+                if isinstance(self.nrows, ShapeElement):
+                    modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[:, start:])
+                    self.nrows.add_modification_handler(modif_handler)
+                return a
             elif isinstance(start, ShapeElement):
                 data = self.npa[:, start.value:]
                 a = CpuMatrix(data, self.nrows, ncols, self.dtype)
-                modif_handler = lambda: setattr(a, 'data', self.npa[:, start.value:])
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[:, start.value:])
                 start.add_modification_handler(modif_handler)
+                if isinstance(self.nrows, ShapeElement):
+                    modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.npa[:, start.value:])
+                    self.nrows.add_modification_handler(modif_handler)
                 return a
         raise ValueError('This slice: {} is unsupported!'.format(key))
 
@@ -325,7 +355,7 @@ class CpuMatrix(object):
 
     def assign_repeat(self, context, a, repeats, axis):
         reps = [1, 1]
-        reps[axis] = repeats
+        reps[axis] = int(repeats)
         self.npa = np.tile(a.npa, reps)
 
     def add_repeat_derivative(self, context, a, repeats, axis):
@@ -380,6 +410,11 @@ class CpuMatrix(object):
         """
         for i in xrange(numbers.npa.shape[0]):
             self.npa[i] = np.arange(self.npa.shape[1]) < numbers.npa[i]
+
+    def clip(self, context, min_value, max_value, out=None):
+        if out is None:
+            out = self
+        out.npa = np.clip(self.npa, min_value, max_value)
 
     def tanh(self, context, tanh_matrix, derivative_matrix=None):
         np.tanh(self.npa, tanh_matrix.npa)
@@ -513,6 +548,12 @@ class CpuMatrix(object):
         else:
             self.npa = a.npa * b.npa * c.npa + alpha * self.npa
 
+    def add_scaled_hprod(self, context, a, b, alpha, beta):
+        """
+        self = alpha * self + beta * a .* b
+        """
+        self.npa = alpha * self.npa + beta * a.npa * b.npa
+
     def assign_hprod(self, context, a, b, c=None):
         """
         self = a .* b
@@ -547,6 +588,12 @@ class CpuMatrix(object):
         self = sum(a .* b, axis=1)
         """
         np.sum(a.npa * b.npa, axis=1, out=self.npa, keepdims=True)
+
+    def add_scaled_div_sqrt(self, context, alpha, a, b, epsilon):
+        """
+        self += alpha * a ./ sqrt(b + epsilon)
+        """
+        self.npa += alpha * a.npa / np.sqrt(b.npa + epsilon)
 
     def assign_dot(self, context, a, b, matrix_operation_a='N', matrix_operation_b='N'):
         self.add_dot(context, a, b, matrix_operation_a, matrix_operation_b, beta=0.0)

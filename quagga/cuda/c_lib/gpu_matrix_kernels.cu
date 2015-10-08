@@ -244,6 +244,22 @@ __global__  void addHadamardProduct(int nelems,
 }
 
 
+__global__  void addScaledHadamardProduct(int nelems,
+							              const float* __restrict__ a,
+							              const float* __restrict__ b,
+							              float alpha,
+							              float beta,
+							              float* __restrict__ c) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		c[i] = alpha * c[i] + beta * a[i] * b[i];
+	}
+}
+
+
+
 __global__  void addScaledColumnsSlice(int nrows,
 							      	   int ncols,
 							      	   float alpha,
@@ -740,8 +756,60 @@ __global__ void addRepeatAlongColDerivative(int repeats,
 	}
 }
 
+__global__  void addScaledDivSqrt(int nelems,
+								  float alpha,
+							      const float* __restrict__ a,
+							      const float* __restrict__ b,
+							      float epsilon,
+							      float* __restrict__ c) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		c[i] += alpha * a[i] / sqrtf(b[i] + epsilon);
+	}
+}
+
+
+__global__ void clip(int nelems,
+					 float min_value,
+					 float max_value,
+					 const float* __restrict__ data,
+					 float* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int i = start_i; i < nelems; i += nthreads) {
+		out[i] = (min_value > data[i]) * min_value + (data[i] > max_value) * max_value + (min_value <= data[i] && data[i] <= max_value) * data[i];
+	}
+}
+
 
 extern "C" {
+	cudaError_t _clip(cudaStream_t stream,
+					  int nelems,
+					  float min_value,
+					  float max_value,
+					  const float* __restrict__ data,
+					  float* __restrict__ out) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        clip<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, min_value, max_value, data, out);
+        return cudaGetLastError();
+	}
+
+	cudaError_t _addScaledDivSqrt(cudaStream_t stream,
+								  int nelems,
+								  float alpha,
+							      const float* __restrict__ a,
+							      const float* __restrict__ b,
+							      float epsilon,
+							      float* __restrict__ c) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addScaledDivSqrt<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, epsilon, c);
+        return cudaGetLastError();
+	}
+
+
 	cudaError_t _repeatAlongRow(cudaStream_t stream,
 								int repeats,
 					   			int nrows,
@@ -1215,6 +1283,19 @@ extern "C" {
         addHadamardProduct<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, c, alpha, d);
         return cudaGetLastError();
     }
+
+
+	cudaError_t _addScaledHadamardProduct(cudaStream_t stream,
+										  int nelems,
+							              const float* __restrict__ a,
+							              const float* __restrict__ b,
+							              float alpha,
+							              float beta,
+							              float* __restrict__ c) {
+		int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addScaledHadamardProduct<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, alpha, beta, c);
+        return cudaGetLastError();
+	}
 
 
     cudaError_t _addScaledColumnsSlice(cudaStream_t stream,
