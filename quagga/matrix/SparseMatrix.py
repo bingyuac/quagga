@@ -29,3 +29,20 @@ class SparseMatrix(object):
         self.columns.clear()
         self.rows.clear()
         self.rows_batch.clear()
+
+    def get_last_modification_contexts(self):
+        last_modification_contexts = []
+        for column_indxs, v in self.columns.iteritems():
+            last_modification_contexts.append(column_indxs.last_modification_context)
+            for dense_matrix in v:
+                last_modification_contexts.append(dense_matrix.last_modification_context)
+        for row_indxs, v in self.rows.iteritems():
+            last_modification_contexts.append(row_indxs.last_modification_context)
+            for dense_matrix in v:
+                last_modification_contexts.append(dense_matrix.last_modification_context)
+        for rows_indxs, v in self.rows_batch.iteritems():
+            last_modification_contexts.append(rows_indxs.last_modification_context)
+            for dense_matrices in v:
+                for dense_matrix in dense_matrices:
+                    last_modification_contexts.append(dense_matrix.last_modification_context)
+        return last_modification_contexts

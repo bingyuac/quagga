@@ -118,7 +118,12 @@ class GpuMatrix(object):
             nrows = stop - start
             if isinstance(start, int) and isinstance(key[1], int):
                 data = self._get_pointer_to_element(start, key[1])
-                return GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides, self)
+                a = GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides, self)
+                if isinstance(nrows, ShapeElement):
+                    a_proxy = weakref.proxy(a)
+                    modif_handler = lambda: setattr(a_proxy, 'data', self_proxy._get_pointer_to_element(start, key[1]))
+                    nrows.add_modification_handler(modif_handler)
+                return a
             elif isinstance(start, int) and isinstance(key[1], ShapeElement):
                 data = self._get_pointer_to_element(start, key[1].value)
                 a = GpuMatrix(data, nrows, 1, self.dtype, self.device_id, False, self.strides, self)
