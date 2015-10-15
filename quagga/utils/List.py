@@ -22,7 +22,8 @@ class List(object):
         return iter(self.elements[:self.length])
 
     def __len__(self):
-        return self.length
+        # TODO(sergii): fix everreting related to calling builtin len() function because it returns int instead of ShapeElement
+        return self.length.value
 
     def __getattr__(self, name):
         attribute = getattr(self.elements[0], name)

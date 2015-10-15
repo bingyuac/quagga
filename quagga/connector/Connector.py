@@ -145,6 +145,7 @@ class Connector(object):
         if hasattr(attribute, '__call__'):
             setattr(self, name, attribute)
         else:
+            # TODO(sergii): inspect this place. hyp: property belong to class not to instance
             fget = lambda self: getattr(self._f_matrices[self._fo_device_id], name)
             if name in self.__f_matrix_setable_attributes:
                 fset = lambda self, value: setattr(self._f_matrices[self._fo_device_id], name, value)
@@ -152,3 +153,6 @@ class Connector(object):
             else:
                 setattr(Connector, name, property(fget))
         return getattr(self, name)
+
+    def __getitem__(self, item):
+        return self._f_matrices[self._fo_device_id][item]

@@ -28,6 +28,6 @@ class NagStep(object):
             # v_t+1 = momentum * v_t - learning_rate * dL_dp
             v.scale(context, momentum)
             v.add_scaled(context, learning_rate, dL_dp)
-            # p_t+1 = momentum * v_t+1 - learning_rate * dL_dp
+            # p[t+1] = p[t] + momentum * v[t+1] - learning_rate * dL_dp
             p.add_scaled(context, momentum, v)
             p.add_scaled(context, learning_rate, dL_dp)

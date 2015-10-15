@@ -3,8 +3,8 @@ from quagga.context import Context
 
 
 class Hdf5Saver(object):
-    def __init__(self, param_container, period, parameters_file_path, logger):
-        self.param_container = param_container
+    def __init__(self, params, period, parameters_file_path, logger):
+        self.params = params
         self.period = period
         self.parameters_file_path = parameters_file_path
         self.logger = logger
@@ -18,18 +18,19 @@ class Hdf5Saver(object):
         # That is why we are save here.
         # Parameters can be changing during callbacks calls.
         self.context = {}
-        for param in param_container.parameters.itervalues():
+        for param in params.itervalues():
             if param.device_id not in self.context:
                 self.context[param.device_id] = Context(param.device_id)
         self._save_parameters = Context.callback(self._save_parameters)
+        self.npa_params = {}
 
     def notify(self):
         if self.iteration % self.period == 0 and self.iteration != 0:
             self.logger.info('Iteration {}: start saving model ...'.format(self.iteration))
             h5_file = h5py.File(self.parameters_file_path, 'w')
-            for param_name, param in self.param_container.parameters.iteritems():
+            for param_name, param in self.params.iteritems():
                 context = self.context[param.device_id]
-                self.param_container.send_to_host(context, param_name)
+                self.npa_params[param_name] = param.to_host(context)
             contexts = self.context.values()
             context = contexts[0]
             context.wait(*contexts[1:])
@@ -37,8 +38,8 @@ class Hdf5Saver(object):
         self.iteration += 1
 
     def _save_parameters(self, h5_file):
-        for param_name in self.param_container.parameters:
-            h5_file[param_name] = self.param_container.get_npa_param(param_name)
+        for param_name in self.params.iterkeys():
+            h5_file[param_name] = self.npa_params[param_name]
             self.logger.info(param_name)
         h5_file.close()
         self.logger.info('saved')
