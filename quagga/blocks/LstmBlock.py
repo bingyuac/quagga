@@ -4,7 +4,7 @@ from quagga.connector import Connector
 
 
 class LstmBlock(object):
-    def __init__(self, W, R, x, prev_c, prev_h, device_id, mask=None):
+    def __init__(self, W, R, grad_clipping, x, mask, prev_c, prev_h, device_id=None):
         """
         TODO
 
@@ -18,10 +18,9 @@ class LstmBlock(object):
 
         self.f_context = Context(device_id)
         device_id = self.f_context.device_id
-        if isinstance(mask, Connector):
+        if mask:
             self.mask = mask.register_usage(device_id)
-        else:
-            self.mask = mask
+        self.grad_clipping = grad_clipping
         if W.bpropagable:
             self.W, self.dL_dW = W.register_usage(device_id, device_id)
             self.W_b_context = Context(device_id)
@@ -98,7 +97,7 @@ class LstmBlock(object):
         self.c.assign_sum_hprod(self.f_context, self.i, self.z, self.f, self.prev_c)
         self.c.tanh(self.f_context, self.tanh_c, self.dtanh_c_dc)
         self.h.assign_hprod(self.f_context, self.o, self.tanh_c)
-        if self.mask:
+        if hasattr(self, 'mask'):
             # s[t] = mask .* s[t] + (1 - mask) .* s[t-1]
             self.c.assign_masked_addition(self.f_context, self.mask, self.c, self.prev_c)
             self.h.assign_masked_addition(self.f_context, self.mask, self.h, self.prev_h)
@@ -108,7 +107,7 @@ class LstmBlock(object):
     def bprop(self):
         dL_dc = self.c.backward_matrix
         dL_dh = self.h.backward_matrix
-        if self.mask:
+        if hasattr(self, 'mask'):
             # dL/ds[t-1] = (1 - mask) .* dL/ds[t]
             # dL/ds[t] = mask .* dL/ds[t]
             if hasattr(self, 'dL_dprev_c'):
@@ -130,7 +129,8 @@ class LstmBlock(object):
         self.dL_dpre_z.assign_hprod(self.b_context, dL_dc, self.i, self.dz_dpre_z)
         self.dL_dpre_zifo.last_modification_context = self.b_context
 
-        # TODO(sergii): add here clipping of self.dL_dpre_zifo
+        if self.grad_clipping:
+            self.dL_dpre_zifo.clip(self.b_context, -self.grad_clipping, self.grad_clipping)
 
         if hasattr(self, 'dL_dW'):
             # dL_dW += x[t].T * dL/dpre_zifo[t]
