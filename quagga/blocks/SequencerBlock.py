@@ -19,8 +19,8 @@ class SequencerBlock(object):
         :param device_id:
         """
 
-        self.context = Context(device_id)
-        device_id = self.context.device_id
+        context = Context(device_id)
+        device_id = context.device_id
         self.reverse = reverse
         self.prev_names = prev_names
         if prev_names and reverse:
@@ -41,14 +41,22 @@ class SequencerBlock(object):
                     prev_block = self.blocks[-1]
                     prevs = [getattr(prev_block, name) for name in prev_names]
                 args += prevs
-            args.append(device_id)
-            self.blocks.append(block_class(*args))
+            self.blocks.append(block_class(*args, device_id=device_id))
             for i, output_name in enumerate(output_names):
                 outputs[i].append(getattr(self.blocks[-1], output_name))
         for output_name, output in izip(output_names, outputs):
             output = output[::-1] if reverse else output
             output = List(output, self._length)
             setattr(self, output_name, output)
+
+        if hasattr(self.blocks[0], 'calculate_loss') and hasattr(self.blocks[0], 'loss'):
+            def calculate_loss(context):
+                context.wait(*[self.blocks[i].context for i in xrange(self._length)])
+                for i in xrange(self._length):
+                    self.blocks[i].calculate_loss(context)
+            self.calculate_loss = calculate_loss
+            self.context = context
+            SequencerBlock.loss = property(lambda self: [self.blocks[i].loss for i in xrange(self._length)])
 
     def fprop(self):
         if self.reverse:
