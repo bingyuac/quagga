@@ -165,14 +165,13 @@ if __name__ == '__main__':
     momentum_policy = FixedMomentumPolicy(0.95)
     train_loss_tracker = TrainLossTracker(model, 200, logger)
     valid_loss_tracker = ValidLossTracker(model, 200, logger)
-    saver = Hdf5Saver(p, 5000, 'mnist_parameters.hdf5', logger)
-
-    sgd_step = NagStep(p.parameters.values(), learning_rate_policy, momentum_policy)
-    data_block.blocking_contexts = sgd_step.blocking_contexts
+    saver = Hdf5Saver(p.parameters, 5000, 'mnist_parameters.hdf5', logger)
+    nag_step = NagStep(p.parameters.values(), learning_rate_policy, momentum_policy)
+    data_block.blocking_contexts = nag_step.blocking_contexts
     criterion = MaxIterCriterion(20000)
 
     optimizer = Optimizer(criterion, model)
-    optimizer.add_observer(sgd_step)
+    optimizer.add_observer(nag_step)
     optimizer.add_observer(train_loss_tracker)
     optimizer.add_observer(valid_loss_tracker)
     optimizer.add_observer(saver)
