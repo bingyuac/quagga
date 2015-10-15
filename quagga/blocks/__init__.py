@@ -8,6 +8,7 @@ from quagga.blocks.NonlinearityBlock import NonlinearityBlock
 from quagga.blocks.SseBlock import SseBlock
 from quagga.blocks.DropoutBlock import DropoutBlock
 from quagga.blocks.SequentialHorizontalStackBlock import SequentialHorizontalStackBlock
+from quagga.blocks.HorizontalStackBlock import HorizontalStackBlock
 from quagga.blocks.SequencerBlock import SequencerBlock
 from quagga.blocks.LastSelectorBlock import LastSelectorBlock
 from quagga.blocks.ParameterContainer import ParameterContainer
