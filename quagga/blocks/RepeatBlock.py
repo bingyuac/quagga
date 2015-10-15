@@ -27,4 +27,5 @@ class RepeatBlock(object):
         self.output.fprop()
 
     def bprop(self):
-        self.dL_dx.add_repeat_derivative(self.context, self.output.backward_matrix, self.repeats, self.axis)
+        if hasattr(self, 'dL_dx'):
+            self.dL_dx.add_repeat_derivative(self.context, self.output.backward_matrix, self.repeats, self.axis)

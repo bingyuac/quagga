@@ -49,6 +49,6 @@ class SoftmaxCeBlock(object):
             logs = np.log(probs_np[idxs] + 1e-20)
         else:
             logs = np.log(np.sum(true_labels_np * probs_np, axis=1) + 1e-20)
-        if mask:
+        if mask is not None:
             logs *= mask[:, 0]
         self.loss = - np.mean(logs)

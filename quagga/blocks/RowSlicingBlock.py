@@ -33,7 +33,8 @@ class RowSlicingBlock(object):
         self.output.fprop()
 
     def bprop(self):
-        if isinstance(self.output, List):
-            self.dL_dW.add_rows_batch_slice(self.row_indexes, self.output.bprop())
-        else:
-            self.dL_dW.add_rows_slice(self.row_indexes, self.output.bprop())
+        if hasattr(self, 'dL_dW'):
+            if isinstance(self.output, List):
+                self.dL_dW.add_rows_batch_slice(self.row_indexes, self.output.bprop())
+            else:
+                self.dL_dW.add_rows_slice(self.row_indexes, self.output.bprop())

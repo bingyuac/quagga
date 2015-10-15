@@ -12,13 +12,14 @@ class LastSelectorBlock(object):
         self.output = Matrix.empty_like(x[0])
         self.output = Connector(self.output, device_id if learning else None)
         if learning:
-            self.x, dL_dx = izip(*x.register_usage(device_id, device_id))
+            self.x, self.dL_dx = izip(*x.register_usage(device_id, device_id))
         else:
             self.x = x.register_usage(device_id)
+        self.last_idx = x.length - 1
 
     def fprop(self):
-        self.output.assign(self.context, self.x[-1])
+        self.output.assign(self.context, self.x[self.last_idx])
         self.output.fprop()
 
     def bprop(self):
-        self.dL_dx[len(self.x)].add(self.output.backward_matrix)
+        self.dL_dx[self.last_idx].add(self.context, self.output.backward_matrix)
