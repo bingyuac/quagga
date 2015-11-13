@@ -22,7 +22,7 @@ class SseBlock(object):
 
     def bprop(self):
         # error = (y_hat - y) / M
-        self.dL_dy_hat.assign_scaled_subtraction(self.context, 2. / self.y.nrows, self.y_hat, self.y)
+        self.dL_dy_hat.add_scaled_subtraction(self.context, 2. / self.y.nrows, self.y_hat, self.y)
 
     @property
     def loss(self):

@@ -1,8 +1,9 @@
 from itertools import izip
 from itertools import chain
+
+from quagga.utils import List
 from quagga.matrix import Matrix
 from quagga.context import Context
-from quagga.matrix import MatrixList
 from quagga.connector import Connector
 
 
@@ -57,7 +58,7 @@ class SequentialHorizontalStackBlock(object):
             self.x_sequence.append(x)
             self.y_sequence.append(y)
             output_sequence.append(Connector(Matrix.empty(x.nrows, x_ncols+y_ncols, dtype, device_id), self.context, b_usage_context))
-        self.output_sequence = MatrixList(output_sequence)
+        self.output_sequence = List(output_sequence)
 
     def fprop(self):
         n = len(self._x_sequence)
@@ -67,7 +68,6 @@ class SequentialHorizontalStackBlock(object):
         Matrix.batch_hstack(self.context, self.x_sequence[:n], self.y_sequence[:n], self.output_sequence)
 
     def bprop(self):
-        if hasattr(self, 'dL_dx_sequences'):
-            dL_doutput_sequence = [e.backward_matrix for e in self.output_sequence]
-            n = len(dL_doutput_sequence)
-            Matrix.batch_hsplit(self.context, dL_doutput_sequence, self.dL_dx_sequences[:n], self.dL_dy_sequences[:n])
+        dL_doutput_sequence = [e.backward_matrix for e in self.output_sequence]
+        n = len(dL_doutput_sequence)
+        Matrix.batch_hsplit(self.context, dL_doutput_sequence, self.dL_dx_sequences[:n], self.dL_dy_sequences[:n])

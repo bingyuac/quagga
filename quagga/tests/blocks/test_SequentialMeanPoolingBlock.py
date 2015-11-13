@@ -1,14 +1,16 @@
-import quagga
-import theano
-import numpy as np
 from itertools import izip
 from unittest import TestCase
+
+import theano
+import numpy as np
 from theano import tensor as T
+
+import quagga
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.blocks import DotBlock
 from quagga.connector import Connector
-from quagga.matrix import MatrixList
+from quagga.utils import List
 from quagga.blocks import SigmoidCeBlock
 from quagga.blocks import SequentialMeanPoolingBlock
 
@@ -46,7 +48,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
 
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
-            x_gpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
+            x_gpu = List([Connector(Matrix.from_npa(e)) for e in x])
             smean_pooling_block_gpu = SequentialMeanPoolingBlock(x_gpu)
             x_gpu.set_length(sequence_len)
             smean_pooling_block_gpu.fprop()
@@ -54,7 +56,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
 
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
-            x_cpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
+            x_cpu = List([Connector(Matrix.from_npa(e)) for e in x])
             smean_pooling_block_cpu = SequentialMeanPoolingBlock(x_cpu)
             x_cpu.set_length(sequence_len)
             smean_pooling_block_cpu.fprop()
@@ -79,7 +81,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             context = Context()
-            x_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
+            x_gpu = List([Connector(Matrix.from_npa(e), context, context) for e in x])
             smean_pooling_block_gpu = SequentialMeanPoolingBlock(x_gpu)
             x_gpu.set_length(sequence_len)
             _, dL_doutput = smean_pooling_block_gpu.output.register_usage(context, context)
@@ -92,7 +94,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             context = Context()
-            x_cpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
+            x_cpu = List([Connector(Matrix.from_npa(e), context, context) for e in x])
             smean_pooling_block_cpu = SequentialMeanPoolingBlock(x_cpu)
             x_cpu.set_length(sequence_len)
             _, dL_doutput = smean_pooling_block_cpu.output.register_usage(context, context)
@@ -151,7 +153,7 @@ class TestSequentialMeanPoolingBlock(TestCase):
             # quagga model
             self.rng.set_state(state)
             context = Context()
-            x = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
+            x = List([Connector(Matrix.from_npa(e), context, context) for e in x])
             true_labels = Connector(Matrix.from_npa(true_labels))
             smp_block = SequentialMeanPoolingBlock(x)
             dot_block = DotBlock(W_init, b_init, smp_block.output)
