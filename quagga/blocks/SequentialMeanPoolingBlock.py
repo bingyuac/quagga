@@ -1,4 +1,5 @@
 import ctypes as ct
+from itertools import izip
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.connector import Connector
@@ -6,35 +7,22 @@ from quagga.connector import Connector
 
 class SequentialMeanPoolingBlock(object):
     def __init__(self, matrices, device_id=None):
-        if all(m.bpropagable for m in matrices):
-            learning = True
-        elif all(not m.bpropagable for m in matrices):
-            learning = False
-        else:
-            raise ValueError('All elements of matrices should be '
-                             'bpropagable or non-bpropagable. '
-                             'Mixed state is not allowed!')
-        self.max_input_sequence_len = len(matrices)
         self.context = Context(device_id)
-        self.output = Matrix.empty_like(matrices[0], self.context.device_id)
-        self.output = Connector(self.output, self.context, self.context if learning else None)
-        self._matrices = matrices
+        device_id = self.context.device_id
+        self.output = Matrix.empty_like(matrices[0], device_id)
+        learning = matrices[0].bpropagable
+        self.output = Connector(self.output, device_id if learning else None)
         if learning:
-            self.matrices, self.dL_dmatrices = zip(*[e.register_usage(self.context, self.context) for e in matrices])
+            self.matrices, self.dL_dmatrices = izip(*matrices.register_usage(device_id, device_id))
         else:
-            self.matrices = [e.register_usage(self.context) for e in matrices]
+            self.matrices = matrices.register_usage(self.context)
+        self.length = matrices.length
 
     def fprop(self):
-        n = len(self._matrices)
-        if n > self.max_input_sequence_len:
-            raise ValueError('Sequence has length: {} that is too long. '
-                             'The maximum is: {}'.
-                             format(n, self.max_input_sequence_len))
-        self.output.assign_sequential_mean_pooling(self.context, self.matrices[:n])
+        self.output.assign_sequential_mean_pooling(self.context, self.matrices[:self.length])
         self.output.fprop()
 
     def bprop(self):
-        n = len(self._matrices)
         dL_doutput = self.output.backward_matrix
-        dL_doutput.scale(self.context, ct.c_float(1.0 / n))
-        Matrix.sequentially_tile(self.context, self.dL_dmatrices[:n], dL_doutput)
+        dL_doutput.scale(self.context, ct.c_float(1.0 / self.length))
+        Matrix.sequentially_tile(self.context, dL_doutput, self.dL_dmatrices[:self.length])

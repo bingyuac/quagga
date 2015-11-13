@@ -47,7 +47,7 @@ class TestMeanPoolingBlock(TestCase):
         context = Context()
         for i in xrange(self.N):
             a = self.get_random_array()
-            a_gpu = Connector(GpuMatrix.from_npa(a, 'float'), b_usage_context=context)
+            a_gpu = Connector(GpuMatrix.from_npa(a, 'float'), bu_device_id=context)
             vpooling_block = MeanPoolingBlock(a_gpu, axis=0)
             voutput, dL_dvoutput = vpooling_block.output.register_usage(context, context)
             _dL_voutput = self.get_random_array((dL_dvoutput.nrows, dL_dvoutput.ncols))

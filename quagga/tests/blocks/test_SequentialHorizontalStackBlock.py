@@ -1,14 +1,16 @@
-import quagga
-import theano
-import numpy as np
 from itertools import izip
 from unittest import TestCase
+
+import theano
+import numpy as np
 from theano import tensor as T
+
+import quagga
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.blocks import DotBlock
 from quagga.connector import Connector
-from quagga.matrix import MatrixList
+from quagga.utils import List
 from quagga.blocks import SigmoidCeBlock
 from quagga.blocks import SequentialMeanPoolingBlock
 from quagga.blocks import SequentialHorizontalStackBlock
@@ -48,8 +50,8 @@ class TestSequentialHorizontalStackBlock(TestCase):
 
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
-            x_gpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
-            y_gpu = MatrixList([Connector(Matrix.from_npa(e)) for e in y])
+            x_gpu = List([Connector(Matrix.from_npa(e)) for e in x])
+            y_gpu = List([Connector(Matrix.from_npa(e)) for e in y])
             seq_hstack_block_gpu = SequentialHorizontalStackBlock(x_gpu, y_gpu)
             x_gpu.set_length(sequence_len)
             y_gpu.set_length(sequence_len)
@@ -58,8 +60,8 @@ class TestSequentialHorizontalStackBlock(TestCase):
 
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
-            x_cpu = MatrixList([Connector(Matrix.from_npa(e)) for e in x])
-            y_cpu = MatrixList([Connector(Matrix.from_npa(e)) for e in y])
+            x_cpu = List([Connector(Matrix.from_npa(e)) for e in x])
+            y_cpu = List([Connector(Matrix.from_npa(e)) for e in y])
             seq_hstack_block_cpu = SequentialHorizontalStackBlock(x_cpu, y_cpu)
             x_cpu.set_length(sequence_len)
             y_cpu.set_length(sequence_len)
@@ -91,8 +93,8 @@ class TestSequentialHorizontalStackBlock(TestCase):
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             context = Context()
-            x_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
-            y_gpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in y])
+            x_gpu = List([Connector(Matrix.from_npa(e), context, context) for e in x])
+            y_gpu = List([Connector(Matrix.from_npa(e), context, context) for e in y])
             seq_hstack_block_gpu = SequentialHorizontalStackBlock(x_gpu, y_gpu)
             x_gpu.set_length(sequence_len)
             y_gpu.set_length(sequence_len)
@@ -108,8 +110,8 @@ class TestSequentialHorizontalStackBlock(TestCase):
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             context = Context()
-            x_cpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
-            y_cpu = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in y])
+            x_cpu = List([Connector(Matrix.from_npa(e), context, context) for e in x])
+            y_cpu = List([Connector(Matrix.from_npa(e), context, context) for e in y])
             seq_hstack_block_cpu = SequentialHorizontalStackBlock(x_cpu, y_cpu)
             x_cpu.set_length(sequence_len)
             y_cpu.set_length(sequence_len)
@@ -192,8 +194,8 @@ class TestSequentialHorizontalStackBlock(TestCase):
             # quagga model
             self.rng.set_state(state)
             context = Context()
-            x = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in x])
-            y = MatrixList([Connector(Matrix.from_npa(e), context, context) for e in y])
+            x = List([Connector(Matrix.from_npa(e), context, context) for e in x])
+            y = List([Connector(Matrix.from_npa(e), context, context) for e in y])
             true_labels = Connector(Matrix.from_npa(true_labels))
             shs_block = SequentialHorizontalStackBlock(x, y)
             smp_block = SequentialMeanPoolingBlock(shs_block.output_sequence)

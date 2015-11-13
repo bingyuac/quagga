@@ -65,18 +65,29 @@ class TestSequentialLstmBlock(TestCase):
                         quagga.processor_type = processor_type
                         context = Context()
                         qx = List([Connector(Matrix.from_npa(e)) for e in x])
-                        qmask = Connector(Matrix.empty(batch_size, qx.length, 'float'))
+                        qmask = Matrix.empty(batch_size, len(qx), 'float')
                         qh_0 = Connector(Matrix.from_npa(h_0))
                         qc_0 = Connector(Matrix.from_npa(c_0))
                         qW = Connector(Matrix.from_npa(W))
                         qR = Connector(Matrix.from_npa(R))
-                        lstm = SequencerBlock(LstmBlock, [qW, qR], [qx], ['h'], ['c', 'h'], [qc_0, qh_0], reverse, mask=qmask if with_mask else None)
-
+                        sequences = [qx]
+                        if with_mask:
+                            sequences.append(List([Connector(qmask[:, i]) for i in xrange(len(qx))], len(qx)))
+                            qmask.assign_npa(context, mask)
+                            qmask = sequences[-1]
+                        else:
+                            sequences.append([None] * len(qx))
+                        lstm = SequencerBlock(block_class=LstmBlock,
+                                              params=[qW, qR],
+                                              sequences=sequences,
+                                              output_names=['h'],
+                                              prev_names=['c', 'h'],
+                                              paddings=[qc_0, qh_0],
+                                              reverse=reverse)
                         qx.length = sequence_len
-                        for e in qx:
-                            e.fprop()
-                        qmask.assign_npa(context, mask)
-                        qmask.fprop()
+                        if with_mask:
+                            qmask.fprop()
+                        qx.fprop()
                         qh_0.fprop()
                         qc_0.fprop()
                         qW.fprop()
@@ -132,37 +143,40 @@ class TestSequentialLstmBlock(TestCase):
                             quagga.processor_type = processor_type
                             context = Context()
                             qx = List([Connector(Matrix.from_npa(e), device_id) for e in x])
-                            qtrue_labels = List([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
-                            qmask = Connector(Matrix.empty(batch_size, qx.length, 'float'))
+                            qtrue_labels = List([Connector(Matrix.from_npa(e)) for e in true_labels], len(qx))
+                            qmask = Matrix.empty(batch_size, len(qx))
                             qh_0 = Connector(Matrix.from_npa(h_0), device_id if learn_inital_states else None)
                             qc_0 = Connector(Matrix.from_npa(c_0), device_id if learn_inital_states else None)
                             qW = Connector(Matrix.from_npa(W), device_id)
                             qR = Connector(Matrix.from_npa(R), device_id)
                             qlr_W = Connector(Matrix.from_npa(lr_W), device_id)
                             qlr_b = Connector(Matrix.from_npa(lr_b), device_id)
+                            sequences = [qx]
+                            if with_mask:
+                                sequences.append(List([Connector(qmask[:, i]) for i in xrange(len(qx))], len(qx)))
+                                qmask.assign_npa(context, mask)
+                                qmask = sequences[-1]
+                            else:
+                                sequences.append([None] * len(qx))
                             lstm = SequencerBlock(block_class=LstmBlock,
                                                   params=[qW, qR],
-                                                  sequences=[qx],
+                                                  sequences=sequences,
                                                   output_names=['h'],
                                                   prev_names=['c', 'h'],
                                                   paddings=[qc_0, qh_0],
-                                                  reverse=reverse,
-                                                  mask=qmask if with_mask else None)
+                                                  reverse=reverse)
                             seq_dot_block = SequencerBlock(block_class=DotBlock,
                                                            params=[qlr_W, qlr_b],
                                                            sequences=[lstm.h],
                                                            output_names=['output'])
                             seq_sce_block = SequencerBlock(block_class=SigmoidCeBlock,
                                                            params=[],
-                                                           sequences=[seq_dot_block.output, qtrue_labels],
-                                                           mask=qmask if with_mask else None)
+                                                           sequences=[seq_dot_block.output, qtrue_labels] + ([qmask] if with_mask else []))
                             qx.length = sequence_len
-                            for e in qx:
-                                e.fprop()
-                            for e in qtrue_labels:
-                                e.fprop()
-                            qmask.assign_npa(context, mask)
-                            qmask.fprop()
+                            qx.fprop()
+                            qtrue_labels.fprop()
+                            if with_mask:
+                                qmask.fprop()
                             qlr_W.fprop()
                             qlr_b.fprop()
                             qh_0.fprop()
@@ -216,12 +230,18 @@ class TestSequentialLstmBlock(TestCase):
                 for with_mask in [False, True]:
                     context = Context()
                     qx = List([Connector(Matrix.from_npa(e)) for e in x])
-                    qmask = Connector(Matrix.empty(batch_size, qx.length, 'float'))
+                    qmask = Connector(Matrix.empty(batch_size, len(qx), 'float'))
                     qh_0 = Connector(Matrix.from_npa(h_0))
                     qc_0 = Connector(Matrix.from_npa(c_0))
                     qW = Connector(Matrix.from_npa(W))
                     qR = Connector(Matrix.from_npa(R))
-                    lstm = SequencerBlock(LstmBlock, [qW, qR], [qx], ['h'], ['c', 'h'], [qc_0, qh_0], reverse, mask=qmask if with_mask else None)
+                    lstm = SequencerBlock(block_class=LstmBlock,
+                                          params=[qW, qR],
+                                          sequences=[qx] + ([qmask] if with_mask else []),
+                                          output_names=['h'],
+                                          prev_names=['c', 'h'],
+                                          paddings=[qc_0, qh_0],
+                                          reverse=reverse)
 
                     qx.length = sequence_len
                     for e in qx:
@@ -258,7 +278,7 @@ class TestSequentialLstmBlock(TestCase):
         quagga.processor_type = 'gpu'
         r = []
         for i in xrange(self.N):
-            max_input_sequence_len = self.rng.random_integers(500)
+            max_input_sequence_len = self.rng.random_integers(300)
             sequence_len = max_input_sequence_len if i == 0 else self.rng.random_integers(max_input_sequence_len)
             batch_size = self.rng.random_integers(128)
             input_dim, hidden_dim, class_num = self.rng.random_integers(1500, size=3)
@@ -289,7 +309,9 @@ class TestSequentialLstmBlock(TestCase):
                         context = Context()
                         qx = List([Connector(Matrix.from_npa(e), device_id) for e in x])
                         qtrue_labels = List([Connector(Matrix.from_npa(e)) for e in true_labels], qx.length)
-                        qmask = Connector(Matrix.empty(batch_size, qx.length, 'float'))
+                        qmask = Matrix.empty(batch_size, qx.length, 'float')
+                        qmask_list = [Connector(qmask[:, i]) for i in xrange(qmask.ncols)]
+                        qmask = Connector(qmask)
                         qh_0 = Connector(Matrix.from_npa(h_0), device_id if learn_inital_states else None)
                         qc_0 = Connector(Matrix.from_npa(c_0), device_id if learn_inital_states else None)
                         qW = Connector(Matrix.from_npa(W), device_id)
@@ -298,20 +320,18 @@ class TestSequentialLstmBlock(TestCase):
                         qlr_b = Connector(Matrix.from_npa(lr_b), device_id)
                         lstm = SequencerBlock(block_class=LstmBlock,
                                               params=[qW, qR],
-                                              sequences=[qx],
+                                              sequences=[qx, qmask_list if with_mask else [None] * len(qx)],
                                               output_names=['h'],
                                               prev_names=['c', 'h'],
                                               paddings=[qc_0, qh_0],
-                                              reverse=reverse,
-                                              mask=qmask if with_mask else None)
+                                              reverse=reverse)
                         seq_dot_block = SequencerBlock(block_class=DotBlock,
                                                        params=[qlr_W, qlr_b],
                                                        sequences=[lstm.h],
                                                        output_names=['output'])
                         seq_sce_block = SequencerBlock(block_class=SoftmaxCeBlock,
                                                        params=[],
-                                                       sequences=[seq_dot_block.output, qtrue_labels],
-                                                       mask=qmask if with_mask else None)
+                                                       sequences=[seq_dot_block.output, qtrue_labels, qmask_list if with_mask else [None] * len(qx)])
                         qx.length = sequence_len
                         for e in qx:
                             e.fprop()

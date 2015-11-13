@@ -1,6 +1,3 @@
-import quagga
-# quagga.processor_type = 'cpu'
-
 import os
 import logging
 import numpy as np
@@ -47,11 +44,11 @@ def load_ptb_dataset():
     test_file_path = 'ptb_test.txt'
 
     if not os.path.exists(train_file_path):
-        urlretrieve('https://github.com/wojzaremba/lstm/raw/master/data/ptb.train.txt', train_file_path)
+        urlretrieve('https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.train.txt', train_file_path)
     if not os.path.exists(valid_file_path):
-        urlretrieve('https://github.com/wojzaremba/lstm/raw/master/data/ptb.valid.txt', valid_file_path)
+        urlretrieve('https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.valid.txt', valid_file_path)
     if not os.path.exists(test_file_path):
-        urlretrieve('https://github.com/wojzaremba/lstm/raw/master/data/ptb.tests.txt', test_file_path)
+        urlretrieve('https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.test.txt', test_file_path)
 
     vocab = {}
     idx_to_word = []
@@ -178,10 +175,6 @@ class PtbMiniBatchesGenerator(object):
         self.training_mode = False
 
     def fprop(self):
-        cudart.cuda_set_device(0)
-        cudart.cuda_device_synchronize()
-        cudart.cuda_set_device(1)
-        cudart.cuda_device_synchronize()
         if self.training_mode:
             offsets = next(self.train_offsets_iterator)
             sents = self.train_sents
