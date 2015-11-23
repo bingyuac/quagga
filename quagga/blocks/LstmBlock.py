@@ -13,7 +13,7 @@ class LstmBlock(object):
         :param prev_c: previous lstm cell state
         :param prev_h: previous lstm hidden state
 
-        TODO
+        TODO(sergii.gavrylov)
         """
 
         self.f_context = Context(device_id)
@@ -105,6 +105,8 @@ class LstmBlock(object):
         self.h.fprop()
 
     def bprop(self):
+        if not self.learning:
+            return
         dL_dc = self.c.backward_matrix
         dL_dh = self.h.backward_matrix
         if hasattr(self, 'mask'):

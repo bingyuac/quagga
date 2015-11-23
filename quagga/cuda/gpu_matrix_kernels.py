@@ -343,6 +343,18 @@ def assign_sequential_mean_pooling(stream, nrows, ncols, matrices, n, out):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._assignSequentialSumPooling.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assignSequentialSumPooling.argtypes = [cudart.ct_cuda_stream,
+                                                           ct.c_int,
+                                                           ct.c_int,
+                                                           ct.POINTER(ct.POINTER(ct.c_float)),
+                                                           ct.c_int,
+                                                           ct.POINTER(ct.c_float)]
+def assign_sequential_sum_pooling(stream, nrows, ncols, matrices, n, out):
+    status = gpu_matrix_kernels._assignSequentialSumPooling(stream, nrows, ncols, matrices, n, out)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._sequentiallyTile.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._sequentiallyTile.argtypes = [cudart.ct_cuda_stream,
                                                  ct.c_int,

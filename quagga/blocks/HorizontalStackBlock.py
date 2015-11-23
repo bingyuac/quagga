@@ -16,7 +16,6 @@ class HorizontalStackBlock(object):
         self.dL_dmatrices = []
         self.bpropagable = []
         for matrix in matrices:
-            print
             self.bpropagable.append(matrix.bpropagable)
             if matrix.bpropagable:
                 matrix, dL_dmatrix = matrix.register_usage(device_id, device_id)

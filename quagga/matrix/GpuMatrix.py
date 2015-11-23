@@ -153,13 +153,18 @@ class GpuMatrix(object):
             ncols = stop - start
             if isinstance(start, int):
                 data = self._get_pointer_to_column(start)
-                return GpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id, False, base=self)
+                a = GpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id, False, base=self)
+                a_proxy = weakref.proxy(a)
+                modif_handler = lambda: setattr(a_proxy, 'data', self_proxy._get_pointer_to_column(start))
+                self.nrows.add_modification_handler(modif_handler)
+                return a
             elif isinstance(start, ShapeElement):
                 data = self._get_pointer_to_column(start.value)
                 a = GpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id, False, base=self)
                 a_proxy = weakref.proxy(a)
                 modif_handler = lambda: setattr(a_proxy, 'data', self_proxy._get_pointer_to_column(start.value))
                 start.add_modification_handler(modif_handler)
+                self.nrows.add_modification_handler(modif_handler)
                 return a
         raise ValueError('This slice: {} is unsupported!'.format(key))
 
@@ -604,6 +609,19 @@ class GpuMatrix(object):
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         self.fill(context, 0.0)
         gpu_matrix_kernels.assign_sequential_mean_pooling(context.cuda_stream, self.nrows, self.ncols, device_pointer, n, self.data)
+
+    def assign_sequential_sum_pooling(self, context, matrices):
+        GpuMatrix.wait_matrices(context, *matrices)
+        self.last_modification_context = context
+        context.activate()
+
+        n = len(matrices)
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        device_pointer = _get_temp_memory(context, n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
+        self.fill(context, 0.0)
+        gpu_matrix_kernels.assign_sequential_sum_pooling(context.cuda_stream, self.nrows, self.ncols, device_pointer, n, self.data)
 
     @staticmethod
     def sequentially_tile(context, a, matrices):

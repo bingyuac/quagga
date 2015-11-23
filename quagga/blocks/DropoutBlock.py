@@ -4,7 +4,7 @@ from quagga.connector import Connector
 
 
 class DropoutBlock(object):
-    def __init__(self, x, dropout_prob, seed=42, device_id=None):
+    def __init__(self, dropout_prob, x, seed=42, device_id=None):
         self.dropout_prob = dropout_prob
         self.f_context = Context(device_id)
         device_id = self.f_context.device_id

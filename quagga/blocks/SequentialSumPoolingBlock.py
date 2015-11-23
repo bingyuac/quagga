@@ -1,11 +1,10 @@
-import ctypes as ct
 from itertools import izip
 from quagga.matrix import Matrix
 from quagga.context import Context
 from quagga.connector import Connector
 
 
-class SequentialMeanPoolingBlock(object):
+class SequentialSumPoolingBlock(object):
     # TODO(sergii): change sequentially_tile to add_sequentially_tile, because can erase gradients
     def __init__(self, matrices, device_id=None):
         self.context = Context(device_id)
@@ -20,10 +19,9 @@ class SequentialMeanPoolingBlock(object):
         self.length = matrices.length
 
     def fprop(self):
-        self.output.assign_sequential_mean_pooling(self.context, self.matrices[:self.length])
+        self.output.assign_sequential_sum_pooling(self.context, self.matrices[:self.length])
         self.output.fprop()
 
     def bprop(self):
         dL_doutput = self.output.backward_matrix
-        dL_doutput.scale(self.context, ct.c_float(1.0 / self.length))
         Matrix.sequentially_tile(self.context, dL_doutput, self.dL_dmatrices[:self.length])

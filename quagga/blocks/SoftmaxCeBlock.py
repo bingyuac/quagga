@@ -26,6 +26,8 @@ class SoftmaxCeBlock(object):
         self.x.softmax(self.context, self.probs)
 
     def bprop(self):
+        if not hasattr(self, 'dL_dx'):
+            return
         # error = (probs - true_labels) / M
         if self.true_labels.dtype == 'int':
             self.dL_dx.add_softmax_ce_derivative(self.context, self.probs, self.true_labels)

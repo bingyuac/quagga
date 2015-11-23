@@ -43,6 +43,6 @@ class SigmoidCeBlock(object):
     def _calculate_ce_loss(self, true_labels_np, probs_np, mask=None):
         logs = true_labels_np * np.log(probs_np + 1e-20) + \
                (1.0 - true_labels_np) * np.log(1. - probs_np + 1e-20)
-        if mask:
-            logs *= mask[:, 0]
+        if mask is not None:
+            logs *= mask
         self.loss = - np.mean(logs)

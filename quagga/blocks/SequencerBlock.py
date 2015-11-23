@@ -35,7 +35,7 @@ class SequencerBlock(object):
             k = self._length.value - 1 - k if reverse else k
             args = params + [s[k] for s in sequences]
             if prev_names:
-                if k == (self._length - 1 if reverse else 0):
+                if k == (self._length.value - 1 if reverse else 0):
                     prevs = paddings
                 else:
                     prev_block = self.blocks[-1]

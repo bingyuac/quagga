@@ -25,9 +25,9 @@ class DotBlock(object):
             self.x = x.register_usage(device_id)
 
         output = Matrix.empty(x.nrows, self.W.ncols, device_id=device_id)
-        if hasattr(self, 'dL_dW') or \
-                hasattr(self, 'dL_db') or \
-                hasattr(self, 'dL_dx'):
+        self.learning = hasattr(self, 'dL_dW') or hasattr(self, 'dL_db') or \
+                        hasattr(self, 'dL_dx')
+        if self.learning:
             self.b_context = Context(device_id)
             self.output = Connector(output, device_id)
         else:
@@ -40,6 +40,8 @@ class DotBlock(object):
         self.output.fprop()
 
     def bprop(self):
+        if not self.learning:
+            return
         dL_doutput = self.output.backward_matrix
         # dL/dW = x.T * dL_doutput
         if hasattr(self, 'dL_dW'):
