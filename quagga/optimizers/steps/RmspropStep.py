@@ -20,7 +20,7 @@ class RmspropStep(object):
 
     def notify(self):
         del self.blocking_contexts[:]
-        learning_rate = ct.c_float(-self.learning_rate_policy.learning_rate)
+        learning_rate = ct.c_float(-self.learning_rate_policy.value)
         for p, gsqr, context in izip(self.parameters, self.grad_sqr, self.contexts):
             dL_dp = p.backward_matrix
             self.blocking_contexts.append(dL_dp.last_modification_context)

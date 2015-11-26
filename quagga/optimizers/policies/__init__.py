@@ -1,4 +1,2 @@
-from quagga.optimizers.policies.FixedMomentumPolicy import FixedMomentumPolicy
-from quagga.optimizers.policies.ScheduledMomentumPolicy import ScheduledMomentumPolicy
-from quagga.optimizers.policies.FixedLearningRatePolicy import FixedLearningRatePolicy
-from quagga.optimizers.policies.ScheduledLearningRatePolicy import ScheduledLearningRatePolicy
+from quagga.optimizers.policies.FixedValuePolicy import FixedValuePolicy
+from quagga.optimizers.policies.ScheduledValuePolicy import ScheduledValuePolicy

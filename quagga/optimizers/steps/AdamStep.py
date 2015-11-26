@@ -29,7 +29,7 @@ class AdamStep(object):
     def notify(self):
         self.iteration += 1
         del self.blocking_contexts[:]
-        learning_rate = ct.c_float(-self.learning_rate_policy.learning_rate)
+        learning_rate = ct.c_float(-self.learning_rate_policy.value)
         learning_rate *= np.sqrt(1 - self.beta2**self.iteration) / (1 - self.beta1**self.iteration)
 
         for p, m, v, context in izip(self.parameters, self.m, self.v, self.contexts):

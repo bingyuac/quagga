@@ -1,7 +1,3 @@
 .idea
-<<<<<<< Updated upstream
 docs/_build
 *.pyc
-=======
-classifier_*.py
->>>>>>> Stashed changes

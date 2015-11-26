@@ -21,8 +21,8 @@ from quagga.utils.initializers import Orthogonal
 from quagga.optimizers.observers import Hdf5Saver
 from quagga.optimizers.observers import ValidLossTracker
 from quagga.optimizers.observers import TrainLossTracker
-from quagga.optimizers.policies import FixedMomentumPolicy
-from quagga.optimizers.policies import FixedLearningRatePolicy
+from quagga.optimizers.policies import FixedValuePolicy
+from quagga.optimizers.policies import FixedValuePolicy
 from quagga.optimizers.stopping_criteria import MaxIterCriterion
 
 
@@ -161,8 +161,8 @@ if __name__ == '__main__':
                    sce_dot_block, sce_block])
 
     logger = get_logger('train.log')
-    learning_rate_policy = FixedLearningRatePolicy(0.01)
-    momentum_policy = FixedMomentumPolicy(0.95)
+    learning_rate_policy = FixedValuePolicy(0.01)
+    momentum_policy = FixedValuePolicy(0.95)
     train_loss_tracker = TrainLossTracker(model, 200, logger)
     valid_loss_tracker = ValidLossTracker(model, 200, logger)
     saver = Hdf5Saver(p.parameters, 5000, 'mnist_parameters.hdf5', logger)

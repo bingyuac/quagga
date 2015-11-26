@@ -19,8 +19,8 @@ class MomentumStep(object):
 
     def notify(self):
         del self.blocking_contexts[:]
-        learning_rate = ct.c_float(-self.learning_rate_policy.learning_rate)
-        momentum = ct.c_float(self.momentum_policy.momentum)
+        learning_rate = ct.c_float(-self.learning_rate_policy.value)
+        momentum = ct.c_float(self.momentum_policy.value)
         for p, v, context in izip(self.parameters, self.velocity, self.contexts):
             dL_dp = p.backward_matrix
             self.blocking_contexts.append(dL_dp.last_modification_context)

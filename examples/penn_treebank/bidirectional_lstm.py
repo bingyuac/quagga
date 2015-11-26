@@ -23,8 +23,8 @@ from quagga.utils.initializers import Orthogonal
 from quagga.optimizers.observers import Hdf5Saver
 from quagga.optimizers.observers import ValidLossTracker
 from quagga.optimizers.observers import TrainLossTracker
-from quagga.optimizers.policies import FixedMomentumPolicy
-from quagga.optimizers.policies import FixedLearningRatePolicy
+from quagga.optimizers.policies import FixedValuePolicy
+from quagga.optimizers.policies import FixedValuePolicy
 from quagga.optimizers.stopping_criteria import MaxIterCriterion
 from quagga.optimizers.steps import NagStep, SparseSgdStep, SgdStep
 
@@ -281,14 +281,14 @@ if __name__ == '__main__':
                    seq_hstack, seq_dot_block, seq_sce_block])
 
     logger = get_logger('train.log')
-    momentum_policy = FixedMomentumPolicy(0.95)
+    momentum_policy = FixedValuePolicy(0.95)
     train_loss_tracker = TrainLossTracker(model, 100, logger)
     valid_loss_tracker = ValidLossTracker(model, 500, logger)
     saver = Hdf5Saver(p.trainable_parameters, 5000, 'ptb_parameters.hdf5', logger)
     trainable_parameters = dict(p.trainable_parameters)
-    sparse_sgd_step = SparseSgdStep([trainable_parameters['embd_W']], FixedLearningRatePolicy(0.01))
+    sparse_sgd_step = SparseSgdStep([trainable_parameters['embd_W']], FixedValuePolicy(0.01))
     del trainable_parameters['embd_W']
-    nag_step = NagStep(trainable_parameters.values(), FixedLearningRatePolicy(0.01), momentum_policy)
+    nag_step = NagStep(trainable_parameters.values(), FixedValuePolicy(0.01), momentum_policy)
     # nag_step = SgdStep(trainable_parameters.values(), learning_rate_policy)
     data_block.blocking_contexts = nag_step.blocking_contexts + sparse_sgd_step.blocking_contexts
     criterion = MaxIterCriterion(20000)
