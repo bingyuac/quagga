@@ -28,6 +28,16 @@ class Orthogonal(object):
         return np.asfortranarray(a, np.float32)
 
 
+class Xavier(object):
+    def __init__(self, nrows, ncols):
+        self.shape = (nrows, ncols)
+
+    def __call__(self):
+        amp = np.sqrt(6.0 / (self.shape[0] + self.shape[1]))
+        a = rng.uniform(-amp, amp, self.shape)
+        return np.asfortranarray(a, np.float32)
+
+
 class Uniform(object):
     def __init__(self, nrows, ncols, init_range=None):
         self.shape = (nrows, ncols)
