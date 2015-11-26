@@ -38,7 +38,7 @@ class HorizontalStackBlock(object):
             col_slices = []
             ncols = [0]
             for matrix, bpropagable in izip(self.matrices, self.bpropagable):
-                ncols.append(ncols[-1] + matrix.ncols)
+                ncols.append(ncols[-1] + int(matrix.ncols))
                 if bpropagable:
                     col_slices.append((ncols[-2], ncols[-1]))
             self.output.backward_matrix.hsplit(self.context, self.dL_dmatrices, col_slices)

@@ -442,7 +442,7 @@ class GpuMatrix(object):
     def assign_hstack(self, context, matrices):
         ncols = 0
         for matrix in matrices:
-            ncols += matrix.ncols
+            ncols += int(matrix.ncols)
             if matrix.nrows != self.nrows:
                 raise ValueError("The number of rows in the assigning matrix "
                                  "differs from the number of rows in buffers!")
@@ -551,7 +551,7 @@ class GpuMatrix(object):
     def assign_vstack(self, context, matrices):
         nrows = 0
         for matrix in matrices:
-            nrows += matrix.nrows
+            nrows += int(matrix.nrows)
             if matrix.ncols != self.ncols:
                 raise ValueError("The number of columns in the assigning matrix "
                                  "differs from the number of columns in buffers!")
@@ -586,7 +586,7 @@ class GpuMatrix(object):
         else:
             nrows = 0
             for matrix in matrices:
-                nrows += matrix.nrows
+                nrows += int(matrix.nrows)
                 if matrix.ncols != self.ncols:
                     raise ValueError("The number of columns in the matrix to be split "
                                      "differs from the number of columns in buffers!")
