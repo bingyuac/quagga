@@ -242,3 +242,22 @@ _libcublas.cublasSgemm_v2.argtypes = [ct_cublas_handle,
 def s_gemm(handle, transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc):
     status = _libcublas.cublasSgemm_v2(handle, op[transa], op[transb], m, n, k, ct.byref(alpha), a, lda, b, ldb, ct.byref(beta), c, ldc)
     check_status(status)
+
+
+_libcublas.cublasSgeam.restype = ct_cublas_status
+_libcublas.cublasSgeam.argtypes = [ct_cublas_handle,
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int,
+                                      ct.POINTER(ct.c_float),
+                                      ct.c_int]
+def s_geam(handle, transa, transb, m, n, alpha, a, lda, beta, b, ldb, c, ldc):
+    status = _libcublas.cublasSgeam(handle, op[transa], op[transb], m, n, ct.byref(alpha), a, lda, ct.byref(beta), b, ldb, c, ldc)
+    check_status(status)

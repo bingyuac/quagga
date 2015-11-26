@@ -660,3 +660,25 @@ gpu_matrix_kernels._clip.argtypes = [cudart.ct_cuda_stream,
 def clip(stream, nelems, min_value, max_value, data, out):
     status = gpu_matrix_kernels._clip(stream, nelems, min_value, max_value, data, out)
     cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._transposeFloat.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._transposeFloat.argtypes = [cudart.ct_cuda_stream,
+                                               ct.c_int,
+                                               ct.c_int,
+                                               ct.POINTER(ct.c_float),
+                                               ct.POINTER(ct.c_float)]
+def transpose_float(stream, nrows, ncols, in_, out):
+    status = gpu_matrix_kernels._transposeFloat(stream, nrows, ncols, in_, out)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._transposeInt.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._transposeInt.argtypes = [cudart.ct_cuda_stream,
+                                             ct.c_int,
+                                             ct.c_int,
+                                             ct.POINTER(ct.c_int),
+                                             ct.POINTER(ct.c_int)]
+def transpose_int(stream, nrows, ncols, in_, out):
+    status = gpu_matrix_kernels._transposeInt(stream, nrows, ncols, in_, out)
+    cudart.check_cuda_status(status)

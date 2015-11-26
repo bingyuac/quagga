@@ -290,6 +290,18 @@ class GpuMatrix(object):
         else:
             cudart.cuda_memcpy_async(self.data, a.data, a.nbytes, 'default', context.cuda_stream)
 
+    def assign_transpose(self, context, a):
+        GpuMatrix.wait_matrices(context, a)
+        self.last_modification_context = context
+        context.activate()
+
+        self.nrows, self.ncols = a.ncols, a.nrows
+
+        if self.dtype == 'float':
+            gpu_matrix_kernels.transpose_float(context.cuda_stream, a.nrows, a.ncols, a.data, self.data)
+        else:
+            gpu_matrix_kernels.transpose_int(context.cuda_stream, a.nrows, a.ncols, a.data, self.data)
+
     def assign_npa(self, context, a, nrows=None, ncols=None):
         """
         This method transfer data from `a` to allocated gpu memory

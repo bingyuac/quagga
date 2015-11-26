@@ -803,8 +803,48 @@ __global__ void clip(int nelems,
 	}
 }
 
+template <typename T>
+__global__ void transpose(int nrows,
+                          int ncols,
+					      const T* __restrict__ in,
+					      T* __restrict__ out) {
+	const int nthreads = blockDim.x * gridDim.x;
+	const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int nelems = nrows * ncols;
+
+    int out_row_idx;
+	int out_col_idx;
+	for (int i = start_i; i < nelems; i += nthreads) {
+	    out_col_idx= i % nrows;
+	    out_row_idx = i / nrows;
+		out[out_col_idx * ncols + out_row_idx] = in[i];
+	}
+}
+
 
 extern "C" {
+    cudaError_t _transposeFloat(cudaStream_t stream,
+                                int nrows,
+                                int ncols,
+                                const float* __restrict__ in,
+                                float* __restrict__ out) {
+        int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        transpose<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, in, out);
+        return cudaGetLastError();
+    }
+
+
+    cudaError_t _transposeInt(cudaStream_t stream,
+                              int nrows,
+                              int ncols,
+                              const int* __restrict__ in,
+                              int* __restrict__ out) {
+        int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        transpose<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, in, out);
+        return cudaGetLastError();
+    }
+
+
 	cudaError_t _clip(cudaStream_t stream,
 					  int nelems,
 					  float min_value,
