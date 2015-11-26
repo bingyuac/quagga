@@ -1,8 +1,8 @@
 class ScheduledValuePolicy(object):
-    def __init__(self, schedule, logger, name):
+    def __init__(self, schedule, name, logger):
         self.schedule = schedule
-        self.logger = logger
         self.name = name
+        self.logger = logger
         self.iteration = 0
         self.value = None
 

@@ -1,2 +1,3 @@
 from quagga.optimizers.policies.FixedValuePolicy import FixedValuePolicy
 from quagga.optimizers.policies.ScheduledValuePolicy import ScheduledValuePolicy
+from quagga.optimizers.policies.ConditionalValuePolicy import ConditionalValuePolicy
