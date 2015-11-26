@@ -6,7 +6,7 @@ from quagga.context import Context
 
 
 class AdamStep(object):
-    def __init__(self, parameters, learning_rate_policy, beta1=0.9, beta2=0.999, epsilon=1e-8):
+    def __init__(self, parameters, learning_rate_policy, beta1=0.9, beta2=0.999, epsilon=1e-5):
         self.parameters = parameters
         self.m = []
         self.v = []
@@ -36,8 +36,8 @@ class AdamStep(object):
             dL_dp = p.backward_matrix
             self.blocking_contexts.append(dL_dp.last_modification_context)
             # m[t+1] = beta1 * m[t] + (1 - beta1) * dL_dp
-            m.scale(context, self.beta1)
-            m.add_scaled(context, 1.0 - self.beta1, dL_dp)
+            m.scale(context, ct.c_float(self.beta1))
+            m.add_scaled(context, ct.c_float(1.0 - self.beta1), dL_dp)
 
             # v[t+1] = beta2 * v[t] + (1 - beta2) * dL_dp^2
             v.add_scaled_hprod(context, dL_dp, dL_dp, self.beta2, (1.0 - self.beta2))
