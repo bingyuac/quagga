@@ -41,7 +41,7 @@ class HorizontalStackBlock(object):
         ncols = sum(matrix.ncols for matrix in matrices)
         dtype = matrices[0].dtype
         bu_device_id = device_id if self.dL_dmatrices else None
-        output = Matrix.empty(matrices[0].nrows, ncols, dtype)
+        output = Matrix.empty(matrices[0].nrows, ncols, dtype, device_id)
         self.output = Connector(output, bu_device_id)
 
     def fprop(self):

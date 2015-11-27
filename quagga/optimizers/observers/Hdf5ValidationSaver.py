@@ -14,9 +14,9 @@
 # limitations under the License.
 # ----------------------------------------------------------------------------
 import h5py
-from threading import Thread
 import numpy as np
 from Queue import Queue
+from threading import Thread
 from quagga.context import Context
 
 
