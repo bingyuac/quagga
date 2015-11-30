@@ -26,6 +26,7 @@ class TrainLossTracker(object):
         self.context = self.loss_block.context
         self.period = period
         self.logger = logger
+        self.observers = []
         self.losses = []
         self.iteration = 0
         self.accumulate_loss = Context.callback(self.accumulate_loss)
@@ -38,6 +39,9 @@ class TrainLossTracker(object):
             self.context.add_callback(self.log_notify, self.iteration)
         self.iteration += 1
 
+    def add_observer(self, observer):
+        self.observers.append(observer)
+
     def accumulate_loss(self):
         loss = self.loss_block.loss
         if type(loss) is list:
@@ -46,6 +50,9 @@ class TrainLossTracker(object):
             self.losses.append(loss)
 
     def log_notify(self, iteration):
+        loss = np.mean(self.losses)
         self.logger.info('Iteration {}: train loss: {:.4f}'.
-                         format(iteration, np.mean(self.losses)))
+                         format(iteration, loss))
+        for observer in self.observers:
+            observer.notify(np.mean(loss))
         self.losses = []
