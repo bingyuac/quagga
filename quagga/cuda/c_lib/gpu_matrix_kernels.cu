@@ -276,11 +276,11 @@ __global__  void addScaledHadamardProduct(int nelems,
 
 
 __global__  void addScaledColumnsSlice(int nrows,
-                                         int ncols,
-                                         float alpha,
-                                         const float* __restrict__ dense_matrix,
-                                         const int* __restrict__ embedding_column_indxs,
-                                         float* __restrict__ embedding_matrix) {
+                                       int ncols,
+                                       float alpha,
+                                       const float* __restrict__ dense_matrix,
+                                       const int* __restrict__ embedding_column_indxs,
+                                       float* __restrict__ embedding_matrix) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -299,11 +299,11 @@ __global__  void addScaledColumnsSlice(int nrows,
 
 __global__  void addScaledRowsSlice(int nrows,
                                     int ncols,
-                                      float alpha,
-                                      const float* __restrict__ dense_matrix,
-                                      const int* __restrict__ embedding_row_indxs,
-                                      int embd_nrows,
-                                      float* __restrict__ embedding_matrix) {
+                                    float alpha,
+                                    const float* __restrict__ dense_matrix,
+                                    const int* __restrict__ embedding_row_indxs,
+                                    int embd_nrows,
+                                    float* __restrict__ embedding_matrix) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -377,11 +377,11 @@ __global__ void fill(int nelems,
 
 
 __global__ void matrixVectorRowAddition(int nrows,
-                                          int ncols,
-                                          const float* __restrict__ matrix,
-                                          float alpha,
-                                          const float* __restrict__ vector,
-                                          float* __restrict__ out) {
+                                        int ncols,
+                                        const float* __restrict__ matrix,
+                                        float alpha,
+                                        const float* __restrict__ vector,
+                                        float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -393,10 +393,10 @@ __global__ void matrixVectorRowAddition(int nrows,
 
 
 __global__ void assignScaledAddition(int nelems,
-                                       float alpha,
-                                       const float* __restrict__ a,
-                                       const float* __restrict__ b,
-                                       float* __restrict__ out) {
+                                     float alpha,
+                                     const float* __restrict__ a,
+                                     const float* __restrict__ b,
+                                     float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -407,10 +407,10 @@ __global__ void assignScaledAddition(int nelems,
 
 
 __global__ void assignScaledSubtraction(int nelems,
-                                          float alpha,
-                                           const float* __restrict__ a,
-                                           const float* __restrict__ b,
-                                           float* __restrict__ out) {
+                                        float alpha,
+                                        const float* __restrict__ a,
+                                        const float* __restrict__ b,
+                                        float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -421,10 +421,10 @@ __global__ void assignScaledSubtraction(int nelems,
 
 
 __global__ void addScaledSubtraction(int nelems,
-                                       float alpha,
-                                       const float* __restrict__ a,
-                                       const float* __restrict__ b,
-                                       float* __restrict__ out) {
+                                     float alpha,
+                                     const float* __restrict__ a,
+                                     const float* __restrict__ b,
+                                     float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -436,9 +436,9 @@ __global__ void addScaledSubtraction(int nelems,
 
 __global__ void softmaxCeDerivative(int batchSize,
                                     int numClasses,
-                                      const float* __restrict__ probs,
-                                      const int* __restrict__ targetClasses,
-                                      float* __restrict__ derivatives) {
+                                    const float* __restrict__ probs,
+                                    const int* __restrict__ targetClasses,
+                                    float* __restrict__ derivatives) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = batchSize * numClasses;
@@ -451,9 +451,9 @@ __global__ void softmaxCeDerivative(int batchSize,
 
 __global__ void addSoftmaxCeDerivative(int batchSize,
                                        int numClasses,
-                                         const float* __restrict__ probs,
-                                         const int* __restrict__ targetClasses,
-                                         float* __restrict__ derivatives) {
+                                       const float* __restrict__ probs,
+                                       const int* __restrict__ targetClasses,
+                                       float* __restrict__ derivatives) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = batchSize * numClasses;
@@ -466,10 +466,10 @@ __global__ void addSoftmaxCeDerivative(int batchSize,
 
 
 __global__ void assignSequentialMeanPooling(int nrows,
-                                             int ncols,
-                                             const float* matrices[],
-                                             int n,
-                                             float* __restrict__ out) {
+                                            int ncols,
+                                            const float* matrices[],
+                                            int n,
+                                            float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -485,10 +485,10 @@ __global__ void assignSequentialMeanPooling(int nrows,
 
 
 __global__ void assignSequentialSumPooling(int nrows,
-                                            int ncols,
-                                            const float* matrices[],
-                                            int n,
-                                            float* __restrict__ out) {
+                                           int ncols,
+                                           const float* matrices[],
+                                           int n,
+                                           float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -504,9 +504,9 @@ __global__ void assignSequentialSumPooling(int nrows,
 
 
 __global__ void sequentiallyTile(int nelems,
-                                  const float* __restrict__ a,
-                                  float* matrices[],
-                                  int n) {
+                                 const float* __restrict__ a,
+                                 float* matrices[],
+                                 int n) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int total_nelems = nelems * n;
@@ -535,9 +535,9 @@ __global__ void dropout(int nelems,
 
 
 __global__ void maskZeros(int nelems,
-                           const float* __restrict__ a,
-                           const float* __restrict__ b,
-                           float* __restrict__ out) {
+                          const float* __restrict__ a,
+                          const float* __restrict__ b,
+                          float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -548,9 +548,9 @@ __global__ void maskZeros(int nelems,
 
 
 __global__ void addMaskZeros(int nelems,
-                                const float* __restrict__ a,
-                                const float* __restrict__ b,
-                                float* __restrict__ out) {
+                            const float* __restrict__ a,
+                             const float* __restrict__ b,
+                             float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -561,10 +561,10 @@ __global__ void addMaskZeros(int nelems,
 
 
 __global__ void assignMaskedAddition(int nelems,
-                                        const float* __restrict__ mask,
-                                        const float* __restrict__ a,
-                                         const float* __restrict__ b,
-                                         float* __restrict__ out) {
+                                     const float* __restrict__ mask,
+                                     const float* __restrict__ a,
+                                     const float* __restrict__ b,
+                                     float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -575,11 +575,11 @@ __global__ void assignMaskedAddition(int nelems,
 
 
 __global__ void assignMaskedAdditionColumnBroadcasted(int nrows,
-                                                        int ncols,
-                                                         const float* __restrict__ mask,
-                                                         const float* __restrict__ a,
-                                                          const float* __restrict__ b,
-                                                          float* __restrict__ out) {
+                                                      int ncols,
+                                                      const float* __restrict__ mask,
+                                                      const float* __restrict__ a,
+                                                      const float* __restrict__ b,
+                                                      float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -593,9 +593,9 @@ __global__ void assignMaskedAdditionColumnBroadcasted(int nrows,
 
 
 __global__ void addHprodOneMinusMask(int nelems,
-                                        const float* __restrict__ mask,
-                                        const float* __restrict__ a,
-                                         float* __restrict__ out) {
+                                     const float* __restrict__ mask,
+                                     const float* __restrict__ a,
+                                     float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -606,10 +606,10 @@ __global__ void addHprodOneMinusMask(int nelems,
 
 
 __global__ void addHprodOneMinusMaskColumnBroadcasted(int nrows,
-                                                        int ncols,
-                                                         const float* __restrict__ mask,
-                                                         const float* __restrict__ a,
-                                                          float* __restrict__ out) {
+                                                      int ncols,
+                                                      const float* __restrict__ mask,
+                                                      const float* __restrict__ a,
+                                                      float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -621,10 +621,10 @@ __global__ void addHprodOneMinusMaskColumnBroadcasted(int nrows,
 
 
 __global__ void matrixVectorColumnHprod(int nrows,
-                                          int ncols,
-                                          const float* __restrict__ matrix,
-                                          const float* __restrict__ vector,
-                                          float* __restrict__ out) {
+                                        int ncols,
+                                        const float* __restrict__ matrix,
+                                        const float* __restrict__ vector,
+                                        float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -636,9 +636,9 @@ __global__ void matrixVectorColumnHprod(int nrows,
 
 
 __global__ void maskColumnNumbersRowWise(int nrows,
-                                          int ncols,
+                                         int ncols,
                                          const int* __restrict__ numbers,
-                                          float* __restrict__ out) {
+                                         float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -706,10 +706,10 @@ __global__ void batchHorizontalSplit(int n,
 
 
 __global__ void repeatAlongRow(int repeats,
-                                  int nrows,
-                                  int ncols,
-                                  const float* __restrict__ a,
-                                  float* __restrict__ out) {
+                               int nrows,
+                               int ncols,
+                               const float* __restrict__ a,
+                               float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -730,10 +730,10 @@ __global__ void repeatAlongRow(int repeats,
 
 
 __global__ void addRepeatAlongRowDerivative(int repeats,
-                                                const float* __restrict__ a,
-                                                int nrows,
-                                                int ncols,
-                                                float* __restrict__ derivative) {
+                                            const float* __restrict__ a,
+                                            int nrows,
+                                            int ncols,
+                                            float* __restrict__ derivative) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -754,10 +754,10 @@ __global__ void addRepeatAlongRowDerivative(int repeats,
 
 
 __global__ void repeatAlongCol(int repeats,
-                                  int nrows,
-                                  int ncols,
-                                  const float* __restrict__ a,
-                                  float* __restrict__ out) {
+                               int nrows,
+                               int ncols,
+                               const float* __restrict__ a,
+                               float* __restrict__ out) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -773,10 +773,10 @@ __global__ void repeatAlongCol(int repeats,
 
 
 __global__ void addRepeatAlongColDerivative(int repeats,
-                                                const float* __restrict__ a,
-                                                int nrows,
-                                                int ncols,
-                                                float* __restrict__ derivative) {
+                                            const float* __restrict__ a,
+                                            int nrows,
+                                            int ncols,
+                                            float* __restrict__ derivative) {
     const int nthreads = blockDim.x * gridDim.x;
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     const int nelems = nrows * ncols;
@@ -886,10 +886,10 @@ extern "C" {
 
     cudaError_t _repeatAlongRow(cudaStream_t stream,
                                 int repeats,
-                                   int nrows,
-                                   int ncols,
-                                   const float* __restrict__ a,
-                                   float* __restrict__ out) {
+                                int nrows,
+                                int ncols,
+                                const float* __restrict__ a,
+                                float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         repeatAlongRow<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(repeats, nrows, ncols, a, out);
         return cudaGetLastError();
@@ -897,10 +897,10 @@ extern "C" {
 
     cudaError_t _addRepeatAlongRowDerivative(cudaStream_t stream,
                                              int repeats,
-                                                 const float* __restrict__ a,
-                                                 int nrows,
-                                                 int ncols,
-                                                 float* __restrict__ derivative) {
+                                             const float* __restrict__ a,
+                                             int nrows,
+                                             int ncols,
+                                             float* __restrict__ derivative) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addRepeatAlongRowDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(repeats, a, nrows, ncols, derivative);
         return cudaGetLastError();
@@ -908,10 +908,10 @@ extern "C" {
 
     cudaError_t _repeatAlongCol(cudaStream_t stream,
                                 int repeats,
-                                   int nrows,
-                                   int ncols,
-                                   const float* __restrict__ a,
-                                   float* __restrict__ out) {
+                                int nrows,
+                                int ncols,
+                                const float* __restrict__ a,
+                                float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         repeatAlongCol<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(repeats, nrows, ncols, a, out);
         return cudaGetLastError();
@@ -919,10 +919,10 @@ extern "C" {
 
     cudaError_t _addRepeatAlongColDerivative(cudaStream_t stream,
                                              int repeats,
-                                                 const float* __restrict__ a,
-                                                 int nrows,
-                                                 int ncols,
-                                                 float* __restrict__ derivative) {
+                                             const float* __restrict__ a,
+                                             int nrows,
+                                             int ncols,
+                                             float* __restrict__ derivative) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addRepeatAlongColDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(repeats, a, nrows, ncols, derivative);
         return cudaGetLastError();
@@ -957,10 +957,10 @@ extern "C" {
 
 
     cudaError_t _maskColumnNumbersRowWise(cudaStream_t stream,
-                                             int nrows,
-                                             int ncols,
-                                             const int* __restrict__ numbers,
-                                             float* __restrict__ out) {
+                                          int nrows,
+                                          int ncols,
+                                          const int* __restrict__ numbers,
+                                          float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         maskColumnNumbersRowWise<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, numbers, out);
         return cudaGetLastError();
@@ -979,10 +979,10 @@ extern "C" {
 
 
     cudaError_t _addMaskZeros(cudaStream_t stream,
-                                int nelems,
-                                const float* __restrict__ a,
-                                const float* __restrict__ b,
-                                float* __restrict__ out) {
+                              int nelems,
+                              const float* __restrict__ a,
+                              const float* __restrict__ b,
+                              float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addMaskZeros<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, out);
         return cudaGetLastError();
@@ -1003,10 +1003,10 @@ extern "C" {
 
     cudaError_t _assignMaskedAddition(cudaStream_t stream,
                                       int nelems,
-                                         const float* __restrict__ mask,
-                                         const float* __restrict__ a,
-                                          const float* __restrict__ b,
-                                          float* __restrict__ out) {
+                                      const float* __restrict__ mask,
+                                      const float* __restrict__ a,
+                                      const float* __restrict__ b,
+                                      float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignMaskedAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, mask, a, b, out);
         return cudaGetLastError();
@@ -1015,11 +1015,11 @@ extern "C" {
 
     cudaError_t _assignMaskedAdditionColumnBroadcasted(cudaStream_t stream,
                                                        int nrows,
-                                                         int ncols,
-                                                          const float* __restrict__ mask,
-                                                          const float* __restrict__ a,
-                                                           const float* __restrict__ b,
-                                                           float* __restrict__ out) {
+                                                       int ncols,
+                                                       const float* __restrict__ mask,
+                                                       const float* __restrict__ a,
+                                                       const float* __restrict__ b,
+                                                       float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignMaskedAdditionColumnBroadcasted<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, mask, a, b, out);
         return cudaGetLastError();
@@ -1028,9 +1028,9 @@ extern "C" {
 
     cudaError_t _addHprodOneMinusMask(cudaStream_t stream,
                                       int nelems,
-                                         const float* __restrict__ mask,
-                                         const float* __restrict__ a,
-                                          float* __restrict__ out) {
+                                      const float* __restrict__ mask,
+                                      const float* __restrict__ a,
+                                      float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addHprodOneMinusMask<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, mask, a, out);
         return cudaGetLastError();
@@ -1039,10 +1039,10 @@ extern "C" {
 
     cudaError_t _addHprodOneMinusMaskColumnBroadcasted(cudaStream_t stream,
                                                        int nrows,
-                                                         int ncols,
-                                                          const float* __restrict__ mask,
-                                                          const float* __restrict__ a,
-                                                           float* __restrict__ out) {
+                                                       int ncols,
+                                                       const float* __restrict__ mask,
+                                                       const float* __restrict__ a,
+                                                       float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols- 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addHprodOneMinusMaskColumnBroadcasted<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, mask, a, out);
         return cudaGetLastError();
@@ -1050,11 +1050,11 @@ extern "C" {
 
 
     cudaError_t _horizontalSliceSplit(cudaStream_t stream,
-                                         int n,
-                                         int* col_slices,
-                                         int nrows,
-                                         float** matrices,
-                                         float* stacked) {
+                                      int n,
+                                      int* col_slices,
+                                      int nrows,
+                                      float** matrices,
+                                      float* stacked) {
         size_t float_size = sizeof(float);
         int nelems;
         int offset = 0;
@@ -1069,10 +1069,10 @@ extern "C" {
 
     cudaError_t _horizontalSplit(cudaStream_t stream,
                                  int n,
-                                   int* ncols,
-                                    int nrows,
-                                    float** matrices,
-                                    float* stacked) {
+                                 int* ncols,
+                                 int nrows,
+                                 float** matrices,
+                                 float* stacked) {
         size_t float_size = sizeof(float);
         int nelems;
         int offset = 0;
@@ -1086,11 +1086,11 @@ extern "C" {
     }
 
     cudaError_t _horizontalStack(cudaStream_t stream,
-                                    int n,
-                                    int* ncols,
-                                    int nrows,
-                                    float** matrices,
-                                    float* stacked) {
+                                 int n,
+                                 int* ncols,
+                                 int nrows,
+                                 float** matrices,
+                                 float* stacked) {
         size_t float_size = sizeof(float);
         int nelems;
         int offset = 0;
@@ -1105,12 +1105,12 @@ extern "C" {
 
 
     cudaError_t _verticalSliceSplit(cudaStream_t stream,
-                                       int n,
-                                       int* row_slices,
-                                       int nrows,
-                                       int ncols,
-                                       float** matrices,
-                                       float* stacked) {
+                                    int n,
+                                    int* row_slices,
+                                    int nrows,
+                                    int ncols,
+                                    float** matrices,
+                                    float* stacked) {
         size_t float_size = sizeof(float);
         float* column_address;
         int offset = 0;
@@ -1184,11 +1184,11 @@ extern "C" {
 
 
     cudaError_t _sliceColumnsAndTranspose(cudaStream_t stream,
-                                            int nrows,
-                                            int ncols,
-                                            const int* __restrict__ embedding_column_indxs,
-                                            const float* __restrict__ embedding_matrix,
-                                            float* __restrict__ dense_matrix) {
+                                          int nrows,
+                                          int ncols,
+                                          const int* __restrict__ embedding_column_indxs,
+                                          const float* __restrict__ embedding_matrix,
+                                          float* __restrict__ dense_matrix) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         sliceColumnsAndTranspose<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, embedding_column_indxs, embedding_matrix, dense_matrix);
         return cudaGetLastError();
@@ -1196,12 +1196,12 @@ extern "C" {
 
 
     cudaError_t _sliceRowsFloat(cudaStream_t stream,
-                                   int embedding_matrix_nrows,
-                                   const int* __restrict__ embedding_row_indxs,
-                                   const float* __restrict__ embedding_matrix,
-                                   int nrows,
-                                   int ncols,
-                                   float* __restrict__ dense_matrix) {
+                                int embedding_matrix_nrows,
+                                const int* __restrict__ embedding_row_indxs,
+                                const float* __restrict__ embedding_matrix,
+                                int nrows,
+                                int ncols,
+                                float* __restrict__ dense_matrix) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         sliceRows<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix);
         return cudaGetLastError();
@@ -1209,12 +1209,12 @@ extern "C" {
 
 
     cudaError_t _sliceRowsInt(cudaStream_t stream,
-                                 int embedding_matrix_nrows,
-                                 const int* __restrict__ embedding_row_indxs,
-                                 const int* __restrict__ embedding_matrix,
-                                 int nrows,
-                                 int ncols,
-                                 int* __restrict__ dense_matrix) {
+                              int embedding_matrix_nrows,
+                              const int* __restrict__ embedding_row_indxs,
+                              const int* __restrict__ embedding_matrix,
+                              int nrows,
+                              int ncols,
+                              int* __restrict__ dense_matrix) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols  - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         sliceRows<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embedding_matrix_nrows, embedding_row_indxs, embedding_matrix, nrows, ncols, dense_matrix);
         return cudaGetLastError();
@@ -1313,7 +1313,7 @@ extern "C" {
 
     cudaError_t _hadamardProduct2(cudaStream_t stream,
                                   int nelems,
-                                   const float* __restrict__ a,
+                                  const float* __restrict__ a,
                                   const float* __restrict__ b,
                                   float* __restrict__ c) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
@@ -1324,7 +1324,7 @@ extern "C" {
 
     cudaError_t _hadamardProduct3(cudaStream_t stream,
                                   int nelems,
-                                   const float* __restrict__ a,
+                                  const float* __restrict__ a,
                                   const float* __restrict__ b,
                                   const float* __restrict__ c,
                                   float* __restrict__ d) {
@@ -1335,11 +1335,11 @@ extern "C" {
 
 
     cudaError_t _addHadamardProduct2(cudaStream_t stream,
-                                        int nelems,
-                                         const float* __restrict__ a,
-                                        const float* __restrict__ b,
-                                        float alpha,
-                                        float* __restrict__ c) {
+                                     int nelems,
+                                     const float* __restrict__ a,
+                                     const float* __restrict__ b,
+                                     float alpha,
+                                     float* __restrict__ c) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addHadamardProduct<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, b, alpha, c);
         return cudaGetLastError();
@@ -1348,7 +1348,7 @@ extern "C" {
 
     cudaError_t _addHadamardProduct3(cudaStream_t stream,
                                      int nelems,
-                                      const float* __restrict__ a,
+                                     const float* __restrict__ a,
                                      const float* __restrict__ b,
                                      const float* __restrict__ c,
                                      float alpha,
@@ -1373,12 +1373,12 @@ extern "C" {
 
 
     cudaError_t _addScaledColumnsSlice(cudaStream_t stream,
-                                         int nrows,
-                                         int ncols,
-                                         float alpha,
-                                         const float* __restrict__ dense_matrix,
-                                         const int* __restrict__ embedding_column_indxs,
-                                         float* __restrict__ embedding_matrix) {
+                                       int nrows,
+                                       int ncols,
+                                       float alpha,
+                                       const float* __restrict__ dense_matrix,
+                                       const int* __restrict__ embedding_column_indxs,
+                                       float* __restrict__ embedding_matrix) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addScaledColumnsSlice<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, alpha, dense_matrix, embedding_column_indxs, embedding_matrix);
         return cudaGetLastError();
@@ -1387,12 +1387,12 @@ extern "C" {
 
     cudaError_t _addScaledRowsSlice(cudaStream_t stream,
                                     int nrows,
-                                      int ncols,
-                                      float alpha,
-                                      const float* __restrict__ dense_matrix,
-                                      const int* __restrict__ embedding_row_indxs,
-                                      int embd_nrows,
-                                      float* __restrict__ embedding_matrix) {
+                                    int ncols,
+                                    float alpha,
+                                    const float* __restrict__ dense_matrix,
+                                    const int* __restrict__ embedding_row_indxs,
+                                    int embd_nrows,
+                                    float* __restrict__ embedding_matrix) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addScaledRowsSlice<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, alpha, dense_matrix, embedding_row_indxs, embd_nrows, embedding_matrix);
         return cudaGetLastError();
@@ -1400,10 +1400,10 @@ extern "C" {
 
 
     cudaError_t _add_sum(cudaStream_t stream,
-                     int nelems,
-                     const float* matrices[],
-                     int n,
-                     float* __restrict__ s) {
+                         int nelems,
+                         const float* matrices[],
+                         int n,
+                         float* __restrict__ s) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addSum<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, matrices, n, s);
         return cudaGetLastError();
@@ -1411,10 +1411,10 @@ extern "C" {
 
 
     cudaError_t _assign_sum(cudaStream_t stream,
-                             int nelems,
-                             const float* matrices[],
-                             int n,
-                             float* __restrict__ s) {
+                            int nelems,
+                            const float* matrices[],
+                            int n,
+                            float* __restrict__ s) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignSum<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, matrices, n, s);
         return cudaGetLastError();
@@ -1444,11 +1444,11 @@ extern "C" {
 
     cudaError_t _matrixVectorRowAddition(cudaStream_t stream,
                                          int nrows,
-                                           int ncols,
-                                           const float* __restrict__ matrix,
-                                           float alpha,
-                                           const float* __restrict__ vector,
-                                           float* __restrict__ out) {
+                                         int ncols,
+                                         const float* __restrict__ matrix,
+                                         float alpha,
+                                         const float* __restrict__ vector,
+                                         float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         matrixVectorRowAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrix, alpha, vector, out);
         return cudaGetLastError();
@@ -1456,22 +1456,22 @@ extern "C" {
 
 
     cudaError_t _assignSequentialMeanPooling(cudaStream_t stream,
-                                               int nrows,
-                                               int ncols,
-                                              const float* matrices[],
-                                              int n,
-                                              float* __restrict__ out) {
+                                             int nrows,
+                                             int ncols,
+                                             const float* matrices[],
+                                             int n,
+                                             float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignSequentialMeanPooling<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrices, n, out);
         return cudaGetLastError();
     }
 
     cudaError_t _assignSequentialSumPooling(cudaStream_t stream,
-                                              int nrows,
-                                              int ncols,
-                                             const float* matrices[],
-                                             int n,
-                                             float* __restrict__ out) {
+                                            int nrows,
+                                            int ncols,
+                                            const float* matrices[],
+                                            int n,
+                                            float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignSequentialSumPooling<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrices, n, out);
         return cudaGetLastError();
@@ -1479,10 +1479,10 @@ extern "C" {
 
 
     cudaError_t _sequentiallyTile(cudaStream_t stream,
-                                       int nelems,
-                                   const float* __restrict__ a,
-                                   float* matrices[],
-                                   int n) {
+                                  int nelems,
+                                  const float* __restrict__ a,
+                                  float* matrices[],
+                                  int n) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         sequentiallyTile<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, a, matrices, n);
         return cudaGetLastError();
@@ -1490,11 +1490,11 @@ extern "C" {
 
 
     cudaError_t _assignScaledAddition(cudaStream_t stream,
-                                             int nelems,
-                                        float alpha,
-                                        const float* __restrict__ a,
-                                        const float* __restrict__ b,
-                                        float* __restrict__ out) {
+                                      int nelems,
+                                      float alpha,
+                                      const float* __restrict__ a,
+                                      const float* __restrict__ b,
+                                      float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignScaledAddition<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
         return cudaGetLastError();
@@ -1502,11 +1502,11 @@ extern "C" {
 
 
     cudaError_t _assignScaledSubtraction(cudaStream_t stream,
-                                                  int nelems,
-                                             float alpha,
-                                             const float* __restrict__ a,
-                                             const float* __restrict__ b,
-                                             float* __restrict__ out) {
+                                         int nelems,
+                                         float alpha,
+                                         const float* __restrict__ a,
+                                         const float* __restrict__ b,
+                                         float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignScaledSubtraction<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
         return cudaGetLastError();
@@ -1514,11 +1514,11 @@ extern "C" {
 
 
     cudaError_t _addScaledSubtraction(cudaStream_t stream,
-                                             int nelems,
-                                        float alpha,
-                                        const float* __restrict__ a,
-                                        const float* __restrict__ b,
-                                        float* __restrict__ out) {
+                                      int nelems,
+                                      float alpha,
+                                      const float* __restrict__ a,
+                                      const float* __restrict__ b,
+                                      float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addScaledSubtraction<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, alpha, a, b, out);
         return cudaGetLastError();
@@ -1526,11 +1526,11 @@ extern "C" {
 
 
     cudaError_t _softmaxCeDerivative(cudaStream_t stream,
-                                            int batchSize,
+                                     int batchSize,
                                      int numClasses,
-                                       const float* __restrict__ probs,
-                                       const int* __restrict__ targetClasses,
-                                       float* __restrict__ derivatives) {
+                                     const float* __restrict__ probs,
+                                     const int* __restrict__ targetClasses,
+                                     float* __restrict__ derivatives) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (batchSize * numClasses - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         softmaxCeDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(batchSize, numClasses, probs, targetClasses, derivatives);
         return cudaGetLastError();
@@ -1538,11 +1538,11 @@ extern "C" {
 
 
     cudaError_t _addSoftmaxCeDerivative(cudaStream_t stream,
-                                               int batchSize,
+                                        int batchSize,
                                         int numClasses,
-                                          const float* __restrict__ probs,
-                                          const int* __restrict__ targetClasses,
-                                          float* __restrict__ derivatives) {
+                                        const float* __restrict__ probs,
+                                        const int* __restrict__ targetClasses,
+                                        float* __restrict__ derivatives) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (batchSize * numClasses - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         addSoftmaxCeDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(batchSize, numClasses, probs, targetClasses, derivatives);
         return cudaGetLastError();
@@ -1551,10 +1551,10 @@ extern "C" {
 
     cudaError_t _matrixVectorColumnHprod(cudaStream_t stream,
                                          int nrows,
-                                           int ncols,
-                                           const float* __restrict__ matrix,
-                                           const float* __restrict__ vector,
-                                           float* out) {
+                                         int ncols,
+                                         const float* __restrict__ matrix,
+                                         const float* __restrict__ vector,
+                                         float* out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         matrixVectorColumnHprod<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrix, vector, out);
         return cudaGetLastError();
