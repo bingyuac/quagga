@@ -34,7 +34,7 @@ from quagga.blocks import ParameterContainer
 from quagga.utils.initializers import Constant
 from quagga.utils.initializers import Orthogonal
 from quagga.optimizers.observers import Hdf5Saver
-from quagga.optimizers.observers import ValidLossTracker
+from quagga.optimizers.observers import ValidTracker, LossForValidTracker
 from quagga.optimizers.observers import TrainLossTracker
 from quagga.optimizers.policies import FixedValuePolicy
 from quagga.optimizers.policies import FixedValuePolicy
@@ -179,7 +179,9 @@ if __name__ == '__main__':
     learning_rate_policy = FixedValuePolicy(0.01)
     momentum_policy = FixedValuePolicy(0.95)
     train_loss_tracker = TrainLossTracker(model, 200, logger)
-    valid_loss_tracker = ValidLossTracker(model, 200, logger)
+    valid_tracker = ValidTracker(model, 200, logger)
+    loss_tracker = LossForValidTracker(logger)
+    valid_tracker.add_observer(loss_tracker)
     saver = Hdf5Saver(p.parameters, 5000, 'mnist_parameters.hdf5', logger)
     nag_step = NagStep(p.parameters.values(), learning_rate_policy, momentum_policy)
     data_block.blocking_contexts = nag_step.blocking_contexts
@@ -188,7 +190,7 @@ if __name__ == '__main__':
     optimizer = Optimizer(criterion, model)
     optimizer.add_observer(nag_step)
     optimizer.add_observer(train_loss_tracker)
-    optimizer.add_observer(valid_loss_tracker)
+    optimizer.add_observer(valid_tracker)
     optimizer.add_observer(saver)
     optimizer.add_observer(criterion)
     optimizer.optimize()

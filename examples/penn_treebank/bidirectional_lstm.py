@@ -36,7 +36,7 @@ from quagga.utils.initializers import Constant
 from quagga.blocks import HorizontalStackBlock
 from quagga.utils.initializers import Orthogonal
 from quagga.optimizers.observers import Hdf5Saver
-from quagga.optimizers.observers import ValidLossTracker
+from quagga.optimizers.observers import ValidTracker, LossForValidTracker
 from quagga.optimizers.observers import TrainLossTracker
 from quagga.optimizers.policies import FixedValuePolicy
 from quagga.optimizers.policies import FixedValuePolicy
@@ -298,7 +298,9 @@ if __name__ == '__main__':
     logger = get_logger('train.log')
     momentum_policy = FixedValuePolicy(0.95)
     train_loss_tracker = TrainLossTracker(model, 100, logger)
-    valid_loss_tracker = ValidLossTracker(model, 500, logger)
+    valid_tracker = ValidTracker(model, 500, logger)
+    loss_tracker = LossForValidTracker(logger)
+    valid_tracker.add_observer(loss_tracker)
     saver = Hdf5Saver(p.trainable_parameters, 5000, 'ptb_parameters.hdf5', logger)
     trainable_parameters = dict(p.trainable_parameters)
     sparse_sgd_step = SparseSgdStep([trainable_parameters['embd_W']], FixedValuePolicy(0.01))
@@ -312,7 +314,7 @@ if __name__ == '__main__':
     optimizer.add_observer(sparse_sgd_step)
     optimizer.add_observer(nag_step)
     optimizer.add_observer(train_loss_tracker)
-    optimizer.add_observer(valid_loss_tracker)
+    optimizer.add_observer(valid_tracker)
     optimizer.add_observer(saver)
     optimizer.add_observer(criterion)
     optimizer.optimize()
