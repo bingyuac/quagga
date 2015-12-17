@@ -14,8 +14,6 @@
 # limitations under the License.
 # ----------------------------------------------------------------------------
 from quagga.blocks.LstmBlock import LstmBlock
-from quagga.blocks.TrickyLstmBlock import TrickyLstmBlock
-from quagga.blocks.TrickyTrickyLstmBlock import TrickyTrickyLstmBlock
 from quagga.blocks.MeanPoolingBlock import MeanPoolingBlock
 from quagga.blocks.DotBlock import DotBlock
 from quagga.blocks.SequentialMeanPoolingBlock import SequentialMeanPoolingBlock
@@ -33,4 +31,3 @@ from quagga.blocks.LastSelectorBlock import LastSelectorBlock
 from quagga.blocks.ParameterContainer import ParameterContainer
 from quagga.blocks.RowSlicingBlock import RowSlicingBlock
 from quagga.blocks.RepeatBlock import RepeatBlock
-from quagga.blocks.ListSlicingBlock import ListSlicingBlock
