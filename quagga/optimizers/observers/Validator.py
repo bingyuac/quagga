@@ -13,37 +13,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-import numpy as np
 from quagga.context import Context
 
 
-class LossForValidTracker(object):
+class Validator(object):
     def __init__(self, model, period, logger):
         self.model = model
         self.period = period
         self.logger = logger
         self.observers = []
-        self.losses = []
         self.iteration = 0
-        self.calculate_loss = Context.callback(self.calculate_loss)
+        self.notify_observers = Context.callback(self.notify_observers)
 
-    def calculate(self, context, loss_block):
-        loss_block.calculate_loss(context)
-        context.add_callback(self.calculate_loss, self.losses)
+    def notify(self):
+        if self.iteration % self.period == 0 and self.iteration != 0:
+            self.model.set_testing_mode()
+            # we must use this context otherwise we can't guarantee that
+            # calculated loss will be correct
+            context = self.model.loss_block.context
+            loss_block = self.model.loss_block
+            try:
+                while True:
+                    self.model.fprop()
+                    for observer in self.observers:
+                        observer.calculate(loss_block, context)
+            except StopIteration:
+                context.add_callback(self.notify_observers, self.iteration)
+            self.model.set_training_mode()
+        self.iteration += 1
 
     def add_observer(self, observer):
         self.observers.append(observer)
 
-    def accumulate_loss(self):
-        loss = self.model.loss_block.loss
-        if type(loss) is list:
-            self.losses.extend(loss)
-        else:
-            self.losses.append(loss)
-
-    def notify(self, iteration):
-        loss = np.mean(self.losses)
-        self.logger.info('Iteration {}: valid loss: {:.4f}'.
-                         format(iteration, loss))
+    def notify_observers(self, iteration):
         for observer in self.observers:
-            observer.notify(loss)
+            observer.notify(iteration)

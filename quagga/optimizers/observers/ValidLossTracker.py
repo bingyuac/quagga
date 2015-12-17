@@ -17,34 +17,31 @@ import numpy as np
 from quagga.context import Context
 
 
-class AccuracyTracker(object):
+class ValidLossTracker(object):
     def __init__(self, logger):
-        self.observers = []
         self.logger = logger
-        self.accuracy = []
-        self.calculate_accuracy = Context.callback(self.calculate_accuracy)
+        self.observers = []
+        self.losses = []
+        self.accumulate_loss = Context.callback(self.accumulate_loss)
 
     def calculate(self, context, loss_block):
-        probs = loss_block.probs.to_host(context)
-        true_labels = loss_block.true_labels.to_host(context)
-        context.add_callback(self.calculate_accuracy, probs, true_labels)
+        loss_block.calculate_loss(context)
+        context.add_callback(self.accumulate_loss, loss_block)
+
+    def accumulate_loss(self, loss_block):
+        loss = loss_block.loss
+        if type(loss) is list:
+            self.losses.extend(loss)
+        else:
+            self.losses.append(loss)
 
     def add_observer(self, observer):
         self.observers.append(observer)
 
-    def calculate_accuracy(self, probs, true_labels):
-        if true_labels.shape[1] == 1:
-            predicted_idx = np.argmax(probs, axis=1)
-            true_labels = true_labels[:, 0]
-            self.accuracy.append(np.sum(predicted_idx == true_labels) / float(len(true_labels)))
-        else:
-            # TODO(sergii)
-            pass
-
     def notify(self, iteration):
-        accuracy_mean = np.mean(self.accuracy)
-        self.logger.info('Iteration {}: valid accuracy: {:.4f}'.
-                         format(iteration, accuracy_mean))
-        self.accuracy = []
+        loss = np.mean(self.losses)
+        self.losses = []
+        self.logger.info('Iteration {}: valid loss: {:.4f}'.
+                         format(iteration, loss))
         for observer in self.observers:
-            observer.notify(accuracy_mean)
+            observer.notify(loss)
