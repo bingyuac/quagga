@@ -17,10 +17,9 @@ from quagga.context import Context
 
 
 class Validator(object):
-    def __init__(self, model, period, logger):
+    def __init__(self, model, period):
         self.model = model
         self.period = period
-        self.logger = logger
         self.observers = []
         self.iteration = 0
         self.notify_observers = Context.callback(self.notify_observers)
@@ -36,7 +35,7 @@ class Validator(object):
                 while True:
                     self.model.fprop()
                     for observer in self.observers:
-                        observer.calculate(loss_block, context)
+                        observer.calculate(context, loss_block)
             except StopIteration:
                 context.add_callback(self.notify_observers, self.iteration)
             self.model.set_training_mode()

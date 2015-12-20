@@ -51,8 +51,8 @@ class TrainLossTracker(object):
 
     def log_notify(self, iteration):
         loss = np.mean(self.losses)
+        self.losses = []
         self.logger.info('Iteration {}: train loss: {:.4f}'.
                          format(iteration, loss))
         for observer in self.observers:
             observer.notify(np.mean(loss))
-        self.losses = []
