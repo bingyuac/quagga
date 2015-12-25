@@ -1,5 +1,5 @@
-Layer base classes
-------------------
+HorizontalStackBlock block
+--------------------------
 
 .. automodule:: quagga.blocks.HorizontalStackBlock
 
