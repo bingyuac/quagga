@@ -13,19 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-import ctypes as ct
+import numpy as np
+from quagga.matrix import Matrix
 from quagga.context import Context
 
 
-class L2RegularizationBlock(object):
-    def __init__(self, x, regularization_value):
-        self.context = Context(x.device_id)
-        device_id = self.context.device_id
-        if x.bpropagable:
-            self.x, self.dL_dx = x.register_usage(device_id, device_id)
-        else:
-            self.x = x.register_usage(device_id)
-        self.reg_value = ct.c_float(2 * regularization_value)
+class SigmoidBlock(object):
+    """
+    Sigmoid nonlinearity
+    """
 
-    def bprop(self):
-        self.dL_dx.add_scaled(self.context, self.reg_value, self.x)
+    def __init__(self, x, device_id=None):
+        self.context = Context(device_id)
+        device_id = self.context.device_id
+        self.x = x.register_usage(device_id)
+        self.probs = Matrix.empty_like(self.x)
+
+    def fprop(self):
+        self.x.sigmoid(self.context, self.probs)

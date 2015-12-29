@@ -75,9 +75,11 @@ class SequencerBlock(object):
 
     def fprop(self):
         if self.reverse:
+            if self.prev_names:
+                self.disconnect_prev_first_block_with_padding()
             max_input_sequence_len = len(self.blocks)
             start_k = max_input_sequence_len - self._length.value
-            if start_k and self.prev_names:
+            if 0 < start_k < max_input_sequence_len and self.prev_names:
                 self.connect_block_with_padding(start_k)
             generator = xrange(start_k, max_input_sequence_len)
         else:
@@ -99,7 +101,6 @@ class SequencerBlock(object):
             self.blocks[k].bprop()
 
     def connect_block_with_padding(self, k):
-        self.disconnect_prev_first_block_with_padding()
         for name in self.prev_names:
             name = 'prev_' + name
             self.temp_prev.append(getattr(self.blocks[k], name))
