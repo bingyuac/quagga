@@ -1447,8 +1447,8 @@ class TestMatrix(TestCase):
             a_gpu = GpuMatrix.from_npa(a)
             indxs_gpu = GpuMatrix.empty(a_gpu.nrows, 1, dtype='int')
 
-            a_cpu.column_argmax(self.cpu_context, indxs_cpu)
-            a_gpu.column_argmax(self.gpu_context, indxs_gpu)
+            a_cpu.argmax(self.cpu_context, indxs_cpu)
+            a_gpu.argmax(self.gpu_context, indxs_gpu)
 
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
 

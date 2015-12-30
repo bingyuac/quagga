@@ -1116,7 +1116,7 @@ class GpuMatrix(object):
             k = b.nrows if matrix_operation_b == 'N' else b.ncols
             cublas.s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
 
-    def column_argmax(self, context, out, axis=1):
+    def argmax(self, context, out, axis=1):
         GpuMatrix.wait_matrices(context, self)
         out.last_modification_context = context
         context.activate()

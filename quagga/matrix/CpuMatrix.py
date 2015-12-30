@@ -630,5 +630,5 @@ class CpuMatrix(object):
         b = b.npa if matrix_operation_b == 'N' else b.npa.T
         self.npa += alpha * np.dot(a, b)
 
-    def column_argmax(self, context, out, axis=1):
+    def argmax(self, context, out, axis=1):
         out.npa[:, 0] = np.argmax(self.npa, axis=axis)
