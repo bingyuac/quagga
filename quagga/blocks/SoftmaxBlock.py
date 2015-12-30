@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------------
 from quagga.matrix import Matrix
 from quagga.context import Context
+from quagga.connector import Connector
 
 
 class SoftmaxBlock(object):
@@ -26,7 +27,8 @@ class SoftmaxBlock(object):
         self.context = Context(device_id)
         device_id = self.context.device_id
         self.x = x.register_usage(device_id)
-        self.probs = Matrix.empty_like(self.x)
+        self.probs = Connector(Matrix.empty_like(self.x))
 
     def fprop(self):
         self.x.softmax(self.context, self.probs)
+        self.probs.fprop()

@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-import numpy as np
 from quagga.matrix import Matrix
 from quagga.context import Context
+from quagga.connector import Connector
 
 
 class SigmoidBlock(object):
@@ -27,7 +27,8 @@ class SigmoidBlock(object):
         self.context = Context(device_id)
         device_id = self.context.device_id
         self.x = x.register_usage(device_id)
-        self.probs = Matrix.empty_like(self.x)
+        self.probs = Connector(Matrix.empty_like(self.x))
 
     def fprop(self):
         self.x.sigmoid(self.context, self.probs)
+        self.probs.fprop()

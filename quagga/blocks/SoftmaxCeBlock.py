@@ -16,6 +16,7 @@
 import numpy as np
 from quagga.matrix import Matrix
 from quagga.context import Context
+from quagga.connector import Connector
 
 
 class SoftmaxCeBlock(object):
@@ -31,14 +32,15 @@ class SoftmaxCeBlock(object):
         else:
             self.x = x.register_usage(device_id)
         self.true_labels = true_labels.register_usage(device_id)
-        self.probs = Matrix.empty_like(self.x)
         if mask:
             self.mask = mask.register_usage(device_id)
+        self.probs = Connector(Matrix.empty_like(self.x))
         self.loss = None
         self._calculate_ce_loss = Context.callback(self._calculate_ce_loss)
 
     def fprop(self):
         self.x.softmax(self.context, self.probs)
+        self.probs.fprop()
 
     def bprop(self):
         if not hasattr(self, 'dL_dx'):
