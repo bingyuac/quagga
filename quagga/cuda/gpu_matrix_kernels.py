@@ -198,6 +198,17 @@ def sum_hprod_11(stream, nelems, a, b, c, d, e, f, g, h, i, j, k, l):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._columnArgmax.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._columnArgmax.argtypes = [cudart.ct_cuda_stream,
+                                             ct.c_int,
+                                             ct.c_int,
+                                             ct.POINTER(ct.c_float),
+                                             ct.POINTER(ct.c_int)]
+def column_argmax(stream, nrows, ncols, a, indxs):
+    status = gpu_matrix_kernels._columnArgmax(stream, nrows, ncols, a, indxs)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._hprodSum.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._hprodSum.argtypes = [cudart.ct_cuda_stream,
                                          ct.c_int,

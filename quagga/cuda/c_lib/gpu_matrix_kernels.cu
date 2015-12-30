@@ -19,6 +19,7 @@
 
 #define MAX_NUM_THREADS_PER_BLOCK 512
 #define MAX_NUM_BLOCKS_PER_KERNEL 128
+#define FLT_MAX 3.402823466E+38F
 
 
 __global__  void sliceColumns(int nrows,
@@ -132,6 +133,39 @@ __global__  void slicedRowsBatchScaledAdd(const int* embd_rows_indxs,
         embd_col_idx = dense_offset / nrows;
         embd_offset = embd_col_idx * embd_nrows + embd_row_idx;
         atomicAdd(embd_matrix + embd_offset, alpha * dense_matrices[k][dense_offset]);
+    }
+}
+
+
+__global__ void columnArgmax(int nrows,
+                             int ncols,
+                             const float* __restrict__ a,
+                             int* __restrict__ indxs) {
+    __shared__ float maxVals[32];
+    __shared__ int maxIndxs[32];
+    float max_val = -FLT_MAX;
+    int max_idx = 0;
+    float val = 0;
+    for (int i = threadIdx.x; i < ncols; i += 32) {
+        val = a[blockIdx.x + i * nrows];
+        if (val > max_val) {
+            max_val = val;
+            max_idx = i;
+        }
+    }
+    maxVals[threadIdx.x] = max_val;
+    maxIndxs[threadIdx.x] = max_idx;
+    __syncthreads();
+
+    if (threadIdx.x == 0) {
+        max_val = -FLT_MAX;
+        max_idx = 0;
+        for (int i = 0; i < 32; i++)
+            if (maxVals[i] > max_val) {
+                max_val = maxVals[i];
+                max_idx = maxIndxs[i];
+            }
+        indxs[blockIdx.x] = max_idx;
     }
 }
 
@@ -1245,6 +1279,16 @@ extern "C" {
                                           float* __restrict__ embd_matrix) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * embd_ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         slicedRowsBatchScaledAdd<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(embd_rows_indxs, nrows, ncols, alpha, dense_matrices, embd_nrows, embd_ncols, embd_matrix);
+        return cudaGetLastError();
+    }
+
+
+    cudaError_t _columnArgmax(cudaStream_t stream,
+                              int nrows,
+                              int ncols,
+                              const float* __restrict__ a,
+                              int* __restrict__ indxs) {
+        columnArgmax<<<nrows, 32, 32 * sizeof(float), stream>>>(nrows, ncols, a, indxs);
         return cudaGetLastError();
     }
 

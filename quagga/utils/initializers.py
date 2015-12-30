@@ -54,16 +54,12 @@ class Xavier(object):
 
 
 class Uniform(object):
-    def __init__(self, nrows, ncols, init_range=None):
+    def __init__(self, nrows, ncols, init_range=0.1):
         self.shape = (nrows, ncols)
         self.init_range = init_range
 
     def __call__(self):
-        if self.init_range is None:
-            fan_in, fan_out = self.shape
-            bound = np.sqrt(6.0 / (fan_in + fan_out))
-            init_range = (-bound, bound)
-        elif isinstance(self.init_range, Number):
+        if isinstance(self.init_range, Number):
             init_range = (-self.init_range, self.init_range)
         else:
             init_range = self.init_range

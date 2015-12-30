@@ -1436,3 +1436,20 @@ class TestMatrix(TestCase):
             r.append(np.allclose(a_v_cpu.to_host(), a_v_gpu.to_host(), atol=1e-3))
 
         self.assertEqual(sum(r), len(r))
+
+    def test_column_argmax(self):
+        r = []
+        for _ in xrange(self.N):
+            a = TestMatrix.get_random_array()
+
+            a_cpu = CpuMatrix.from_npa(a)
+            indxs_cpu = CpuMatrix.empty(a_cpu.nrows, 1, dtype='int')
+            a_gpu = GpuMatrix.from_npa(a)
+            indxs_gpu = GpuMatrix.empty(a_gpu.nrows, 1, dtype='int')
+
+            a_cpu.column_argmax(self.cpu_context, indxs_cpu)
+            a_gpu.column_argmax(self.gpu_context, indxs_gpu)
+
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)

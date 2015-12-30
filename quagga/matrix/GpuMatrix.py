@@ -735,6 +735,15 @@ class GpuMatrix(object):
         curand.generate_uniform(generator, out.data, self.nelems)
         gpu_matrix_kernels.dropout(context.cuda_stream, self.nelems, dropout_prob, self.data, out.data, out.data)
 
+    def add_gaussian_noise(self, context, generator, mean, std, out):
+        GpuMatrix.wait_matrices(context, self)
+        out.last_modification_context = context
+        context.activate()
+
+        curand.set_stream(generator, context.cuda_stream)
+        curand.generate_normal(generator, out.data, self.nelems, mean, std)
+        cublas.s_axpy(context.cublas_handle, self.nelems, ct.c_float(1.0), self.data, 1, out.data, 1)
+
     def assign_mask_zeros(self, context, a, b):
         """
         self = a .* (b != 0)
@@ -1106,6 +1115,16 @@ class GpuMatrix(object):
         else:
             k = b.nrows if matrix_operation_b == 'N' else b.ncols
             cublas.s_gemm(context.cublas_handle, matrix_operation_a, matrix_operation_b, self.nrows, self.ncols, k, alpha, a.data, a.nrows, b.data, b.nrows, beta, self.data, self.nrows)
+
+    def column_argmax(self, context, out, axis=1):
+        GpuMatrix.wait_matrices(context, self)
+        out.last_modification_context = context
+        context.activate()
+
+        if axis == 1:
+            gpu_matrix_kernels.column_argmax(context.cuda_stream, self.nrows, self.ncols, self.data, out.data)
+        else:
+            raise NotImplementedError
 
 
 def _get_temp_memory(context, N):
