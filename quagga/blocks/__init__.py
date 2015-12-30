@@ -27,6 +27,7 @@ from quagga.blocks.NonlinearityBlock import NonlinearityBlock
 from quagga.blocks.ParameterContainer import ParameterContainer
 from quagga.blocks.RepeatBlock import RepeatBlock
 from quagga.blocks.RowSlicingBlock import RowSlicingBlock
+from quagga.blocks.ScheduledSamplingBlock import ScheduledSamplingBlock
 from quagga.blocks.SequencerBlock import SequencerBlock
 from quagga.blocks.SequentialHorizontalStackBlock import SequentialHorizontalStackBlock
 from quagga.blocks.SequentialMeanPoolingBlock import SequentialMeanPoolingBlock
