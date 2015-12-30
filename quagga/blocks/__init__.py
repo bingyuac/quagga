@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
+from quagga.blocks.ArgmaxBlock import ArgmaxBlock
 from quagga.blocks.ColSlicingBlock import ColSlicingBlock
 from quagga.blocks.DotBlock import DotBlock
 from quagga.blocks.DropoutBlock import DropoutBlock
