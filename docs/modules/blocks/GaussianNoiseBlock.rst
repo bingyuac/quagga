@@ -1,5 +1,5 @@
 Gaussian noise block
------------------
+--------------------
 
 .. automodule:: quagga.blocks.GaussianNoiseBlock
 
@@ -7,3 +7,4 @@ Gaussian noise block
 
 .. autoclass:: GaussianNoiseBlock
    :members:
+   :noindex:

@@ -7,3 +7,4 @@ Dot product block
 
 .. autoclass:: DotBlock
    :members:
+   :noindex:

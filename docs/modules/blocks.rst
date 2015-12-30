@@ -6,9 +6,26 @@
 .. toctree::
     :hidden:
 
+    blocks/ArgmaxBlock
+    blocks/ColSlicingBlock
     blocks/DotBlock
+    blocks/DropoutBlock
+    blocks/GaussianNoiseBlock
     blocks/HorizontalStackBlock
 
+.. rubric:: :doc:`blocks/ArgmaxBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    ArgmaxBlock
+
+.. rubric:: :doc:`blocks/ColSlicingBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    ColSlicingBlock
 
 .. rubric:: :doc:`blocks/DotBlock`
 
@@ -17,6 +34,12 @@
 
     DotBlock
 
+.. rubric:: :doc:`blocks/DropoutBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    DropoutBlock
 
 .. rubric:: :doc:`blocks/GaussianNoiseBlock`
 
@@ -24,7 +47,6 @@
     :nosignatures:
 
     GaussianNoiseBlock
-
 
 .. rubric:: :doc:`blocks/HorizontalStackBlock`
 

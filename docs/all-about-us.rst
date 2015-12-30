@@ -2,4 +2,4 @@
 All about us
 ############
 
-We are grammarly developers.
+We are Grammarly developers.
