@@ -1,0 +1,9 @@
+Gaussian noise block
+-----------------
+
+.. automodule:: quagga.blocks.GaussianNoiseBlock
+
+.. currentmodule:: quagga.blocks
+
+.. autoclass:: GaussianNoiseBlock
+   :members:

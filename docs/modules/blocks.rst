@@ -18,6 +18,14 @@
     DotBlock
 
 
+.. rubric:: :doc:`blocks/GaussianNoiseBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    GaussianNoiseBlock
+
+
 .. rubric:: :doc:`blocks/HorizontalStackBlock`
 
 .. autosummary::
