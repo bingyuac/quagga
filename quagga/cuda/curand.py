@@ -114,6 +114,17 @@ def generate_uniform(generator, output_ptr, num):
     check_status(status)
 
 
+_libcurand.curandGenerateNormal.restype = ct_curand_status
+_libcurand.curandGenerateNormal.argtypes = [ct_curand_generator,
+                                            ct.POINTER(ct.c_float),
+                                            ct.c_size_t,
+                                            ct.c_float,
+                                            ct.c_float]
+def generate_normal(generator, output_ptr, n, mean, stddev):
+    status = _libcurand.curandGenerateNormal(generator, output_ptr, n, mean, stddev)
+    check_status(status)
+
+
 _libcurand.curandSetStream.restype = ct_curand_status
 _libcurand.curandSetStream.argtypes = [ct_curand_generator,
                                        cudart.ct_cuda_stream]

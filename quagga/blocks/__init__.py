@@ -16,6 +16,7 @@
 from quagga.blocks.ColSlicingBlock import ColSlicingBlock
 from quagga.blocks.DotBlock import DotBlock
 from quagga.blocks.DropoutBlock import DropoutBlock
+from quagga.blocks.GaussianNoiseBlock import GaussianNoiseBlock
 from quagga.blocks.HorizontalStackBlock import HorizontalStackBlock
 from quagga.blocks.L2RegularizationBlock import L2RegularizationBlock
 from quagga.blocks.LastSelectorBlock import LastSelectorBlock
