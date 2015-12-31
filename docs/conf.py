@@ -308,7 +308,6 @@ texinfo_documents = [
 
 
 import sys
-from quagga.cuda import cudart
 from mock import Mock as MagicMock
 
 
@@ -321,4 +320,5 @@ class Mock(MagicMock):
 sys.modules['numpy'] = Mock()
 sys.modules['h5py'] = Mock()
 sys.modules['ctypes'] = Mock(c_char=0)
+from quagga.cuda import cudart
 cudart.cuda_get_device_count = Mock(return_value=0)
