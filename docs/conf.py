@@ -19,7 +19,6 @@ import shlex
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-print os.getcwd()
 sys.path.insert(0, os.path.abspath('..'))
 
 # -- General configuration ------------------------------------------------
@@ -58,8 +57,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'quagga'
-copyright = u'2015, Serhii Havrylov'
-author = u'Serhii Havrylov'
+copyright = u'2015, Grammarly Inc.'
+author = u'quagga developers'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -320,3 +319,4 @@ class Mock(MagicMock):
 
 sys.modules['numpy'] = Mock()
 sys.modules['h5py'] = Mock()
+sys.modules['ctypes'] = Mock()
