@@ -12,9 +12,25 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
+import sys
 import shlex
+from mock import Mock as MagicMock
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return Mock()
+
+
+sys.modules['numpy'] = Mock()
+sys.modules['h5py'] = Mock()
+sys.modules['ctypes'] = Mock(c_char=0)
+import quagga
+from quagga.cuda import cudart
+cudart.cuda_get_device_count = Mock(return_value=0)
+
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -34,7 +50,8 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
+    # 'sphinx.ext.viewcode',
+    'sphinx.ext.linkcode',
     'numpydoc.numpydoc'
 ]
 
@@ -65,7 +82,7 @@ author = u'quagga developers'
 # built documents.
 #
 # The short X.Y version.
-version = 'version'
+version = '0.0'
 # The full version, including alpha/beta/rc tags.
 release = '0.0'
 
@@ -110,8 +127,26 @@ pygments_style = 'sphinx'
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
 
-# If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = False
+
+def linkcode_resolve(domain, info):
+    def find_source():
+        obj = sys.modules[info['module']]
+        for part in info['fullname'].split('.'):
+            obj = getattr(obj, part)
+        import inspect
+        import os
+        fn = inspect.getsourcefile(obj)
+        fn = os.path.relpath(fn, start=os.path.dirname(quagga.__file__))
+        source, lineno = inspect.getsourcelines(obj)
+        return fn, lineno, lineno + len(source) - 1
+
+    if domain != 'py' or not info['module']:
+        return None
+    try:
+        filename = 'quagga/{}#L{}-L{}'.format(find_source())
+    except Exception:
+        filename = info['module'].replace('.', '/') + '.py'
+    return "https://github.com/grammarly/quagga/blob/master/{}".format(filename)
 
 
 # -- Options for HTML output ----------------------------------------------
@@ -305,20 +340,3 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
-
-
-import sys
-from mock import Mock as MagicMock
-
-
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return Mock()
-
-
-sys.modules['numpy'] = Mock()
-sys.modules['h5py'] = Mock()
-sys.modules['ctypes'] = Mock(c_char=0)
-from quagga.cuda import cudart
-cudart.cuda_get_device_count = Mock(return_value=0)
