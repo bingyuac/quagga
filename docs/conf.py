@@ -319,4 +319,4 @@ class Mock(MagicMock):
 
 sys.modules['numpy'] = Mock()
 sys.modules['h5py'] = Mock()
-sys.modules['ctypes'] = Mock()
+sys.modules['ctypes'] = Mock(c_char=0)
