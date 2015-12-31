@@ -19,9 +19,27 @@ from quagga.connector import Connector
 
 
 class ArgmaxBlock(object):
-    def __init__(self, x, axis=1, device_id=None):
+    """
+    Determines argmax values along the specified axis in the input matrix and
+    and returns a vector of these values.
+
+    Parameters
+    ----------
+    x : matrix
+        Block's input
+    axis : int
+        Axis along which argmax is determined
+    device_id : int
+        Defines the device's id on which the computation will take place
+
+    Returns
+    -------
+    vector
+        A vector containing argmax values for each row (if axis == 1).
+    """
+    def __init__(self, x, axis, device_id=None):
         if axis != 1:
-            raise RuntimeError
+            raise NotImplementedError
         self.axis = axis
         self.context = Context(device_id)
         device_id = self.context.device_id
