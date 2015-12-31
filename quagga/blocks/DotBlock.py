@@ -19,6 +19,22 @@ from quagga.connector import Connector
 
 
 class DotBlock(object):
+    """
+    Parameters
+    ----------
+    W : Matrix (GpuMatrix or CpuMatrix)
+        Weigh matrix
+    b : Matrix (GpuMatrix or CpuMatrix)
+        Bias matrix (one dimesion equals 1, can be view as a vector)
+    x : Matrix (GpuMatrix or CpuMatrix)
+        Block's input
+    device_id : int
+        Defines the device's id on which the computation will take place
+
+    Returns
+    -------
+
+    """
     def __init__(self, W, b, x, device_id=None):
         self.f_context = Context(device_id)
         device_id = self.f_context.device_id

@@ -20,8 +20,9 @@ from quagga.connector import Connector
 
 class ArgmaxBlock(object):
     """
-    Determines argmax values along the specified axis in the input matrix and
-    and returns a vector (matrix with one dimension) of these values.
+    Determines argmax values along the specified axis in the input matrix. The
+    block returns a vector (matrix with one of its dimensions equals 1) of argmax
+    values.
 
 
     Parameters
@@ -36,7 +37,7 @@ class ArgmaxBlock(object):
     Returns
     -------
     vector
-        A vector containing argmax values for each row (if axis == 1).
+        A vector containing argmax values (e.g. argmax for each row if axis == 1).
     """
     def __init__(self, x, axis, device_id=None):
         if axis != 1:

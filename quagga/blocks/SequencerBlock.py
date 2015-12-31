@@ -20,20 +20,22 @@ from quagga.context import Context
 
 
 class SequencerBlock(object):
+    """
+    Parameters
+    ----------
+    block_class
+    params
+    sequences
+    output_names
+    prev_names
+    paddings
+    reverse
+    device_id : int
+
+    Returns
+    -------
+    """
     def __init__(self, block_class, params, sequences, output_names=None, prev_names=None, paddings=None, reverse=False, device_id=None):
-        """
-        TODO
-
-        :param block_class:
-        :param params:
-        :param sequences: sequences for izip-like iteration, must be a List
-        :param output_names: attribute names from block
-        :param prev_names: attributes from previous block that will be fed
-                           into the current
-        :param paddings:
-        :param device_id:
-        """
-
         context = Context(device_id)
         device_id = context.device_id
         self.reverse = reverse

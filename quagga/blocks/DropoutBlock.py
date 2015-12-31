@@ -19,6 +19,17 @@ from quagga.connector import Connector
 
 
 class DropoutBlock(object):
+    """
+    Parameters
+    ----------
+    dropout_prob
+    x : Matrix (GpuMatrix or CpuMatrix)
+    seed : int
+    device_id : int
+
+    Returns
+    -------
+    """
     def __init__(self, dropout_prob, x, seed=42, device_id=None):
         self.dropout_prob = dropout_prob
         self.f_context = Context(device_id)

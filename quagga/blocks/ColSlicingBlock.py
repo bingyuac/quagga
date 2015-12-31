@@ -19,6 +19,15 @@ from quagga.connector import Connector
 
 
 class ColSlicingBlock(object):
+    """
+    Parameters
+    ----------
+    W
+    col_indexes
+
+    Returns
+    -------
+    """
     def __init__(self, W, col_indexes):
         device_id = W.device_id
         self.context = Context(device_id)
