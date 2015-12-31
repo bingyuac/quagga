@@ -26,7 +26,7 @@ class SequencerBlock(object):
 
         :param block_class:
         :param params:
-        :param sequences: sequences for izip-like iteration, must be List
+        :param sequences: sequences for izip-like iteration, must be a List
         :param output_names: attribute names from block
         :param prev_names: attributes from previous block that will be fed
                            into the current

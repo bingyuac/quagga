@@ -20,8 +20,18 @@ from quagga.connector import Connector
 
 class MeanPoolingBlock(object):
     """
-    MeanPoolingBlock pool matrix along specified axis. Can handle matrix with
+    MeanPoolingBlock pools matrix along the specified axis. Can handle matrix with
     varying number of columns. Number of rows is fixed.
+
+    Parameters
+    ----------
+    matrix : Matrix (GpuMatrix or CpuMatrix)
+    axis : int
+    device_id : int
+        Defines the device's id on which the computation will take place
+
+    Returns
+    -------
     """
 
     def __init__(self, matrix, axis=1, device_id=None):

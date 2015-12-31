@@ -21,11 +21,12 @@ from quagga.connector import Connector
 class ArgmaxBlock(object):
     """
     Determines argmax values along the specified axis in the input matrix and
-    and returns a vector of these values.
+    and returns a vector (matrix with one dimension) of these values.
+
 
     Parameters
     ----------
-    x : matrix
+    x : Matrix (GpuMatrix or CpuMatrix)
         Block's input
     axis : int
         Axis along which argmax is determined

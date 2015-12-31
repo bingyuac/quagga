@@ -19,6 +19,24 @@ from quagga.connector import Connector
 
 
 class GaussianNoiseBlock(object):
+    """
+    Adds Gaussian noise to the block's input. Adding Gaussian noise can be
+    viewed as a regularization.
+
+
+    Parameters
+    ----------
+    mean : float
+            Expected value of Gaussian noise
+    std : float
+            Standard deviation of added Gaussian noise
+    x : matrix
+            Block's input
+    seed : int
+            Seed for :meth:`quagga.cuda.curand.random_generator()`
+    device_id: int
+            Defines the device's id on which the computation will take place
+    """
     def __init__(self, mean, std, x, seed=42, device_id=None):
         self.mean = mean
         self.std = std

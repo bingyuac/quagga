@@ -19,6 +19,10 @@ from quagga.connector import Connector
 
 
 class NonlinearityBlock(object):
+    """
+    Applies the specified nonlinear functions (``sigmoid``, ``tahn``, ``relu``)
+    on input.
+    """
     def __init__(self, x, nonlinearity, device_id=None):
         self.f_context = Context(device_id)
         device_id = self.f_context.device_id
