@@ -14,9 +14,13 @@
 # limitations under the License.
 # ----------------------------------------------------------------------------
 import ctypes as ct
-from collections import deque
 from collections import defaultdict
-from quagga.cuda import cudart, cublas, cudnn
+from collections import deque
+
+from quagga.cuda import cublas
+from quagga.cuda import cudart
+from quagga.cuda import cudnn
+from quagga.utils import CustomDefaultDict
 
 
 ct_py_object_p = ct.POINTER(ct.py_object)
@@ -28,10 +32,24 @@ def _create_disabled_timing_event():
     return event
 
 
+def _create_cublas_handle(device_id):
+    with cudart.device(device_id):
+        handle = cublas.ct_cublas_handle()
+        cublas.create(handle)
+    return handle
+
+
+def _create_cudnn_handle(device_id):
+    with cudart.device(device_id):
+        handle = cudnn.ct_cudnn_handle()
+        cudnn.create(handle)
+    return handle
+
+
 class GpuContext(object):
     _events = defaultdict(_create_disabled_timing_event)
-    _cublas_handle = None
-    _cudnn_handle = None
+    _cublas_handle = CustomDefaultDict(_create_cublas_handle)
+    _cudnn_handle = CustomDefaultDict(_create_cudnn_handle)
     _user_data = defaultdict(deque)
 
     def __init__(self, device_id=None):
@@ -95,13 +113,3 @@ class GpuContext(object):
             function(*args, **kwargs)
             GpuContext._user_data[ct.cast(stream, ct.c_void_p).value].popleft()
         return cudart.ct_cuda_callback_type(callback)
-
-
-GpuContext._cublas_handle = []
-GpuContext._cudnn_handle = []
-for device_id in xrange(cudart.cuda_get_device_count()):
-    with cudart.device(device_id):
-        GpuContext._cublas_handle.append(cublas.ct_cublas_handle())
-        cublas.create(GpuContext._cublas_handle[-1])
-        GpuContext._cudnn_handle.append(cudnn.ct_cudnn_handle())
-        cudnn.create(GpuContext._cudnn_handle[-1])

@@ -14,3 +14,4 @@
 # limitations under the License.
 # ----------------------------------------------------------------------------
 from quagga.utils.List import List
+from quagga.utils.CustomDefaultDict import CustomDefaultDict
