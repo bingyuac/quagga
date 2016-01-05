@@ -144,7 +144,7 @@ def linkcode_resolve(domain, info):
     if domain != 'py' or not info['module']:
         return None
     try:
-        filename = 'quagga/{}#L{}-L{}'.format(find_source())
+        filename = 'quagga/{}#L{}-L{}'.format(*find_source())
     except Exception:
         filename = info['module'].replace('.', '/') + '.py'
     return "https://github.com/grammarly/quagga/blob/master/{}".format(filename)
