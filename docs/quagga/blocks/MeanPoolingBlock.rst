@@ -7,4 +7,3 @@ MeanPoolingBlock
 
 .. autoclass:: MeanPoolingBlock
    :members:
-   :noindex:

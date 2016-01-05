@@ -7,4 +7,3 @@ DropoutBlock
 
 .. autoclass:: DropoutBlock
    :members:
-   :noindex:

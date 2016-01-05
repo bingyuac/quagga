@@ -7,4 +7,3 @@ LastSelectorBlock
 
 .. autoclass:: LastSelectorBlock
    :members:
-   :noindex:

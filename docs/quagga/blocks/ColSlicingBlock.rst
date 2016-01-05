@@ -7,4 +7,3 @@ ColSlicingBlock
 
 .. autoclass:: ColSlicingBlock
    :members:
-   :noindex:

@@ -7,4 +7,3 @@ GpuContext
 
 .. autoclass:: GpuContext
    :members:
-   :noindex:

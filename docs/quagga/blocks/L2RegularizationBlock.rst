@@ -7,4 +7,3 @@ L2RegularizationBlock
 
 .. autoclass:: L2RegularizationBlock
    :members:
-   :noindex:

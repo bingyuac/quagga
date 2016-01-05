@@ -7,4 +7,3 @@ NonlinearityBlock
 
 .. autoclass:: NonlinearityBlock
    :members:
-   :noindex:

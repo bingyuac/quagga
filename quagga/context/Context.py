@@ -41,8 +41,8 @@ def Context(device_id=None):
 
     Returns
     -------
-    instance of `CpuContext` or `GpuContext` classes
-    TODO (ihor.tytyk) link
+    instance of :class:`quagga.context.CpuContext` or
+    :class:`quagga.context.GpuContext` class.
     """
     return __get_context_class()(device_id)
 Context.callback = lambda function: __get_context_class().callback(function)

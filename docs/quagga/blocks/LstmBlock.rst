@@ -7,4 +7,3 @@ LstmBlock
 
 .. autoclass:: LstmBlock
    :members:
-   :noindex:

@@ -49,8 +49,8 @@ def _create_cudnn_handle(device_id):
 class GpuContext(object):
     """
     Abstracts out low-level CUDA synchronisation primitives and standard library
-    handles. Its methods provide inventory for high-level usage of CUDA streams
-    and events.
+    handles. Its methods provide inventory for high-level usage of CUDA streams,
+    events, CUDNN handles and CUBLAS handles.
 
     Parameters
     ----------
@@ -73,28 +73,45 @@ class GpuContext(object):
 
     @property
     def cublas_handle(self):
+        """
+        Sets CUDA stream in CUBLAS handle and returns it.
+        """
         cublas_handle = GpuContext._cublas_handle[self.device_id]
         cublas.set_stream(cublas_handle, self.cuda_stream)
         return cublas_handle
 
     @property
     def cudnn_handle(self):
+        """
+        Sets CUDA stream in CUDNN handle and returns it.
+        """
         cudnn_handle = GpuContext._cudnn_handle[self.device_id]
         cudnn.set_stream(cudnn_handle, self.cuda_stream)
         return cudnn_handle
 
     def activate(self):
+        """
+        Activates the device associated with the context.
+        """
         cudart.cuda_set_device(self.device_id)
 
     def synchronize(self):
+        """
+        Blocks the host until all preceding commands in the given context
+        have completed.
+        """
         cudart.cuda_stream_synchronize(self.cuda_stream)
 
     def wait(self, *args):
         """
-        Makes all future work submitted to context wait until
-        computations ends in `args` contexts
-        """
+        Makes all future work submitted to the context wait until all
+        computations in ``args`` contexts have finished.
 
+        Parameters
+        ----------
+        args : list of GpuContext
+
+        """
         for context in args:
             context.activate()
             event = GpuContext._events[context, self]
@@ -103,6 +120,14 @@ class GpuContext(object):
             cudart.cuda_stream_wait_event(self.cuda_stream, event)
 
     def block(self, *args):
+        """
+        Makes all future work submitted to the ``args`` contexts wait until all
+        computations in the context have finished.
+
+        Parameters
+        ----------
+        args : list of GpuContext
+        """
         for context in args:
             self.activate()
             event = GpuContext._events[self, context]
@@ -111,12 +136,38 @@ class GpuContext(object):
             cudart.cuda_stream_wait_event(context.cuda_stream, event)
 
     def add_callback(self, callback, *args, **kwargs):
+        """
+        Adds ``callback`` function to the current context, which will be called
+        after all preceding computations have completed.
+
+        Parameters
+        ----------
+        callback : cudart.ct_cuda_callback_type
+        args
+            Arguments of the ``callback`` function.
+        kwargs
+            Named arguments of the ``callback`` function.
+        """
         user_data = ct.py_object((args, kwargs))
         GpuContext._user_data[self.cuda_stream.value].append(user_data)
         cudart.cuda_stream_add_callback(self.cuda_stream, callback, ct.byref(user_data))
 
     @staticmethod
     def callback(function):
+        """
+        Wraps input ``function`` into an appropriate type that can be used in
+        :meth:`quagga.context.GpuContext.add_callback`.
+
+        Parameters
+        ----------
+        function : python function
+            Python function that will be wrapped into a
+            :data:`quagga.cuda.cudart.ct_cuda_callback_type`
+
+        Returns
+        -------
+        wrapped function
+        """
         def callback(stream, status, user_data):
             cudart.check_cuda_status(status)
             args, kwargs = ct.cast(user_data, ct_py_object_p).contents.value

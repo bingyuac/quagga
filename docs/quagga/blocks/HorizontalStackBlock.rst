@@ -7,4 +7,3 @@ HorizontalStackBlock
 
 .. autoclass:: HorizontalStackBlock
    :members:
-   :noindex:

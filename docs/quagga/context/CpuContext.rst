@@ -7,4 +7,3 @@ CpuContext
 
 .. autoclass:: CpuContext
    :members:
-   :noindex:
