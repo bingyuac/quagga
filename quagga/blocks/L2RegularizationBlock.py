@@ -19,7 +19,7 @@ from quagga.context import Context
 
 class L2RegularizationBlock(object):
     """
-    Forms a regularization term for `x` with `regularization_value` as a
+    Forms a regularization term for ``x`` with ``regularization_value`` as a
     lambda term.
 
     Parameters

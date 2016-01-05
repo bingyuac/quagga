@@ -12,7 +12,9 @@ TODO
    :maxdepth: 2
 
    all-about-us
-   modules/blocks
+   quagga/blocks
+   quagga/context
+   quagga/cuda
 
 Indices and tables
 ------------------

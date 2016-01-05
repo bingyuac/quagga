@@ -1,10 +1,10 @@
 ColSlicingBlock
 ---------------
 
-.. automodule:: quagga.blocks.HorizontalStackBlock
+.. automodule:: quagga.blocks.ColSlicingBlock
 
 .. currentmodule:: quagga.blocks
 
-.. autoclass:: HorizontalStackBlock
+.. autoclass:: ColSlicingBlock
    :members:
    :noindex:

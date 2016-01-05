@@ -20,9 +20,9 @@ from quagga.connector import Connector
 
 class DropoutBlock(object):
     """
-    Sets elements of input matrix `x` to zero with probability `dropout_prob` in
-    training mode. Scales `x` by factor of `1-dropout_prob` during in testing
-    mode.
+    Sets elements of input matrix ``x`` to zero with probability
+    ``dropout_prob`` in training mode. Scales ``x`` by factor of
+    ``1-dropout_prob`` during in testing mode.
 
     Parameters
     ----------

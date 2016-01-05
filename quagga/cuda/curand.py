@@ -86,6 +86,17 @@ _libcurand.curandCreateGenerator.restype = ct_curand_status
 _libcurand.curandCreateGenerator.argtypes = [ct.POINTER(ct_curand_generator),
                                              ct.c_int]
 def create_generator(generator, rng_type):
+    """
+    TODO
+    Parameters
+    ----------
+    generator
+    rng_type
+
+    Returns
+    -------
+
+    """
     status = _libcurand.curandCreateGenerator(ct.byref(generator), rng_type)
     check_status(status)
 
@@ -93,6 +104,16 @@ def create_generator(generator, rng_type):
 _libcurand.curandDestroyGenerator.restype = ct_curand_status
 _libcurand.curandDestroyGenerator.argtypes = [ct_curand_generator, ct.c_int]
 def destroy_generator(generator):
+    """
+    TEOFDDO
+    Parameters
+    ----------
+    generator
+
+    Returns
+    -------
+
+    """
     status = _libcurand.curandDestroyGenerator(generator)
     check_status(status)
 

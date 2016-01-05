@@ -20,8 +20,8 @@ from quagga.connector import Connector
 
 class DotBlock(object):
     """
-    Computes dot product (scalar product) between matrices `W` and `x`, also
-    adds bias `b`.
+    Computes dot product (scalar product) between matrices ``W`` and ``x``, also
+    adds bias ``b``.
 
     Parameters
     ----------

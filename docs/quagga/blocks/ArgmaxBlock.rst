@@ -7,4 +7,3 @@ ArgmaxBlock
 
 .. autoclass:: ArgmaxBlock
    :members:
-   :noindex:

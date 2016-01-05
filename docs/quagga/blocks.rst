@@ -1,5 +1,5 @@
 :mod:`quagga.blocks`
-=====================
+====================
 
 .. automodule:: quagga.blocks
 
