@@ -26,6 +26,7 @@ class LstmBlock(object):
     ----------
     W
     R
+    b
     grad_clipping
     x
     mask
@@ -38,12 +39,9 @@ class LstmBlock(object):
     Returns
     -------
     """
-    def __init__(self, W, R, grad_clipping, x, mask, prev_c, prev_h, device_id=None):
+    def __init__(self, W, R, b, grad_clipping, x, mask, prev_c, prev_h, device_id=None):
         self.f_context = Context(device_id)
         device_id = self.f_context.device_id
-        if mask:
-            self.mask = mask.register_usage(device_id)
-        self.grad_clipping = grad_clipping
         if W.bpropagable:
             self.W, self.dL_dW = W.register_usage(device_id, device_id)
             self.W_b_context = Context(device_id)
@@ -54,11 +52,19 @@ class LstmBlock(object):
             self.R_b_context = Context(device_id)
         else:
             self.R = R.register_usage(device_id)
+        if b.bpropagable:
+            self.b, self.dL_db = b.register_usage(device_id, device_id)
+            self.b_b_context = Context(device_id)
+        else:
+            self.b = b.register_usage(device_id)
+        self.grad_clipping = grad_clipping
         if x.bpropagable:
             self.x, self.dL_dx = x.register_usage(device_id, device_id)
             self.x_b_context = Context(device_id)
         else:
             self.x = x.register_usage(device_id)
+        if mask:
+            self.mask = mask.register_usage(device_id)
         if prev_c.bpropagable:
             self.prev_c, self.dL_dprev_c = prev_c.register_usage(device_id, device_id)
         else:
@@ -110,9 +116,10 @@ class LstmBlock(object):
             return self._dtanh_c_dc
 
     def fprop(self):
-        # zifo = tanh_sigm(x[t] * W + h[t-1] * R)
+        # zifo = tanh_sigm(x[t] * W + h[t-1] * R + b)
         self.zifo.assign_dot(self.f_context, self.x, self.W)
         self.zifo.add_dot(self.f_context, self.prev_h, self.R)
+        self.zifo.add(self.f_context, self.b)
         self.zifo.tanh_sigm(self.f_context, self.zifo, self.dzifo_dpre_zifo, axis=1)
 
         # c[t] = i[t] .* z[t] + f[t] .* c[t-1]
@@ -163,6 +170,9 @@ class LstmBlock(object):
         if hasattr(self, 'dL_dR'):
             # dL_dR += h[t-1].T * dL/dpre_zifo[t]
             self.dL_dR.add_dot(self.R_b_context, self.prev_h, self.dL_dpre_zifo, 'T')
+        if hasattr(self, 'dL_db'):
+            # dL_db += sum(dL/dpre_zifo[t], axis=0)
+            self.dL_db.add_repeat_derivative(self.b_b_context, self.dL_dpre_zifo, self.dL_dpre_zifo.nrows, axis=0)
         if hasattr(self, 'dL_dx'):
             # dL/dx[t] = dL/dpre_zifo[t] * W.T
             self.dL_dx.add_dot(self.x_b_context, self.dL_dpre_zifo, self.W, 'N', 'T')
