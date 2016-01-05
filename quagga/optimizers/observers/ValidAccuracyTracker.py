@@ -22,7 +22,6 @@ class ValidAccuracyTracker(object):
         self.observers = []
         self.logger = logger
         self.accuracy = []
-        self.calculate_accuracy = Context.callback(self.calculate_accuracy)
 
     def calculate(self, context, loss_block):
         probs = loss_block.probs.to_host(context)

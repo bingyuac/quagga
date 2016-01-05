@@ -42,7 +42,6 @@ class Hdf5ValidationSaver(object):
         for param in params.itervalues():
             if param.device_id not in self.context:
                 self.context[param.device_id] = Context(param.device_id)
-        self._save_parameters = Context.callback(self._save_parameters)
         self.npa_params = {}
 
     def notify(self, loss):

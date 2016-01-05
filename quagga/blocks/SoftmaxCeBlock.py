@@ -36,7 +36,6 @@ class SoftmaxCeBlock(object):
             self.mask = mask.register_usage(device_id)
         self.probs = Connector(Matrix.empty_like(self.x))
         self.loss = None
-        self._calculate_ce_loss = Context.callback(self._calculate_ce_loss)
 
     def fprop(self):
         self.x.softmax(self.context, self.probs)
@@ -70,4 +69,6 @@ class SoftmaxCeBlock(object):
             logs = np.log(np.sum(true_labels_np * probs_np, axis=1) + 1e-20)
         if mask is not None:
             logs *= mask[:, 0]
-        self.loss = - np.mean(logs)
+            self.loss = - np.sum(logs) / np.sum(mask)
+        else:
+            self.loss = - np.mean(logs)

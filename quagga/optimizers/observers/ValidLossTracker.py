@@ -22,7 +22,6 @@ class ValidLossTracker(object):
         self.logger = logger
         self.observers = []
         self.losses = []
-        self.accumulate_loss = Context.callback(self.accumulate_loss)
 
     def calculate(self, context, loss_block):
         loss_block.calculate_loss(context)

@@ -22,7 +22,6 @@ class Validator(object):
         self.period = period
         self.observers = []
         self.iteration = 0
-        self.notify_observers = Context.callback(self.notify_observers)
 
     def notify(self):
         if self.iteration % self.period == 0 and self.iteration != 0:

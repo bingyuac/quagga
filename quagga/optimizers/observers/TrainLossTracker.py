@@ -29,8 +29,6 @@ class TrainLossTracker(object):
         self.observers = []
         self.losses = []
         self.iteration = 0
-        self.accumulate_loss = Context.callback(self.accumulate_loss)
-        self.log_notify = Context.callback(self.log_notify)
 
     def notify(self):
         self.loss_block.calculate_loss(self.context)

@@ -45,4 +45,3 @@ def Context(device_id=None):
     :class:`quagga.context.GpuContext` class.
     """
     return __get_context_class()(device_id)
-Context.callback = lambda function: __get_context_class().callback(function)

@@ -36,7 +36,6 @@ class SigmoidCeBlock(object):
             self.mask = mask.register_usage(device_id)
         self.probs = Connector(Matrix.empty_like(self.x))
         self.loss = None
-        self._calculate_ce_loss = Context.callback(self._calculate_ce_loss)
 
     def fprop(self):
         self.x.sigmoid(self.context, self.probs)
@@ -62,4 +61,6 @@ class SigmoidCeBlock(object):
                (1.0 - true_labels_np) * np.log(1. - probs_np + 1e-20)
         if mask is not None:
             logs *= mask
-        self.loss = - np.mean(logs)
+            self.loss = - np.sum(logs) / np.sum(mask)
+        else:
+            self.loss = - np.mean(logs)

@@ -34,5 +34,5 @@ class ScheduledSamplingBlock(object):
         if self.rnd.binomial(1, self.schedule.value):
             self.output.assign(self.context, self.true_labels)
         else:
-            self.probs.argmax(self.context, self.output, axis=0)
+            self.probs.argmax(self.context, self.output, axis=1)
         self.output.fprop()

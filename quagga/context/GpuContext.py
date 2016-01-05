@@ -46,6 +46,15 @@ def _create_cudnn_handle(device_id):
     return handle
 
 
+def _create_callback(function):
+    def callback(stream, status, user_data):
+        cudart.check_cuda_status(status)
+        args, kwargs = ct.cast(user_data, ct_py_object_p).contents.value
+        function(*args, **kwargs)
+        GpuContext._user_data[ct.cast(stream, ct.c_void_p).value].popleft()
+    return cudart.ct_cuda_callback_type(callback)
+
+
 class GpuContext(object):
     """
     Abstracts out low-level CUDA synchronisation primitives and standard library
@@ -61,6 +70,7 @@ class GpuContext(object):
     _cublas_handle = CustomDefaultDict(_create_cublas_handle)
     _cudnn_handle = CustomDefaultDict(_create_cudnn_handle)
     _user_data = defaultdict(deque)
+    _callback_functions = CustomDefaultDict(_create_callback)
 
     def __init__(self, device_id=None):
         with cudart.device(device_id):
@@ -150,27 +160,7 @@ class GpuContext(object):
         """
         user_data = ct.py_object((args, kwargs))
         GpuContext._user_data[self.cuda_stream.value].append(user_data)
-        cudart.cuda_stream_add_callback(self.cuda_stream, callback, ct.byref(user_data))
-
-    @staticmethod
-    def callback(function):
-        """
-        Wraps input ``function`` into an appropriate type that can be used in
-        :meth:`quagga.context.GpuContext.add_callback`.
-
-        Parameters
-        ----------
-        function : python function
-            Python function that will be wrapped into a
-            :data:`quagga.cuda.cudart.ct_cuda_callback_type`
-
-        Returns
-        -------
-        wrapped function
-        """
-        def callback(stream, status, user_data):
-            cudart.check_cuda_status(status)
-            args, kwargs = ct.cast(user_data, ct_py_object_p).contents.value
-            function(*args, **kwargs)
-            GpuContext._user_data[ct.cast(stream, ct.c_void_p).value].popleft()
-        return cudart.ct_cuda_callback_type(callback)
+        cudart.\
+            cuda_stream_add_callback(self.cuda_stream,
+                                     GpuContext._callback_functions[callback],
+                                     ct.byref(user_data))
