@@ -1,5 +1,5 @@
-DropoutBlock block
-------------------
+DropoutBlock
+------------
 
 .. automodule:: quagga.blocks.DropoutBlock
 

@@ -1,5 +1,5 @@
-Gaussian noise block
---------------------
+GaussianNoiseBlock
+------------------
 
 .. automodule:: quagga.blocks.GaussianNoiseBlock
 

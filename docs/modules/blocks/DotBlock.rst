@@ -1,5 +1,5 @@
-Dot product block
------------------
+DotBlock
+--------
 
 .. automodule:: quagga.blocks.DotBlock
 

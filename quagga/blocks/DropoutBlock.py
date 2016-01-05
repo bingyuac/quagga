@@ -20,15 +20,23 @@ from quagga.connector import Connector
 
 class DropoutBlock(object):
     """
+    Sets elements of input matrix `x` to zero with probability `dropout_prob` in
+    training mode. Scales `x` by factor of `1-dropout_prob` during in testing
+    mode.
+
     Parameters
     ----------
-    dropout_prob
+    dropout_prob : float
     x : Matrix (GpuMatrix or CpuMatrix)
     seed : int
     device_id : int
+        Defines the device's id on which the computation will take place
 
-    Returns
-    -------
+    Notes
+    -----
+    The dropout block is a regularizer that randomly sets input values to zero
+    in training mode. This procedure is supposed to improve generalization.
+    During testing, the dropout block scales input values.
     """
     def __init__(self, dropout_prob, x, seed=42, device_id=None):
         self.dropout_prob = dropout_prob

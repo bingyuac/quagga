@@ -22,11 +22,9 @@ class ColSlicingBlock(object):
     """
     Parameters
     ----------
-    W
+    W : Matrix (GpuMatrix or CpuMatrix)
     col_indexes
 
-    Returns
-    -------
     """
     def __init__(self, W, col_indexes):
         device_id = W.device_id

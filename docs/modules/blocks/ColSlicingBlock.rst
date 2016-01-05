@@ -1,5 +1,5 @@
-ColSlicingBlock block
----------------------
+ColSlicingBlock
+---------------
 
 .. automodule:: quagga.blocks.HorizontalStackBlock
 

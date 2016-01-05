@@ -47,6 +47,16 @@ def _create_cudnn_handle(device_id):
 
 
 class GpuContext(object):
+    """
+    Abstracts out low-level CUDA synchronisation primitives and standard library
+    handles. Its methods provide inventory for high-level usage of CUDA streams
+    and events.
+
+    Parameters
+    ----------
+    device_id : int
+        Defines with which device the computational context will be associated.
+    """
     _events = defaultdict(_create_disabled_timing_event)
     _cublas_handle = CustomDefaultDict(_create_cublas_handle)
     _cudnn_handle = CustomDefaultDict(_create_cudnn_handle)

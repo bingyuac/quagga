@@ -19,18 +19,26 @@ from quagga.connector import Connector
 
 
 class LstmBlock(object):
+    """
+    A long short-term memory (LSTM) block.
+
+    Parameters
+    ----------
+    W
+    R
+    grad_clipping
+    x
+    mask
+    prev_c
+    prev_h
+    device_id : int
+        Defines the device's id on which the computation will take place
+
+
+    Returns
+    -------
+    """
     def __init__(self, W, R, grad_clipping, x, mask, prev_c, prev_h, device_id=None):
-        """
-        TODO
-
-        :param W: connector that contains horizontally stacked Wz, Wi, Wf, Wo
-        :param R: connector that contains horizontally stacked Rz, Ri, Rf, Ro
-        :param prev_c: previous lstm cell state
-        :param prev_h: previous lstm hidden state
-
-        TODO(sergii.gavrylov)
-        """
-
         self.f_context = Context(device_id)
         device_id = self.f_context.device_id
         if mask:

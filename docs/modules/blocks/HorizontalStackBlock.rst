@@ -1,5 +1,5 @@
-HorizontalStackBlock block
---------------------------
+HorizontalStackBlock
+--------------------
 
 .. automodule:: quagga.blocks.HorizontalStackBlock
 

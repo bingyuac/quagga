@@ -12,6 +12,12 @@
     blocks/DropoutBlock
     blocks/GaussianNoiseBlock
     blocks/HorizontalStackBlock
+    blocks/L2RegularizationBlock
+    blocks/LastSelectorBlock
+    blocks/LstmBlock
+    blocks/MeanPoolingBlock
+    blocks/NonlinearityBlock
+
 
 .. rubric:: :doc:`blocks/ArgmaxBlock`
 
@@ -54,3 +60,39 @@
     :nosignatures:
 
     HorizontalStackBlock
+
+.. rubric:: :doc:`blocks/L2RegularizationBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    L2RegularizationBlock
+
+
+.. rubric:: :doc:`blocks/LastSelectorBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    LastSelectorBlock
+
+.. rubric:: :doc:`blocks/LstmBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    LstmBlock
+
+.. rubric:: :doc:`blocks/MeanPoolingBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    MeanPoolingBlock
+
+.. rubric:: :doc:`blocks/NonlinearityBlock`
+
+.. autosummary::
+    :nosignatures:
+
+    NonlinearityBlock

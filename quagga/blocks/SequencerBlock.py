@@ -31,6 +31,8 @@ class SequencerBlock(object):
     paddings
     reverse
     device_id : int
+        Defines the device's id on which the computation will take place
+
 
     Returns
     -------

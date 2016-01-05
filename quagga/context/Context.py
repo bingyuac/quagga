@@ -29,5 +29,20 @@ def __get_context_class():
 
 
 def Context(device_id=None):
+    """
+    Creates an instance of CpuContext or GpuContext classes. Global
+    variable ``processor_type`` defines which one of the two classes will be
+    used.
+
+    Parameters
+    ----------
+    device_id : int
+        Defines with which device the computational context will be associated
+
+    Returns
+    -------
+    instance of `CpuContext` or `GpuContext` classes
+    TODO (ihor.tytyk) link
+    """
     return __get_context_class()(device_id)
 Context.callback = lambda function: __get_context_class().callback(function)

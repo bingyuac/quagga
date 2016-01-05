@@ -20,6 +20,12 @@ from quagga.connector import Connector
 
 
 class LastSelectorBlock(object):
+    """
+    Parameters
+    ----------
+    x : Matrix (GpuMatrix or CpuMatrix)
+
+    """
     def __init__(self, x):
         device_id = x[0].device_id
         learning = x[0].bpropagable

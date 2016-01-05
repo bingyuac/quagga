@@ -1,5 +1,5 @@
-ArgmaxBlock block
------------------
+ArgmaxBlock
+-----------
 
 .. automodule:: quagga.blocks.ArgmaxBlock
 

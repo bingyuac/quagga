@@ -21,7 +21,14 @@ from quagga.connector import Connector
 
 class HorizontalStackBlock(object):
     """
-    HorizontalStackBlock concatenates matrices horizontally.
+    Concatenates input matrices horizontally.
+
+    Parameters
+    ----------
+    matrices : Matrix (GpuMatrix or CpuMatrix)
+        Input matrices that need to be concatenated.
+    kwargs
+
     """
 
     def __init__(self, *matrices, **kwargs):

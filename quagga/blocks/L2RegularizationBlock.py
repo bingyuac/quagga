@@ -18,6 +18,22 @@ from quagga.context import Context
 
 
 class L2RegularizationBlock(object):
+    """
+    Forms a regularization term for `x` with `regularization_value` as a
+    lambda term.
+
+    Parameters
+    ----------
+    x : Matrix (GpuMatrix or CpuMatrix)
+        Input matrix
+    regularization_value : float
+        Lambda term
+
+    Notes
+    -----
+    This reguralization is used during backpropagation only.
+
+    """
     def __init__(self, x, regularization_value):
         self.context = Context(x.device_id)
         device_id = self.context.device_id

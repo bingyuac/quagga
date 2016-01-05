@@ -20,6 +20,9 @@ from quagga.connector import Connector
 
 class DotBlock(object):
     """
+    Computes dot product (scalar product) between matrices `W` and `x`, also
+    adds bias `b`.
+
     Parameters
     ----------
     W : Matrix (GpuMatrix or CpuMatrix)
@@ -30,10 +33,6 @@ class DotBlock(object):
         Block's input
     device_id : int
         Defines the device's id on which the computation will take place
-
-    Returns
-    -------
-
     """
     def __init__(self, W, b, x, device_id=None):
         self.f_context = Context(device_id)
