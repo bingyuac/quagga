@@ -1,17 +1,34 @@
-Welcome to quagga's documentation!
-==================================
+Welcome to Quagga
+=================
 
-TODO(Ihor T.): The project is on `GitHub`_.
+Quagga is a library for building and training neural networks for NLP tasks.
+Currently, the documentation is limited, but we are working on extending and
+improving it.
 
-API todo
---------
+The project is on `GitHub`_.
 
-TODO
+User Guide
+----------
+
+The Quagga user guide explains how to install Quagga, and how to build and train
+neural networks using Quagga.
+
+.. toctree::
+  :maxdepth: 2
+
+  all-about-us
+  user/installation
+  user/tutorial
+
+API Reference
+-------------
+
+If you are looking for information on a specific class, function or
+method, this part of the documentation is for you.
 
 .. toctree::
    :maxdepth: 2
 
-   all-about-us
    quagga/blocks
    quagga/context
    quagga/cuda
