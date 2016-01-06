@@ -119,7 +119,7 @@ class GpuContext(object):
 
         Parameters
         ----------
-        args : list of GpuContext
+        args : list of :class:`quagga.context.GpuContext`
 
         """
         for context in args:
@@ -136,7 +136,7 @@ class GpuContext(object):
 
         Parameters
         ----------
-        args : list of GpuContext
+        args : list of :class:`quagga.context.GpuContext`
         """
         for context in args:
             self.activate()
@@ -152,7 +152,7 @@ class GpuContext(object):
 
         Parameters
         ----------
-        callback : cudart.ct_cuda_callback_type
+        callback : python function
         args
             Arguments of the ``callback`` function.
         kwargs
