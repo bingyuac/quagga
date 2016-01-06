@@ -108,8 +108,8 @@ class GpuMatrix(object):
     def __del__(self):
         if self.is_owner:
             cudart.cuda_free(self.data)
-            if self._cudnn_tensor_descriptor:
-                cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
+        if self._cudnn_tensor_descriptor:
+            cudnn.destroy_tensor_descriptor(self._cudnn_tensor_descriptor)
 
     def __getitem__(self, key):
         # get row
@@ -877,6 +877,29 @@ class GpuMatrix(object):
                               softmax_matrix.cudnn_tensor_descriptor,
                               softmax_matrix.data)
 
+    def add_softmax_derivative(self, context, softmax_matrix, deriv_matrix):
+        """
+
+        :param context:
+        :param softmax_matrix: matrix with softmax
+        :param deriv_matrix: gradients that needs to propagate through softmax
+        :return:
+        """
+        GpuMatrix.wait_matrices(context, self, softmax_matrix, deriv_matrix)
+        self.last_modification_context = context
+        context.activate()
+        cudnn.softmax_backward(context.cudnn_handle,
+                               cudnn.softmax_algorithm['CUDNN_SOFTMAX_ACCURATE'],
+                               cudnn.softmax_mode['CUDNN_SOFTMAX_MODE_INSTANCE'],
+                               ct.c_float(1.0),
+                               softmax_matrix.cudnn_tensor_descriptor,
+                               softmax_matrix.data,
+                               deriv_matrix.cudnn_tensor_descriptor,
+                               deriv_matrix.data,
+                               ct.c_float(1.0),
+                               self.cudnn_tensor_descriptor,
+                               self.data)
+
     def assign_softmax_ce_derivative(self, context, probs, target_classes):
         GpuMatrix.wait_matrices(context, probs, target_classes)
         self.last_modification_context = context
@@ -884,7 +907,7 @@ class GpuMatrix(object):
         gpu_matrix_kernels.softmax_ce_derivative(context.cuda_stream, probs.nrows, probs.ncols, probs.data, target_classes.data, self.data)
 
     def add_softmax_ce_derivative(self, context, probs, target_classes):
-        GpuMatrix.wait_matrices(context, probs, target_classes)
+        GpuMatrix.wait_matrices(context, self, probs, target_classes)
         self.last_modification_context = context
         context.activate()
         gpu_matrix_kernels.add_softmax_ce_derivative(context.cuda_stream, probs.nrows, probs.ncols, probs.data, target_classes.data, self.data)

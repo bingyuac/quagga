@@ -168,6 +168,20 @@ _libcudnn.cudnnSoftmaxForward.argtypes = [ct_cudnn_handle,
                                           ct.c_void_p, ct.c_void_p,
                                           ct_cudnn_tensor_descriptor,
                                           ct.c_void_p]
-def softmax_forward(handle, algorithm, mode, alpha, src_desc, src_data, beta, dest_desc, dest_data):
-    status = _libcudnn.cudnnSoftmaxForward(handle, algorithm, mode, ct.byref(alpha), src_desc, src_data, ct.byref(beta), dest_desc, dest_data)
+def softmax_forward(handle, algorithm, mode, alpha, x_desc, x, beta, y_desc, y):
+    status = _libcudnn.cudnnSoftmaxForward(handle, algorithm, mode, ct.byref(alpha), x_desc, x, ct.byref(beta), y_desc, y)
+    check_status(status)
+
+
+_libcudnn.cudnnSoftmaxBackward.restype = ct_cudnn_status
+_libcudnn.cudnnSoftmaxBackward.argtypes = [ct_cudnn_handle,
+                                           ct.c_int, ct.c_int, ct.c_void_p,
+                                           ct_cudnn_tensor_descriptor,
+                                           ct.c_void_p,
+                                           ct_cudnn_tensor_descriptor,
+                                           ct.c_void_p, ct.c_void_p,
+                                           ct_cudnn_tensor_descriptor,
+                                           ct.c_void_p]
+def softmax_backward(handle, algorithm, mode, alpha, y_desc, y, dy_desc, dy, beta, dx_desc, dx):
+    status = _libcudnn.cudnnSoftmaxBackward(handle, algorithm, mode, ct.byref(alpha), y_desc, y, dy_desc, dy, ct.byref(beta), dx_desc, dx)
     check_status(status)

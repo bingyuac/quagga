@@ -485,6 +485,11 @@ class CpuMatrix(object):
         z = np.sum(softmax_matrix.npa, axis=1, keepdims=True)
         softmax_matrix.npa /= z
 
+    def add_softmax_derivative(self, context, softmax_matrix, deriv_matrix):
+        grad_x = softmax_matrix.npa * deriv_matrix.npa
+        grad_x -= softmax_matrix.npa * grad_x.sum(axis=1, keepdims=True)
+        self.npa += grad_x
+
     def assign_softmax_ce_derivative(self, context, probs, target_classes):
         self.npa = probs.npa / probs.npa.shape[0]
         self.npa[range(probs.nrows), target_classes.npa.flatten()] -= 1.0 / probs.npa.shape[0]
