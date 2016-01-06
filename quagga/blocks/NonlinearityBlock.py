@@ -50,6 +50,8 @@ class NonlinearityBlock(object):
             self.f = self.x.tanh
         elif nonlinearity == 'relu':
             self.f = self.x.relu
+        elif nonlinearity == 'softmax':
+            raise ValueError('For softmax nonlinearity use SoftmaxBlock!')
         else:
             raise ValueError('TODO!')
         self.training_mode = True

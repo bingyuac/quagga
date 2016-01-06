@@ -26,9 +26,19 @@ class SoftmaxBlock(object):
     def __init__(self, x, device_id=None):
         self.context = Context(device_id)
         device_id = self.context.device_id
+        self.learning = x.bpropagable
+        if self.learning:
+            self.x, self.dL_dx = x.register_usage(device_id, device_id)
+        else:
+            self.x = x.register_usage(device_id)
         self.x = x.register_usage(device_id)
-        self.probs = Connector(Matrix.empty_like(self.x))
+        self.output = Connector(Matrix.empty_like(self.x))
 
     def fprop(self):
-        self.x.softmax(self.context, self.probs)
-        self.probs.fprop()
+        self.x.softmax(self.context, self.output)
+        self.output.fprop()
+
+    def bprop(self):
+        if hasattr(self, 'dL_dx'):
+            dL_doutput = self.output.backward_matrix
+            self.dL_dx.add_softmax_derivative(self.context, self.output, dL_doutput)
