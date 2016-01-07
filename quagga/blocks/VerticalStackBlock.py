@@ -39,7 +39,8 @@ class VerticalStackBlock(object):
             else:
                 matrix = matrix.register_usage(device_id)
             self.matrices.append(matrix)
-        nrows = sum(matrix.nrows for matrix in matrices)
+        nrows = [matrix.nrows for matrix in matrices]
+        nrows = sum([e for e in nrows[1:]], nrows[0])
         dtype = matrices[0].dtype
         bu_device_id = device_id if self.dL_dmatrices else None
         output = Matrix.empty(nrows, matrices[0].ncols, dtype, device_id)

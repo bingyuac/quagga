@@ -46,7 +46,8 @@ class HorizontalStackBlock(object):
             else:
                 matrix = matrix.register_usage(device_id)
             self.matrices.append(matrix)
-        ncols = sum(matrix.ncols for matrix in matrices)
+        ncols = [matrix.ncols for matrix in matrices]
+        ncols = sum([e for e in ncols[1:]], ncols[0])
         dtype = matrices[0].dtype
         bu_device_id = device_id if self.dL_dmatrices else None
         output = Matrix.empty(matrices[0].nrows, ncols, dtype, device_id)
