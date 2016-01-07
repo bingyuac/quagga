@@ -33,14 +33,15 @@ class Constant(object):
 
 
 class Orthogonal(object):
-    def __init__(self, nrows, ncols):
+    def __init__(self, nrows, ncols, gain=1.0):
         self.shape = (nrows, ncols)
+        self.gain = gain
 
     def __call__(self):
         a = rng.normal(0.0, 1.0, self.shape)
         u, _, v = np.linalg.svd(a, full_matrices=False)
         a = u if u.shape == self.shape else v
-        return np.asfortranarray(a, np.float32)
+        return np.asfortranarray(self.gain * a, np.float32)
 
 
 class Xavier(object):

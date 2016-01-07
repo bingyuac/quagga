@@ -27,6 +27,7 @@ class SequentialHorizontalStackBlock(object):
         """
         TODO
         """
+        # TODO add during hsplit otherwise wrong accumulation of gradients
         if all(e.bpropagable for e in chain(x_sequence, y_sequence)):
             learning = True
         elif all(not e.bpropagable for e in chain(x_sequence, y_sequence)):

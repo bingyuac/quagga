@@ -39,4 +39,5 @@ from quagga.blocks.SequentialSumPoolingBlock import SequentialSumPoolingBlock
 from quagga.blocks.SigmoidCeBlock import SigmoidCeBlock
 from quagga.blocks.SoftmaxBlock import SoftmaxBlock
 from quagga.blocks.SoftmaxCeBlock import SoftmaxCeBlock
+from quagga.blocks.VerticalStackBlock import VerticalStackBlock
 from quagga.blocks.SseBlock import SseBlock

@@ -486,7 +486,14 @@ class GpuMatrix(object):
         gpu_matrix_kernels.horizontal_stack(context.cuda_stream, n, ncols, self.nrows, matrices, self.data)
 
     def hsplit(self, context, matrices, col_slices=None):
-        GpuMatrix.wait_matrices(context, self)
+        """
+        TODO: Split `self` Matrix horizontally
+        :param context:
+        :param matrices: output
+        :param col_slices:
+        :return:
+        """
+        GpuMatrix.wait_matrices(context, self, *matrices)
         for matrix in matrices:
             matrix.last_modification_context = context
         context.activate()

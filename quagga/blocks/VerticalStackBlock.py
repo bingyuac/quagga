@@ -19,16 +19,9 @@ from quagga.context import Context
 from quagga.connector import Connector
 
 
-class HorizontalStackBlock(object):
+class VerticalStackBlock(object):
     """
-    Concatenates input matrices horizontally.
-
-    Parameters
-    ----------
-    matrices : Matrix (GpuMatrix or CpuMatrix)
-        Input matrices that need to be concatenated.
-    device_id: int
-        Defines the device's id on which the computation will take place
+    Concatenates matrices vertically.
     """
 
     def __init__(self, *matrices, **kwargs):
@@ -46,22 +39,22 @@ class HorizontalStackBlock(object):
             else:
                 matrix = matrix.register_usage(device_id)
             self.matrices.append(matrix)
-        ncols = sum(matrix.ncols for matrix in matrices)
+        nrows = sum(matrix.nrows for matrix in matrices)
         dtype = matrices[0].dtype
         bu_device_id = device_id if self.dL_dmatrices else None
-        output = Matrix.empty(matrices[0].nrows, ncols, dtype, device_id)
+        output = Matrix.empty(nrows, matrices[0].ncols, dtype, device_id)
         self.output = Connector(output, bu_device_id)
 
     def fprop(self):
-        self.output.assign_hstack(self.context, self.matrices)
+        self.output.assign_vstack(self.context, self.matrices)
         self.output.fprop()
 
     def bprop(self):
         if self.dL_dmatrices:
-            col_slices = []
-            ncols = [0]
+            row_slices = []
+            nrows = [0]
             for matrix, bpropagable in izip(self.matrices, self.bpropagable):
-                ncols.append(ncols[-1] + int(matrix.ncols))
+                nrows.append(nrows[-1] + int(matrix.nrows))
                 if bpropagable:
-                    col_slices.append((ncols[-2], ncols[-1]))
-            self.output.backward_matrix.hsplit(self.context, self.dL_dmatrices, col_slices)
+                    row_slices.append((nrows[-2], nrows[-1]))
+            self.output.backward_matrix.vsplit(self.context, self.dL_dmatrices, row_slices)
