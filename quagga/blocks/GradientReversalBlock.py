@@ -21,10 +21,9 @@ class GradientReversalBlock(object):
     def __init__(self, x, scale_factor=1.0):
         self.context = Context(x.device_id)
         device_id = self.context.device_id
+        self.output = x
         if x.bpropagable:
-            self.output, self.dL_dx = x.register_usage(device_id, device_id)
-        else:
-            self.output = x.register_usage(device_id)
+            _, self.dL_dx = x.register_usage(device_id, device_id)
         self.scale_factor = ct.c_float(-scale_factor)
 
     def bprop(self):
