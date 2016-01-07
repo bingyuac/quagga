@@ -60,7 +60,10 @@ class SequencerBlock(object):
                     prev_block = self.blocks[-1]
                     prevs = [getattr(prev_block, name) for name in prev_names]
                 args += prevs
-            self.blocks.append(block_class(*args, device_id=device_id))
+            try:
+                self.blocks.append(block_class(*args, device_id=device_id))
+            except TypeError:
+                self.blocks.append(block_class(*args))
             for i, output_name in enumerate(output_names):
                 outputs[i].append(getattr(self.blocks[-1], output_name))
         for output_name, output in izip(output_names, outputs):

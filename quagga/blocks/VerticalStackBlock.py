@@ -25,7 +25,7 @@ class VerticalStackBlock(object):
     """
 
     def __init__(self, *matrices, **kwargs):
-        # TODO(sergii): change hsplit to aditive_hsplit for propper gradients accumulation
+        # TODO(sergii): change vsplit to aditive_vsplit for propper gradients accumulation
         self.context = Context(kwargs.get('device_id'))
         device_id = self.context.device_id
         self.matrices = []

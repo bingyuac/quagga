@@ -32,7 +32,7 @@ class SoftmaxBlock(object):
         else:
             self.x = x.register_usage(device_id)
         self.x = x.register_usage(device_id)
-        self.output = Connector(Matrix.empty_like(self.x))
+        self.output = Connector(Matrix.empty_like(self.x), device_id if self.learning else None)
 
     def fprop(self):
         self.x.softmax(self.context, self.output)
