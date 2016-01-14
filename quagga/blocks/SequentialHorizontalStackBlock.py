@@ -48,42 +48,28 @@ class SequentialHorizontalStackBlock(object):
 
         self.context = Context(device_id)
         device_id = self.context.device_id
-
-        self._x_sequence = x_sequence
-        self._y_sequence = y_sequence
-        self.x_sequence = []
-        self.y_sequence = []
-
         if learning:
-            self.dL_dx_sequences = []
-            self.dL_dy_sequences = []
-            b_usage_context = self.context
+            self.x_sequence, self.dL_dx_sequences = izip(*x_sequence.register_usage(device_id, device_id))
+            self.y_sequence, self.dL_dy_sequences = izip(*y_sequence.register_usage(device_id, device_id))
+            self.dL_dx_sequences = List(self.dL_dx_sequences, x_sequence.length)
+            self.dL_dy_sequences = List(self.dL_dy_sequences, y_sequence.length)
         else:
-            b_usage_context = None
-
-        output_sequence = []
-        for x, y in izip(x_sequence, y_sequence):
-            if learning:
-                x, dL_dx = x.register_usage(self.context, self.context)
-                y, dL_dy = y.register_usage(self.context, self.context)
-                self.dL_dx_sequences.append(dL_dx)
-                self.dL_dy_sequences.append(dL_dy)
-            else:
-                x = x.register_usage(self.context)
-                y = y.register_usage(self.context)
-            self.x_sequence.append(x)
-            self.y_sequence.append(y)
-            output_sequence.append(Connector(Matrix.empty(x.nrows, x_ncols+y_ncols, dtype, device_id), self.context, b_usage_context))
-        self.output_sequence = List(output_sequence)
+            self.x_sequence = x_sequence.register_usage(device_id)
+            self.y_sequence = y_sequence.register_usage(device_id)
+        self.x_sequence = List(self.x_sequence, x_sequence.length)
+        self.y_sequence = List(self.y_sequence, y_sequence.length)
+        output = []
+        for _ in xrange(x_sequence.length):
+            matrix = Matrix.empty(x_sequence[0].nrows, x_ncols + y_ncols, dtype, device_id)
+            output.append(Connector(matrix, device_id))
+        self.output = List(output, x_sequence.length)
+        if learning:
+            self.dL_dx_sequences = List(self.dL_dx_sequences, x_sequence.length)
+            self.dL_dy_sequences = List(self.dL_dy_sequences, x_sequence.length)
 
     def fprop(self):
-        n = len(self._x_sequence)
-        if n != len(self._y_sequence):
-            raise ValueError('TODO!')
-        self.output_sequence.set_length(n)
-        Matrix.batch_hstack(self.context, self.x_sequence[:n], self.y_sequence[:n], self.output_sequence)
+        Matrix.batch_hstack(self.context, self.x_sequence, self.y_sequence, self.output)
 
     def bprop(self):
-        dL_doutput_sequence = [e.backward_matrix for e in self.output_sequence]
-        n = len(dL_doutput_sequence)
-        Matrix.batch_hsplit(self.context, dL_doutput_sequence, self.dL_dx_sequences[:n], self.dL_dy_sequences[:n])
+        dL_doutput_sequence = [e.backward_matrix for e in self.output]
+        Matrix.batch_hsplit(self.context, dL_doutput_sequence, self.dL_dx_sequences, self.dL_dy_sequences)

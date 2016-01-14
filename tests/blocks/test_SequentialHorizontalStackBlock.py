@@ -68,20 +68,22 @@ class TestSequentialHorizontalStackBlock(TestCase):
             x_gpu = List([Connector(Matrix.from_npa(e)) for e in x])
             y_gpu = List([Connector(Matrix.from_npa(e)) for e in y])
             seq_hstack_block_gpu = SequentialHorizontalStackBlock(x_gpu, y_gpu)
-            x_gpu.set_length(sequence_len)
-            y_gpu.set_length(sequence_len)
+            x_gpu.length = sequence_len
+            y_gpu.length = sequence_len
+            if sequence_len == 0:
+                pass
             seq_hstack_block_gpu.fprop()
-            output_sequence_gpu = seq_hstack_block_gpu.output_sequence.to_host()
+            output_sequence_gpu = seq_hstack_block_gpu.output.to_host()
 
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             x_cpu = List([Connector(Matrix.from_npa(e)) for e in x])
             y_cpu = List([Connector(Matrix.from_npa(e)) for e in y])
             seq_hstack_block_cpu = SequentialHorizontalStackBlock(x_cpu, y_cpu)
-            x_cpu.set_length(sequence_len)
-            y_cpu.set_length(sequence_len)
+            x_cpu.length = sequence_len
+            y_cpu.length = sequence_len
             seq_hstack_block_cpu.fprop()
-            output_sequence_cpu = seq_hstack_block_cpu.output_sequence.to_host()
+            output_sequence_cpu = seq_hstack_block_cpu.output.to_host()
 
             for out_gpu, out_cpu in izip(output_sequence_gpu, output_sequence_cpu):
                 if not np.allclose(out_gpu, out_cpu):
@@ -96,6 +98,7 @@ class TestSequentialHorizontalStackBlock(TestCase):
         """
         compare `bprop` results for cpu and gpu backends
         """
+        device_id = 0
         r = []
         for i in xrange(self.N):
             max_input_sequence_len = self.rng.random_integers(500)
@@ -108,16 +111,16 @@ class TestSequentialHorizontalStackBlock(TestCase):
             state = self.rng.get_state()
             quagga.processor_type = 'gpu'
             context = Context()
-            x_gpu = List([Connector(Matrix.from_npa(e), context, context) for e in x])
-            y_gpu = List([Connector(Matrix.from_npa(e), context, context) for e in y])
+            x_gpu = List([Connector(Matrix.from_npa(e), device_id) for e in x])
+            y_gpu = List([Connector(Matrix.from_npa(e), device_id) for e in y])
             seq_hstack_block_gpu = SequentialHorizontalStackBlock(x_gpu, y_gpu)
-            x_gpu.set_length(sequence_len)
-            y_gpu.set_length(sequence_len)
-            _, dL_doutput_sequence = zip(*[e.register_usage(context, context) for e in seq_hstack_block_gpu.output_sequence])
+            x_gpu.length = sequence_len
+            y_gpu.length = sequence_len
+            _, dL_doutput_sequence = izip(*seq_hstack_block_gpu.output.register_usage(device_id, device_id))
             seq_hstack_block_gpu.fprop()
             for dL_doutput in dL_doutput_sequence:
                 random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
+                dL_doutput.assign(context, Matrix.from_npa(random_matrix, 'float'))
             seq_hstack_block_gpu.bprop()
             dL_dx_matrices_gpu = [e.backward_matrix.to_host() for e in x_gpu]
             dL_dy_matrices_gpu = [e.backward_matrix.to_host() for e in y_gpu]
@@ -125,16 +128,16 @@ class TestSequentialHorizontalStackBlock(TestCase):
             self.rng.set_state(state)
             quagga.processor_type = 'cpu'
             context = Context()
-            x_cpu = List([Connector(Matrix.from_npa(e), context, context) for e in x])
-            y_cpu = List([Connector(Matrix.from_npa(e), context, context) for e in y])
+            x_cpu = List([Connector(Matrix.from_npa(e), device_id) for e in x])
+            y_cpu = List([Connector(Matrix.from_npa(e), device_id) for e in y])
             seq_hstack_block_cpu = SequentialHorizontalStackBlock(x_cpu, y_cpu)
-            x_cpu.set_length(sequence_len)
-            y_cpu.set_length(sequence_len)
-            _, dL_doutput_sequence = zip(*[e.register_usage(context, context) for e in seq_hstack_block_cpu.output_sequence])
+            x_cpu.length = sequence_len
+            y_cpu.length = sequence_len
+            _, dL_doutput_sequence = izip(*seq_hstack_block_cpu.output.register_usage(device_id, device_id))
             seq_hstack_block_cpu.fprop()
             for dL_doutput in dL_doutput_sequence:
                 random_matrix = self.rng.rand(dL_doutput.nrows, dL_doutput.ncols)
-                Matrix.from_npa(random_matrix, 'float').copy_to(context, dL_doutput)
+                dL_doutput.assign(context, Matrix.from_npa(random_matrix, 'float'))
             seq_hstack_block_cpu.bprop()
             dL_dx_matrices_cpu = [e.backward_matrix.to_host() for e in x_cpu]
             dL_dy_matrices_cpu = [e.backward_matrix.to_host() for e in y_cpu]
@@ -161,6 +164,7 @@ class TestSequentialHorizontalStackBlock(TestCase):
         self.assertEqual(sum(r), self.N * 2)
 
     def test_theano_grad(self):
+        device_id = 0
         class SequentialHorizontalStackLayer(object):
             def get_output_expr(self, x_sequence, y_sequence):
                 return T.concatenate((x_sequence, y_sequence), axis=1)
@@ -208,16 +212,17 @@ class TestSequentialHorizontalStackBlock(TestCase):
 
             # quagga model
             self.rng.set_state(state)
-            context = Context()
-            x = List([Connector(Matrix.from_npa(e), context, context) for e in x])
-            y = List([Connector(Matrix.from_npa(e), context, context) for e in y])
+            W = Connector(Matrix.from_npa(W_init(), device_id=device_id), device_id)
+            b = Connector(Matrix.from_npa(b_init(), device_id=device_id), device_id)
+            x = List([Connector(Matrix.from_npa(e), device_id) for e in x])
+            y = List([Connector(Matrix.from_npa(e), device_id) for e in y])
             true_labels = Connector(Matrix.from_npa(true_labels))
             shs_block = SequentialHorizontalStackBlock(x, y)
-            smp_block = SequentialMeanPoolingBlock(shs_block.output_sequence)
-            dot_block = DotBlock(W_init, b_init, smp_block.output)
+            smp_block = SequentialMeanPoolingBlock(shs_block.output)
+            dot_block = DotBlock(W, b, smp_block.output)
             sce_block = SigmoidCeBlock(dot_block.output, true_labels)
-            x.set_length(sequence_len)
-            y.set_length(sequence_len)
+            x.length = sequence_len
+            y.length = sequence_len
             shs_block.fprop()
             smp_block.fprop()
             dot_block.fprop()
