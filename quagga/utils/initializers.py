@@ -44,6 +44,27 @@ class Orthogonal(object):
         return np.asfortranarray(self.gain * a, np.float32)
 
 
+class StackedInitializer(object):
+    def __init__(self, initializer, n, axis):
+        self.initializer = initializer
+        self.n = n
+        self.axis = axis
+
+    def __call__(self):
+        a = [self.initializer() for _ in xrange(self.n)]
+        if self.axis == 0:
+            a = np.vstack(a)
+        elif self.axis == 1:
+            a = np.hstack(a)
+        else:
+            raise ValueError('StackedInitializer works only with '
+                             '2-d numpy arrays!')
+        if a.dtype != np.float32 and not np.isfortran(a):
+            return np.asfortranarray(a, np.float32)
+        else:
+            return a
+
+
 class Xavier(object):
     def __init__(self, nrows, ncols):
         self.shape = (nrows, ncols)

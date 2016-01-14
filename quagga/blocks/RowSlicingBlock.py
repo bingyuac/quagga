@@ -20,12 +20,16 @@ from quagga.connector import Connector
 
 
 class RowSlicingBlock(object):
-    def __init__(self, W, row_indexes):
+    def __init__(self, W, row_indexes, dense=True):
+        self.dense = dense
         device_id = W.device_id
         self.context = Context(device_id)
         learning = W.bpropagable
         if learning:
-            self.W, self.dL_dW = W.register_usage_with_sparse_backward_matrix()
+            if dense:
+                self.W, self.dL_dW = W.register_usage(device_id, device_id)
+            else:
+                self.W, self.dL_dW = W.register_usage_with_sparse_backward_matrix()
         else:
             self.W = W.register_usage(device_id)
         self.row_indexes = row_indexes.register_usage(device_id)
@@ -50,6 +54,10 @@ class RowSlicingBlock(object):
     def bprop(self):
         if hasattr(self, 'dL_dW'):
             if isinstance(self.output, List):
-                self.dL_dW.add_rows_batch_slice(self.row_indexes, self.output.bprop())
+                update_method = self.dL_dW.add_rows_batch_slice
             else:
-                self.dL_dW.add_rows_slice(self.row_indexes, self.output.bprop())
+                update_method = self.dL_dW.add_rows_slice
+            if self.dense:
+                update_method(self.context, self.row_indexes, self.output.bprop())
+            else:
+                update_method(self.row_indexes, self.output.bprop())

@@ -13,7 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-from quagga.utils.List import List
-from NoGradientWrapper import NoGradientWrapper
-from NoGradientWrapper import get_non_bprobagable
-from quagga.utils.CustomDefaultDict import CustomDefaultDict
+from quagga.utils import NoGradientWrapper
+
+
+class NoGradientBlock(object):
+    def __init__(self, x):
+        self.output = NoGradientWrapper(x)
+
+    def fprop(self):
+        # TODO(sergii): exist just because of Sequencer block
+        pass
+
+    def bprop(self):
+        # TODO(sergii): exist just because of Sequencer block
+        pass

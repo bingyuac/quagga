@@ -39,8 +39,7 @@ class Hdf5Saver(object):
         self.npa_params = {}
 
     def notify(self):
-        # if self.iteration % self.period == 0 and self.iteration != 0:
-        if self.iteration % self.period == 0:
+        if self.iteration % self.period == 0 and self.iteration != 0:
             self.logger.info('Iteration {}: start saving model ...'.format(self.iteration))
             h5_file = h5py.File(self.parameters_file_path, 'w')
             for param_name, param in self.params.iteritems():
