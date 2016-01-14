@@ -13,9 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-from quagga.optimizers.observers.Hdf5Saver import Hdf5Saver
-from quagga.optimizers.observers.Validator import Validator
-from quagga.optimizers.observers.ValidLossTracker import ValidLossTracker
-from quagga.optimizers.observers.TrainLossTracker import TrainLossTracker
-from quagga.optimizers.observers.Hdf5ValidationSaver import Hdf5ValidationSaver
-from quagga.optimizers.observers.ValidAccuracyTracker import ValidAccuracyTracker
+
+
+# TODO(sergii): write this class
+class EarlyStoppingCriterion(object):
+    def __init__(self, observer_loop, max_iter):
+        self.observer_loop = observer_loop
+        self.max_iter = max_iter
+        self.iteration = 0
+
+    def notify(self):
+        if self.iteration > self.max_iter:
+            self.observer_loop.stop()
+        self.iteration += 1

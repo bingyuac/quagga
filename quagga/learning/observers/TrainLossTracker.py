@@ -14,40 +14,39 @@
 # limitations under the License.
 # ----------------------------------------------------------------------------
 import numpy as np
-from quagga.context import Context
 
 
 class TrainLossTracker(object):
-    def __init__(self, model, period, logger):
-        self.loss_block = model.loss_block
-        # we must use this context otherwise we can't guarantee that
-        # calculated loss will be correct. Because (very unlikely)
-        # probs, true_labels value can be overwritten during calculating loss
-        self.context = self.loss_block.context
+    def __init__(self, loss_block, period, logger):
+        self.loss_block = loss_block
         self.period = period
         self.logger = logger
         self.observers = []
         self.losses = []
         self.iteration = 0
-
-    def notify(self):
-        self.loss_block.calculate_loss(self.context)
-        self.context.add_callback(self.accumulate_loss)
-        if self.iteration % self.period == 0 and self.iteration != 0:
-            self.context.add_callback(self.log_notify, self.iteration)
-        self.iteration += 1
+        # we must use this context otherwise we can't guarantee that
+        # calculated loss will be correct. Because (very unlikely)
+        # probs, true_labels value can be overwritten during calculating loss
+        self.context = self.loss_block.context
 
     def add_observer(self, observer):
         self.observers.append(observer)
 
-    def accumulate_loss(self):
+    def _accumulate_loss(self):
         loss = self.loss_block.loss
         if type(loss) is list:
             self.losses.extend(loss)
         else:
             self.losses.append(loss)
 
-    def log_notify(self, iteration):
+    def notify(self):
+        self.loss_block.calculate_loss(self.context)
+        self.context.add_callback(self._accumulate_loss)
+        if self.iteration % self.period == 0 and self.iteration != 0:
+            self.context.add_callback(self._notify_observers, self.iteration)
+        self.iteration += 1
+
+    def _notify_observers(self, iteration):
         loss = np.mean(self.losses)
         self.losses = []
         self.logger.info('Iteration {}: train loss: {:.4f}'.

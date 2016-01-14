@@ -13,5 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-from quagga.optimizers.stopping_criteria.MaxIterCriterion import MaxIterCriterion
-from quagga.optimizers.stopping_criteria.EarlyStoppingCriterion import EarlyStoppingCriterion
+from quagga.learning.policies.FixedValuePolicy import FixedValuePolicy
+from quagga.learning.policies.ScheduledValuePolicy import ScheduledValuePolicy
+from quagga.learning.policies.ConditionalValuePolicy import ConditionalValuePolicy

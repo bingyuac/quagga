@@ -13,19 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-class Optimizer(object):
-    def __init__(self, stopping_criterion, model):
-        self.stopping_criterion = stopping_criterion
-        self.model = model
-        self.observers = []
 
-    def optimize(self):
-        self.model.set_training_mode()
-        while not self.stopping_criterion.is_fulfilled():
-            self.model.fprop()
-            self.model.bprop()
-            for observer in self.observers:
-                observer.notify()
 
-    def add_observer(self, observer):
-        self.observers.append(observer)
+class ConditionalValuePolicy(object):
+    def __init__(self, initial_value, decay_func, name, logger):
+        self.value = initial_value
+        self.decay_func = decay_func
+        self.name = name
+        self.logger = logger
+        self.previous_loss = None
+
+    def notify(self, loss):
+        if self.previous_loss and loss > self.previous_loss:
+            self.value = self.decay_func(self.value)
+            self.logger.info('{}: {}'.format(self.name, self.value))
+        else:
+            self.previous_loss = loss

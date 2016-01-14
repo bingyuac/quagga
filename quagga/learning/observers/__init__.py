@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-class EarlyStoppingCriterion(object):
-    def __init__(self, max_iter):
-        self.max_iter = max_iter
-        self.iteration = 0
-
-    def is_fulfilled(self):
-        return True if self.iteration > self.max_iter else False
-
-    def notify(self):
-        self.iteration += 1
+from quagga.learning.observers.Bproper import Bproper
+from quagga.learning.observers.Fproper import Fproper
+from quagga.learning.observers.Hdf5Saver import Hdf5Saver
+from quagga.learning.observers.Hdf5ValidationSaver import Hdf5ValidationSaver
+from quagga.learning.observers.TTTrainLossTracker import TTTrainLossTracker
+from quagga.learning.observers.TrainLossTracker import TrainLossTracker
+from quagga.learning.observers.ValidAccuracyTracker import ValidAccuracyTracker
+from quagga.learning.observers.ValidLossTracker import ValidLossTracker
+from quagga.learning.observers.Validator import Validator

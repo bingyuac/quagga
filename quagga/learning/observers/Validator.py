@@ -13,34 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-import numpy as np
-from quagga.context import Context
 
 
-class ValidLossTracker(object):
-    def __init__(self, logger):
-        self.logger = logger
+class Validator(object):
+    def __init__(self, model, period):
+        self.model = model
+        self.period = period
         self.observers = []
-        self.losses = []
-
-    def calculate(self, context, loss_block):
-        loss_block.calculate_loss(context)
-        context.add_callback(self.accumulate_loss, loss_block)
-
-    def accumulate_loss(self, loss_block):
-        loss = loss_block.loss
-        if type(loss) is list:
-            self.losses.extend(loss)
-        else:
-            self.losses.append(loss)
+        self.fprop_ovservers = []
+        self.iteration = 0
 
     def add_observer(self, observer):
         self.observers.append(observer)
 
-    def notify(self, iteration):
-        loss = np.mean(self.losses)
-        self.losses = []
-        self.logger.info('Iteration {}: valid loss: {:.4f}'.
-                         format(iteration, loss))
-        for observer in self.observers:
-            observer.notify(loss)
+    def add_fprop_observer(self, observer):
+        self.fprop_ovservers.append(observer)
+
+    def notify(self):
+        if self.iteration % self.period == 0 and self.iteration != 0:
+            self.model.set_testing_mode()
+            try:
+                while True:
+                    self.model.fprop()
+                    for observer in self.fprop_ovservers:
+                        observer.notify_about_fprop()
+            except StopIteration:
+                for observer in self.observers:
+                    observer.notify(self.iteration)
+            self.model.set_training_mode()
+        self.iteration += 1

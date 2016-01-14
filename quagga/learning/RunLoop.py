@@ -13,4 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-from quagga.optimizers.Optimizer import Optimizer
+
+
+class RunLoop(object):
+    def __init__(self):
+        self.observers = []
+        self.finish = False
+
+    def start(self):
+        while not self.finish:
+            for observer in self.observers:
+                observer.notify()
+
+    def add_observer(self, observer):
+        self.observers.append(observer)
+
+    def stop(self):
+        self.finish = True

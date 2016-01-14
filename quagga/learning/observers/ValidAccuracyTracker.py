@@ -14,21 +14,22 @@
 # limitations under the License.
 # ----------------------------------------------------------------------------
 import numpy as np
-from quagga.context import Context
 
 
 class ValidAccuracyTracker(object):
-    def __init__(self, logger):
-        self.observers = []
+    def __init__(self, loss_block, logger):
+        self.loss_block = loss_block
         self.logger = logger
+        self.observers = []
         self.accuracy = []
+        # we must use this context otherwise we can't guarantee that
+        # calculated loss will be correct
+        self.context = self.loss_block.context
 
-    def calculate(self, context, loss_block):
-        probs = loss_block.probs.to_host(context)
-        true_labels = loss_block.true_labels.to_host(context)
-        context.add_callback(self.calculate_accuracy, probs, true_labels)
+    def add_observer(self, observer):
+        self.observers.append(observer)
 
-    def calculate_accuracy(self, probs, true_labels):
+    def _calculate_accuracy(self, probs, true_labels):
         if true_labels.shape[1] == 1:
             if probs.shape[1] == 1:
                 # sigmoid
@@ -43,8 +44,10 @@ class ValidAccuracyTracker(object):
             # TODO(sergii)
             pass
 
-    def add_observer(self, observer):
-        self.observers.append(observer)
+    def notify_about_fprop(self):
+        probs = self.loss_block.probs.to_host(self.context)
+        true_labels = self.loss_block.true_labels.to_host(self.context)
+        self.context.add_callback(self._calculate_accuracy, probs, true_labels)
 
     def notify(self, iteration):
         accuracy = np.mean(self.accuracy)

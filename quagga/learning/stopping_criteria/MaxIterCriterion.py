@@ -13,13 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
+
+
 class MaxIterCriterion(object):
-    def __init__(self, max_iter):
+    def __init__(self, observer_loop, max_iter):
+        self.observer_loop = observer_loop
         self.max_iter = max_iter
         self.iteration = 0
 
-    def is_fulfilled(self):
-        return True if self.iteration > self.max_iter else False
-
     def notify(self):
+        if self.iteration > self.max_iter:
+            self.observer_loop.stop()
         self.iteration += 1

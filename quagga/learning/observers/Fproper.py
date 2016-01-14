@@ -13,6 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
-from quagga.optimizers.policies.FixedValuePolicy import FixedValuePolicy
-from quagga.optimizers.policies.ScheduledValuePolicy import ScheduledValuePolicy
-from quagga.optimizers.policies.ConditionalValuePolicy import ConditionalValuePolicy
+
+
+class Fproper(object):
+    def __init__(self, model):
+        self.model = model
+
+    def notify(self):
+        self.model.fprop()

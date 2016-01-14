@@ -27,9 +27,9 @@ class Hdf5ValidationSaver(object):
         self.logger = logger
         self.previous_loss = np.inf
         self.loss = Queue()
-        message_loop_thread = Thread(target=self.message_loop)
-        message_loop_thread.daemon = True
-        message_loop_thread.start()
+        notification_loop_thread = Thread(target=self._notify)
+        notification_loop_thread.daemon = True
+        notification_loop_thread.start()
         # we can use our own contexts because during Connector fprop
         # derivative matrices are filling with 0.0 in param's
         # last_usage_context, to_host changes param's last_usage_context.
@@ -47,7 +47,7 @@ class Hdf5ValidationSaver(object):
     def notify(self, loss):
         self.loss.put(loss)
 
-    def message_loop(self):
+    def _notify(self):
         while True:
             loss = self.loss.get()
             if loss < self.previous_loss:
