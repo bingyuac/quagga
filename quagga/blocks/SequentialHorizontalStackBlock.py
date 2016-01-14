@@ -69,6 +69,7 @@ class SequentialHorizontalStackBlock(object):
 
     def fprop(self):
         Matrix.batch_hstack(self.context, self.x_sequence, self.y_sequence, self.output)
+        self.output.fprop()
 
     def bprop(self):
         dL_doutput_sequence = [e.backward_matrix for e in self.output]

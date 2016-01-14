@@ -13,16 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ----------------------------------------------------------------------------
+
+
 class Model(object):
     def __init__(self, blocks):
         self.blocks = blocks
-        self.loss_block = None
         self.modeable_blocks = []
         self.fpropable_blocks = []
         self.bpropable_blocks = []
         for block in self.blocks:
-            if hasattr(block, 'calculate_loss') and hasattr(block, 'loss'):
-                self.loss_block = block
             if hasattr(block, 'set_testing_mode') and \
                     hasattr(block, 'set_training_mode'):
                 self.modeable_blocks.append(block)
