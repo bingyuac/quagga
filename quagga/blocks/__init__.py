@@ -14,7 +14,6 @@
 # limitations under the License.
 # ----------------------------------------------------------------------------
 from quagga.blocks.ArgmaxBlock import ArgmaxBlock
-from quagga.blocks.AttentionBlock import AttentionBlock
 from quagga.blocks.ColSlicingBlock import ColSlicingBlock
 from quagga.blocks.DotBlock import DotBlock
 from quagga.blocks.DropoutBlock import DropoutBlock
@@ -30,7 +29,6 @@ from quagga.blocks.NonlinearityBlock import NonlinearityBlock
 from quagga.blocks.ParameterContainer import ParameterContainer
 from quagga.blocks.RepeatBlock import RepeatBlock
 from quagga.blocks.RowSlicingBlock import RowSlicingBlock
-from quagga.blocks.RowSlicingBlockDense import RowSlicingBlockDense
 from quagga.blocks.ScheduledSamplingBlock import ScheduledSamplingBlock
 from quagga.blocks.SequencerBlock import SequencerBlock
 from quagga.blocks.SequentialHorizontalStackBlock import SequentialHorizontalStackBlock

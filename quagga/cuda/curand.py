@@ -105,7 +105,7 @@ _libcurand.curandDestroyGenerator.restype = ct_curand_status
 _libcurand.curandDestroyGenerator.argtypes = [ct_curand_generator, ct.c_int]
 def destroy_generator(generator):
     """
-    TEOFDDO
+    TODO
     Parameters
     ----------
     generator

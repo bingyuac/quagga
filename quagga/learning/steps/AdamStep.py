@@ -21,8 +21,7 @@ from quagga.context import Context
 
 
 class AdamStep(object):
-    def __init__(self, kkk, parameters, learning_rate_policy, beta1=0.9, beta2=0.999, epsilon=1e-20):
-        self.kkk = kkk
+    def __init__(self, parameters, learning_rate_policy, beta1=0.9, beta2=0.999, epsilon=1e-8):
         self.parameters = parameters
         self.m = []
         self.v = []
@@ -43,8 +42,6 @@ class AdamStep(object):
         self.iteration = 0
 
     def notify(self):
-        if self.iteration % 2 != self.kkk:
-            return
         self.iteration += 1
         del self.blocking_contexts[:]
         learning_rate = ct.c_float(-self.learning_rate_policy.value)
