@@ -1,5 +1,5 @@
 :mod:`quagga.matrix`
-==================
+====================
 
 .. automodule:: quagga.matrix
 
