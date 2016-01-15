@@ -748,8 +748,15 @@ class GpuMatrix(object):
         context.activate()
 
         curand.set_stream(generator, context.cuda_stream)
-        curand.generate_normal(generator, out.data, self.nelems, mean, std)
+        curand.generate_normal(generator, out.data, out.nelems, mean, std)
         cublas.s_axpy(context.cublas_handle, self.nelems, ct.c_float(1.0), self.data, 1, out.data, 1)
+
+    def assign_gaussian_noise(self, context, generator, mean, std):
+        self.last_modification_context = context
+        context.activate()
+
+        curand.set_stream(generator, context.cuda_stream)
+        curand.generate_normal(generator, self.data, self.nelems, mean, std)
 
     def assign_mask_zeros(self, context, a, b):
         """

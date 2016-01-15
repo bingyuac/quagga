@@ -399,6 +399,10 @@ class CpuMatrix(object):
     def add_gaussian_noise(self, context, generator, mean, std, out):
         out.npa = generator.normal(loc=mean, scale=std, size=self.npa.shape).astype(np.float32) + self.npa
 
+    def assign_gaussian_noise(self, context, generator, mean, std):
+        # TODO(sergii)
+        raise NotImplemented()
+
     def assign_mask_zeros(self, context, a, b):
         """
         self = a .* (b != 0)
