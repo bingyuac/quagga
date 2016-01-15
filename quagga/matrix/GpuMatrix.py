@@ -39,6 +39,11 @@ if len(warning_messages) != 1:
 
 
 class GpuMatrix(object):
+    """
+    Provides linear algebra and other primitives for matrix manipulations on
+    Graphics Processing Unit. In order to instantiate the class, use
+    factory methods.
+    """
     def __init__(self, data, nrows, ncols, dtype, device_id, is_owner, strides=None, base=None):
         self.data = data
         self._nrows = nrows if isinstance(nrows, ShapeElement) else ShapeElement(nrows)

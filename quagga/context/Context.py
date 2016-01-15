@@ -41,7 +41,7 @@ def Context(device_id=None):
 
     Returns
     -------
-    instance of :class:`quagga.context.CpuContext` or
-    :class:`quagga.context.GpuContext` class.
+    instance of :class:`~quagga.context.CpuContext` or \
+    :class:`~quagga.context.GpuContext` class.
     """
     return __get_context_class()(device_id)

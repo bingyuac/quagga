@@ -119,7 +119,7 @@ class GpuContext(object):
 
         Parameters
         ----------
-        args : list of :class:`quagga.context.GpuContext`
+        args : list of :class:`~quagga.context.GpuContext`
 
         """
         for context in args:
@@ -136,7 +136,7 @@ class GpuContext(object):
 
         Parameters
         ----------
-        args : list of :class:`quagga.context.GpuContext`
+        args : list of :class:`~quagga.context.GpuContext`
         """
         for context in args:
             self.activate()
