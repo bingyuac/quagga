@@ -27,7 +27,7 @@ class DropoutBlock(object):
     Parameters
     ----------
     dropout_prob : float
-    x : Matrix (GpuMatrix or CpuMatrix)
+    x : :class:`~quagga.matrix.CpuMatrix` or :class:`~quagga.matrix.GpuMatrix`
     seed : int
     device_id : int
         Defines the device's id on which the computation will take place

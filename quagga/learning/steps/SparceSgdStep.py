@@ -30,5 +30,5 @@ class SparseSgdStep(object):
         learning_rate = ct.c_float(-self.learning_rate_policy.value)
         for param, context in izip(self.parameters, self.contexts):
             dL_dparam = param.backward_matrix
-            self.blocking_contexts.extend(dL_dparam.get_last_modification_contexts())
+            self.blocking_contexts.extend(dL_dparam.last_modif_contexts)
             param.add_scaled(context, learning_rate, dL_dparam)

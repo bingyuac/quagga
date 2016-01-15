@@ -33,7 +33,7 @@ class GaussianNoiseBlock(object):
     x : matrix
             Block's input
     seed : int
-            Seed for :func:`quagga.cuda.curand.create_generator`
+            Seed for :func:`~quagga.cuda.curand.create_generator`
     device_id: int
             Defines the device's id on which the computation will take place
     """

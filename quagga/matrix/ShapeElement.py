@@ -164,5 +164,15 @@ class ShapeElement(object):
     def __index__(self):
         return self.value
 
-    def add_modification_handler(self, fun):
-        self.modif_handlers.add(fun)
+    def add_modification_handler(self, handler):
+        """
+        Adds a modification handler ``handler`` to a set of modification
+        handlers of the instance. This function will be called in case of
+        the instance's value is changed.
+
+        Parameters
+        ----------
+        handler : python function
+
+        """
+        self.modif_handlers.add(handler)

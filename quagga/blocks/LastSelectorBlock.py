@@ -21,6 +21,8 @@ from quagga.connector import Connector
 
 class LastSelectorBlock(object):
     """
+    TODO(igor).
+
     Parameters
     ----------
     x : Matrix (GpuMatrix or CpuMatrix)
