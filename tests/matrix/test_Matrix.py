@@ -1102,7 +1102,7 @@ class TestMatrix(TestCase):
 
             a_gpu = GpuMatrix.from_npa(a)
             quagga.processor_type = 'gpu'
-            sparse_m_gpu = SparseMatrix(device_id)
+            sparse_m_gpu = SparseMatrix()
             for i in xrange(2):
                 sparse_m_gpu.add_columns_slice(GpuMatrix.from_npa(column_indxs[i]),
                                                GpuMatrix.from_npa(column_dense_matrix[i]))
@@ -1113,7 +1113,7 @@ class TestMatrix(TestCase):
 
             a_cpu = CpuMatrix.from_npa(a)
             quagga.processor_type = 'cpu'
-            sparse_m_cpu = SparseMatrix(device_id)
+            sparse_m_cpu = SparseMatrix()
             for i in xrange(2):
                 sparse_m_cpu.add_columns_slice(CpuMatrix.from_npa(column_indxs[i]),
                                                CpuMatrix.from_npa(column_dense_matrix[i]))
