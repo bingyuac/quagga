@@ -16,7 +16,7 @@
 class CpuContext(object):
     """
     Mock class created for compatibility purposes in order to enable
-    quick switching GPU and CPU implementations.
+    quick switching between GPU and CPU implementations.
     """
     def __init__(self, device_id=None):
         self.device_id = device_id if device_id else 0

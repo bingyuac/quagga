@@ -19,6 +19,15 @@ from numbers import Number
 
 
 class ShapeElement(object):
+    """
+    Instances of this class are used in order to specify the shape of matrices.
+    It is used for shape inference and shape propagation.
+
+    Parameters
+    ----------
+    value : int
+        Value of the ShapeElement instance
+    """
     def __init__(self, value):
         self.value = value
         self.modif_handlers = set()
@@ -29,7 +38,8 @@ class ShapeElement(object):
         if isinstance(value, ShapeElement):
             value = weakref.proxy(value)
             self_proxy = weakref.proxy(self)
-            modif_handler = lambda: self_proxy.__setitem__(slice(None), value.value)
+            modif_handler = lambda: self_proxy.__setitem__(slice(None),
+                                                           value.value)
             value.add_modification_handler(modif_handler)
             self[:] = value.value
         elif isinstance(value, int):
@@ -46,21 +56,42 @@ class ShapeElement(object):
             raise TypeError("'value' argument must be int or ShapeElement")
 
     def operation(self, other, op):
+        """
+        Performs corresponding operations on ``self`` and ``other``. Also,
+        this method adds to ``self`` and ``other`` a corresponding modification
+        handler that is used for shape propagation in case one of the elements
+        (``self`` or ``other``) is changed.
+
+        Parameters
+        ----------
+        other : ShapeElement or int
+        op : operator (addition, multiplication, subtraction, etc.)
+
+        Returns
+        -------
+        element : ShapeElement
+            The returning instance contains the resulting value of the operation
+            on ``other.value`` and ``self.value``.
+        """
         if isinstance(other, ShapeElement):
             element = ShapeElement(op(self.value, other.value))
             element_proxy = weakref.proxy(element)
             self_proxy = weakref.proxy(self)
             other = weakref.proxy(other)
-            modif_handler = lambda: element_proxy.__setitem__(slice(None), op(self_proxy.value, other.value))
-            other.add_modification_handler(modif_handler)
+            handler = lambda: element_proxy.__setitem__(slice(None),
+                                                        op(self_proxy.value,
+                                                           other.value))
+            other.add_modification_handler(handler)
         elif isinstance(other, int):
             element = ShapeElement(op(self.value, other))
             element_proxy = weakref.proxy(element)
             self_proxy = weakref.proxy(self)
-            modif_handler = lambda: element_proxy.__setitem__(slice(None), op(self_proxy.value, other))
+            handler = lambda: element_proxy.__setitem__(slice(None),
+                                                        op(self_proxy.value,
+                                                           other))
         else:
             raise TypeError("'other' argument must be int or ShapeElement")
-        self.add_modification_handler(modif_handler)
+        self.add_modification_handler(handler)
         return element
 
     def __add__(self, other):
@@ -74,9 +105,12 @@ class ShapeElement(object):
 
     def __div__(self, other):
         """
-        this function do not create ShapeElement
+        N.B.
+        This function does not return a ShapeElement instance.
+
         """
-        return other / self.value
+        # TODO(sergii): investigate why it works like this.
+        return self.value / other
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -88,7 +122,13 @@ class ShapeElement(object):
         return self.__mul__(other)
 
     def __rdiv__(self, other):
-        return self.__div__(other)
+        """
+        N.B.
+        This function does not return a ShapeElement instance.
+
+        """
+        # TODO(sergii): investigate why it works like this.
+        return other / self.value
 
     def __eq__(self, other):
         if isinstance(other, Number):

@@ -14,10 +14,15 @@
 # limitations under the License.
 # ----------------------------------------------------------------------------
 import quagga
-from quagga.matrix import CpuMatrix, GpuMatrix
+from quagga.matrix import CpuMatrix
+from quagga.matrix import GpuMatrix
 
 
 class MatrixType(type):
+    """
+    Metaclass for using static and class methods from GpuMatrix and CpuMatrix
+    classes.
+    """
     def __getattr__(cls, name):
         return getattr(cls._get_matrix_class(), name)
 
@@ -33,6 +38,11 @@ class MatrixType(type):
 
 
 class Matrix(object):
+    """
+    With the help of this class one can call factory methods of CpuMatrix
+    or GpuMatrix classes. Global variable ``processor_type`` defines
+    which one of the two classes will be used.
+    """
     __metaclass__ = MatrixType
 
     def __init__(self, *args, **kwargs):

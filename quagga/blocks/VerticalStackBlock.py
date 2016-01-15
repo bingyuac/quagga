@@ -22,6 +22,13 @@ from quagga.connector import Connector
 class VerticalStackBlock(object):
     """
     Concatenates matrices vertically.
+
+    Parameters
+    ----------
+    matrices : Matrix (GpuMatrix or CpuMatrix)
+        Input matrices that need to be concatenated.
+    device_id: int
+        Defines the device's id on which the computation will take place
     """
 
     def __init__(self, *matrices, **kwargs):
