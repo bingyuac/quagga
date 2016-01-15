@@ -4,7 +4,9 @@
 Installation
 ============
 
+The installation guide is not ready yet.
+
 Quagga has some prerequisites that need to be installed first.
 
 - CUDA
-- python, ct, numpy
+- hdf5

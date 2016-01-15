@@ -6,8 +6,19 @@ Tutorial
 
 MNIST
 -----
-This tutorial will walk you through building a handwritten digits classifier
-using the MNIST dataset, presumably the "Hello World" of neural networks.
+
+
+PennTreebank laguage model
+--------------------------
+
+Bidirectional LSTM
+
+
+Character-level language model
+------------------------------
+
+Sequence-to-sequence autoencoder
+--------------------------------
 
 
 The source code for tutorials and examples can be found in `Examples`_.
