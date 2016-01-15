@@ -104,31 +104,21 @@ class ShapeElement(object):
         return self.operation(other, operator.mul)
 
     def __div__(self, other):
-        """
-        N.B.
-        This function does not return a ShapeElement instance.
-
-        """
-        # TODO(sergii): investigate why it works like this.
-        return self.value / other
+        return self.operation(other, operator.div)
 
     def __radd__(self, other):
         return self.__add__(other)
 
     def __rsub__(self, other):
-        return self.__sub__(other)
+        return self.operation(other,
+                              ShapeElement._get_reflected_op(operator.sub))
 
     def __rmul__(self, other):
         return self.__mul__(other)
 
     def __rdiv__(self, other):
-        """
-        N.B.
-        This function does not return a ShapeElement instance.
-
-        """
-        # TODO(sergii): investigate why it works like this.
-        return other / self.value
+        return self.operation(other,
+                              ShapeElement._get_reflected_op(operator.div))
 
     def __eq__(self, other):
         if isinstance(other, Number):
@@ -156,12 +146,14 @@ class ShapeElement(object):
         return str(self.value)
 
     def __int__(self):
-        return self.value
+        return int(self.value)
 
     def __float__(self):
         return float(self.value)
 
     def __index__(self):
+        if not isinstance(self.value, int):
+            raise ValueError('Value of ShapeElement is not int!')
         return self.value
 
     def add_modification_handler(self, handler):
@@ -176,3 +168,7 @@ class ShapeElement(object):
 
         """
         self.modif_handlers.add(handler)
+
+    @staticmethod
+    def _get_reflected_op(op):
+        return lambda x, y: op(y, x)
