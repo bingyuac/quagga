@@ -32,6 +32,7 @@ method, this part of the documentation is for you.
    quagga/blocks
    quagga/context
    quagga/cuda
+   quagga/matrix
 
 Indices and tables
 ------------------
