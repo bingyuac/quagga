@@ -38,7 +38,7 @@ class RmspropStep(object):
         learning_rate = ct.c_float(-self.learning_rate_policy.value)
         for p, gsqr, context in izip(self.parameters, self.grad_sqr, self.contexts):
             dL_dp = p.backward_matrix
-            self.blocking_contexts.append(dL_dp.last_modification_context)
+            self.blocking_contexts.append(dL_dp.last_modif_context)
             # grad_sqr[t+1] = ema_decay * grad_sqr[t] + (1 - ema_decay) * dL_dp^2
             gsqr.add_scaled_hprod(context, dL_dp, dL_dp, self.ema_decay, (1.0 - self.ema_decay))
             # p[t+1] = p[t] - learning_rate * dL_dp / sqrt(grad_sqr[t+1] + epsilon)

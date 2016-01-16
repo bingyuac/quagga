@@ -27,7 +27,7 @@ class CpuMatrix(object):
         self._ncols = ncols if isinstance(ncols, ShapeElement) else ShapeElement(ncols)
         self.dtype = dtype
         self.device_id = 0
-        self.last_modification_context = None
+        self.last_modif_context = None
         self.last_usage_context = None
 
     @staticmethod

@@ -49,7 +49,7 @@ class AdamStep(object):
 
         for p, m, v, context in izip(self.parameters, self.m, self.v, self.contexts):
             dL_dp = p.backward_matrix
-            self.blocking_contexts.append(dL_dp.last_modification_context)
+            self.blocking_contexts.append(dL_dp.last_modif_context)
             # m[t+1] = beta1 * m[t] + (1 - beta1) * dL_dp
             m.scale(context, ct.c_float(self.beta1))
             m.add_scaled(context, ct.c_float(1.0 - self.beta1), dL_dp)

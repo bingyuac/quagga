@@ -159,7 +159,7 @@ class LstmBlock(object):
         self.dL_dpre_f.assign_hprod(self.b_context, dL_dc, self.prev_c, self.df_dpre_f)
         self.dL_dpre_i.assign_hprod(self.b_context, dL_dc, self.z, self.di_dpre_i)
         self.dL_dpre_z.assign_hprod(self.b_context, dL_dc, self.i, self.dz_dpre_z)
-        self.dL_dpre_zifo.last_modification_context = self.b_context
+        self.dL_dpre_zifo.last_modif_context = self.b_context
 
         if self.grad_clipping:
             self.dL_dpre_zifo.clip(self.b_context, -self.grad_clipping, self.grad_clipping)

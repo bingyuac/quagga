@@ -60,7 +60,7 @@ class GpuMatrix(object):
             elem_size = ct.sizeof(self.c_dtype)
             self.strides = [elem_size, self.nrows * elem_size]
         self.base = base  # for avoiding memory deallocation
-        self.last_modification_context = None
+        self.last_modif_context = None
         self.last_usage_context = None
 
         def change_cudnn_tensor_descriptor():
@@ -72,7 +72,7 @@ class GpuMatrix(object):
 
     @staticmethod
     def get_setable_attributes():
-        return ['nrows', 'ncols', 'last_modification_context']
+        return ['nrows', 'ncols', 'last_modif_context']
 
     @property
     def nelems(self):
@@ -205,7 +205,7 @@ class GpuMatrix(object):
 
     @staticmethod
     def wait_matrices(current_context, *matrices):
-        contexts = set(e.last_modification_context for e in matrices)
+        contexts = set(e.last_modif_context for e in matrices)
         contexts.discard(None)
         contexts.discard(current_context)
         current_context.wait(*contexts)
@@ -297,7 +297,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, a)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         # TODO(sergii): add real stride support
@@ -312,7 +312,7 @@ class GpuMatrix(object):
 
     def assign_transpose(self, context, a):
         GpuMatrix.wait_matrices(context, a)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         self.nrows, self.ncols = a.ncols, a.nrows
@@ -332,7 +332,7 @@ class GpuMatrix(object):
         :param ncols: optional, is used when `a` is a pointer
         """
 
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         if isinstance(a, np.ndarray):
@@ -365,7 +365,7 @@ class GpuMatrix(object):
             cudart.cuda_memcpy_async(self.data, host_data, self.nbytes, 'default', context.cuda_stream)
 
     def fill(self, context, value):
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.fill(context.cuda_stream, self.nelems, value, self.data)
 
@@ -381,7 +381,7 @@ class GpuMatrix(object):
         out = self[:, column_indxs]
         """
         GpuMatrix.wait_matrices(context, self, column_indxs)
-        out.last_modification_context = context
+        out.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.slice_columns(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 
@@ -390,7 +390,7 @@ class GpuMatrix(object):
         self[:, column_indxs] += alpha * a
         """
         GpuMatrix.wait_matrices(context, self, column_indxs, a)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.add_scaled_columns_slice(context.cuda_stream, a.nrows, a.ncols, alpha, a.data, column_indxs.data, self.data)
 
@@ -402,7 +402,7 @@ class GpuMatrix(object):
 
     def slice_columns_and_transpose(self, context, column_indxs, out):
         GpuMatrix.wait_matrices(context, self, column_indxs)
-        out.last_modification_context = context
+        out.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.slice_columns_and_transpose(context.cuda_stream, out.nrows, out.ncols, column_indxs.data, self.data, out.data)
 
@@ -411,7 +411,7 @@ class GpuMatrix(object):
         out = self[row_indxs]
         """
         GpuMatrix.wait_matrices(context, self, row_indxs)
-        out.last_modification_context = context
+        out.last_modif_context = context
         context.activate()
         if self.dtype == 'float':
             gpu_matrix_kernels.slice_rows_float(context.cuda_stream, self.nrows, row_indxs.data, self.data, out.nrows, out.ncols, out.data)
@@ -423,7 +423,7 @@ class GpuMatrix(object):
         self[row_indxs] += alpha * a
         """
         GpuMatrix.wait_matrices(context, self, row_indxs, a)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.add_scaled_rows_slice(context.cuda_stream, a.nrows, a.ncols, alpha, a.data, row_indxs.data, self.nrows, self.data)
 
@@ -441,7 +441,7 @@ class GpuMatrix(object):
 
         GpuMatrix.wait_matrices(context, self, rows_indxs)
         for dense_matrix in dense_matrices:
-            dense_matrix.last_modification_context = context
+            dense_matrix.last_modif_context = context
         context.activate()
 
         n = len(dense_matrices)
@@ -458,7 +458,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, rows_indxs, *dense_matrices)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         n = len(dense_matrices)
@@ -482,7 +482,7 @@ class GpuMatrix(object):
             raise ValueError("The number of columns in the assigning matrix differs"
                              "from the summed numbers of columns in buffers!")
         self.wait_matrices(context, *matrices)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -500,7 +500,7 @@ class GpuMatrix(object):
         """
         GpuMatrix.wait_matrices(context, self, *matrices)
         for matrix in matrices:
-            matrix.last_modification_context = context
+            matrix.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -531,7 +531,7 @@ class GpuMatrix(object):
     def batch_hstack(context, x_sequence, y_sequence, output_sequence):
         GpuMatrix.wait_matrices(context, *chain(x_sequence, y_sequence))
         for matrix in output_sequence:
-            matrix.last_modification_context = context
+            matrix.last_modif_context = context
         context.activate()
 
         n = len(output_sequence)
@@ -561,7 +561,7 @@ class GpuMatrix(object):
     def batch_hsplit(context, input_sequence, x_sequence, y_sequence):
         GpuMatrix.wait_matrices(context, *input_sequence)
         for matrix in chain(x_sequence, y_sequence):
-            matrix.last_modification_context = context
+            matrix.last_modif_context = context
         context.activate()
 
         n = len(input_sequence)
@@ -598,7 +598,7 @@ class GpuMatrix(object):
             raise ValueError("The number of rows in the assigning matrix differs"
                              "from the summed numbers of rows in buffers!")
         GpuMatrix.wait_matrices(context, *matrices)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -609,7 +609,7 @@ class GpuMatrix(object):
     def vsplit(self, context, matrices, row_slices=None):
         GpuMatrix.wait_matrices(context, self)
         for m in matrices:
-            m.last_modification_context = context
+            m.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -638,7 +638,7 @@ class GpuMatrix(object):
 
     def assign_sequential_mean_pooling(self, context, matrices):
         GpuMatrix.wait_matrices(context, *matrices)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -651,7 +651,7 @@ class GpuMatrix(object):
 
     def assign_sequential_sum_pooling(self, context, matrices):
         GpuMatrix.wait_matrices(context, *matrices)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -671,7 +671,7 @@ class GpuMatrix(object):
                                  'to be tiled!')
         GpuMatrix.wait_matrices(context, a)
         for matrix in matrices:
-            matrix.last_modification_context = context
+            matrix.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -683,7 +683,7 @@ class GpuMatrix(object):
 
     def tile(self, context, axis, a):
         GpuMatrix.wait_matrices(context, a)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         if axis == 0:
@@ -711,7 +711,7 @@ class GpuMatrix(object):
 
     def assign_repeat(self, context, a, repeats, axis):
         GpuMatrix.wait_matrices(context, a)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if axis == 0:
             gpu_matrix_kernels.repeat_along_row(context.cuda_stream, repeats, a.nrows, a.ncols, a.data, self.data)
@@ -722,7 +722,7 @@ class GpuMatrix(object):
 
     def add_repeat_derivative(self, context, a, repeats, axis):
         GpuMatrix.wait_matrices(context, a)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if axis == 0:
             gpu_matrix_kernels.add_repeat_along_row_derivative(context.cuda_stream, repeats, a.data, self.nrows, self.ncols, self.data)
@@ -740,7 +740,7 @@ class GpuMatrix(object):
 
     def dropout(self, context, generator, dropout_prob, out):
         GpuMatrix.wait_matrices(context, self)
-        out.last_modification_context = context
+        out.last_modif_context = context
         context.activate()
 
         curand.set_stream(generator, context.cuda_stream)
@@ -749,7 +749,7 @@ class GpuMatrix(object):
 
     def add_gaussian_noise(self, context, generator, mean, std, out):
         GpuMatrix.wait_matrices(context, self)
-        out.last_modification_context = context
+        out.last_modif_context = context
         context.activate()
 
         curand.set_stream(generator, context.cuda_stream)
@@ -757,7 +757,7 @@ class GpuMatrix(object):
         cublas.s_axpy(context.cublas_handle, self.nelems, ct.c_float(1.0), self.data, 1, out.data, 1)
 
     def assign_gaussian_noise(self, context, generator, mean, std):
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         curand.set_stream(generator, context.cuda_stream)
@@ -769,7 +769,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.mask_zeros(context.cuda_stream, self.nelems, a.data, b.data, self.data)
 
@@ -779,7 +779,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.add_mask_zeros(context.cuda_stream, self.nelems, a.data, b.data, self.data)
 
@@ -789,7 +789,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, mask, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         if self.ncols != 1 and mask.ncols == 1:
@@ -805,7 +805,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, self, mask, a)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         if self.ncols != 1 and mask.ncols == 1:
@@ -821,7 +821,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, numbers)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.mask_column_numbers_row_wise(context.cuda_stream, self.nrows, self.ncols, numbers.data, self.data)
 
@@ -829,26 +829,26 @@ class GpuMatrix(object):
         GpuMatrix.wait_matrices(context, self)
         if out is None:
             out = self
-        out.last_modification_context = context
+        out.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.clip(context.cuda_stream, self.nelems, min_value, max_value, self.data, out.data)
 
     def tanh(self, context, tanh_matrix, derivative_matrix=None):
         GpuMatrix.wait_matrices(context, self)
-        tanh_matrix.last_modification_context = context
+        tanh_matrix.last_modif_context = context
         context.activate()
         if derivative_matrix:
-            derivative_matrix.last_modification_context = context
+            derivative_matrix.last_modif_context = context
             nonlinearities.tanh_der(context.cuda_stream, self.nelems, self.data, tanh_matrix.data, derivative_matrix.data)
         else:
             nonlinearities.tanh(context.cuda_stream, self.nelems, self.data, tanh_matrix.data)
 
     def sigmoid(self, context, sigmoid_matrix, derivative_matrix=None):
         GpuMatrix.wait_matrices(context, self)
-        sigmoid_matrix.last_modification_context = context
+        sigmoid_matrix.last_modif_context = context
         context.activate()
         if derivative_matrix:
-            derivative_matrix.last_modification_context = context
+            derivative_matrix.last_modif_context = context
             nonlinearities.sigmoid_der(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data, derivative_matrix.data)
         else:
             nonlinearities.sigmoid(context.cuda_stream, self.nelems, self.data, sigmoid_matrix.data)
@@ -861,30 +861,30 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, self)
-        tanh_sigm_matrix.last_modification_context = context
+        tanh_sigm_matrix.last_modif_context = context
         context.activate()
 
         if axis not in {0, 1}:
             raise ValueError('TODO!')
         if derivative_matrix:
-            derivative_matrix.last_modification_context = context
+            derivative_matrix.last_modif_context = context
             nonlinearities.tanh_sigm_der(context.cuda_stream, axis, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data, derivative_matrix.data)
         else:
             nonlinearities.tanh_sigm(context.cuda_stream, axis, self.nrows, self.ncols, self.data, tanh_sigm_matrix.data)
 
     def relu(self, context, relu_matrix, derivative_matrix=None):
         GpuMatrix.wait_matrices(context, self)
-        relu_matrix.last_modification_context = context
+        relu_matrix.last_modif_context = context
         context.activate()
         if derivative_matrix:
-            derivative_matrix.last_modification_context = context
+            derivative_matrix.last_modif_context = context
             nonlinearities.relu_der(context.cuda_stream, self.nelems, self.data, relu_matrix.data, derivative_matrix.data)
         else:
             nonlinearities.relu(context.cuda_stream, self.nelems, self.data, relu_matrix.data)
 
     def softmax(self, context, softmax_matrix):
         GpuMatrix.wait_matrices(context, self)
-        softmax_matrix.last_modification_context = context
+        softmax_matrix.last_modif_context = context
         context.activate()
         cudnn.softmax_forward(context.cudnn_handle,
                               cudnn.softmax_algorithm['CUDNN_SOFTMAX_ACCURATE'],
@@ -905,7 +905,7 @@ class GpuMatrix(object):
         :return:
         """
         GpuMatrix.wait_matrices(context, self, softmax_matrix, deriv_matrix)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         cudnn.softmax_backward(context.cudnn_handle,
                                cudnn.softmax_algorithm['CUDNN_SOFTMAX_ACCURATE'],
@@ -921,22 +921,22 @@ class GpuMatrix(object):
 
     def assign_softmax_ce_derivative(self, context, probs, target_classes):
         GpuMatrix.wait_matrices(context, probs, target_classes)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.softmax_ce_derivative(context.cuda_stream, probs.nrows, probs.ncols, probs.data, target_classes.data, self.data)
 
     def add_softmax_ce_derivative(self, context, probs, target_classes):
         GpuMatrix.wait_matrices(context, self, probs, target_classes)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.add_softmax_ce_derivative(context.cuda_stream, probs.nrows, probs.ncols, probs.data, target_classes.data, self.data)
 
     def scale(self, context, alpha, out=None):
         GpuMatrix.wait_matrices(context, self)
         if out:
-            out.last_modification_context = context
+            out.last_modif_context = context
         else:
-            self.last_modification_context = context
+            self.last_modif_context = context
         context.activate()
         if out:
             gpu_matrix_kernels.scale(context.cuda_stream, self.nelems, alpha, self.data, out.data)
@@ -949,7 +949,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if a.nrows != b.nrows and a.ncols == b.ncols:
             raise ValueError('TODO!')
@@ -964,7 +964,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if a.nrows != b.nrows and a.ncols == b.ncols:
             raise ValueError('TODO!')
@@ -976,7 +976,7 @@ class GpuMatrix(object):
         """
 
         GpuMatrix.wait_matrices(context, a, b, self)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if a.nrows != b.nrows and a.ncols == b.ncols:
             raise ValueError('TODO!')
@@ -992,7 +992,7 @@ class GpuMatrix(object):
 
         if isinstance(a, GpuMatrix):
             GpuMatrix.wait_matrices(context, a, self)
-            self.last_modification_context = context
+            self.last_modif_context = context
             context.activate()
             if self.nrows != 1 and a.nrows == 1:
                 if self.ncols != a.ncols:
@@ -1021,7 +1021,7 @@ class GpuMatrix(object):
 
     def assign_sum(self, context, matrices):
         GpuMatrix.wait_matrices(context, *matrices)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -1033,7 +1033,7 @@ class GpuMatrix(object):
 
     def add_sum(self, context, matrices):
         GpuMatrix.wait_matrices(context, self, *matrices)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
 
         n = len(matrices)
@@ -1052,7 +1052,7 @@ class GpuMatrix(object):
             if self.nrows != a.nrows:
                 raise ValueError('Operands could not be broadcast together with shapes ({},{}) ({},{})!'.format(self.nrows, self.ncols, a.nrows, a.ncols))
             GpuMatrix.wait_matrices(context, self, a)
-            self.last_modification_context = context
+            self.last_modif_context = context
             context.activate()
             gpu_matrix_kernels.matrix_vector_column_hprod(context.cuda_stream, self.nrows, self.ncols, self.data, a.data, self.data)
         else:
@@ -1068,7 +1068,7 @@ class GpuMatrix(object):
             GpuMatrix.wait_matrices(context, self, a, b, c)
         else:
             GpuMatrix.wait_matrices(context, self, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if not c:
             gpu_matrix_kernels.add_hadamard_product_2(context.cuda_stream, self.nelems, a.data, b.data, alpha, self.data)
@@ -1080,7 +1080,7 @@ class GpuMatrix(object):
         self = alpha * self + beta * a .* b
         """
         GpuMatrix.wait_matrices(context, self, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.add_scaled_hadamard_product(context.cuda_stream, self.nelems, a.data, b.data, alpha, beta, self.data)
 
@@ -1094,7 +1094,7 @@ class GpuMatrix(object):
             GpuMatrix.wait_matrices(context, a, b, c)
         else:
             GpuMatrix.wait_matrices(context, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if not c:
             gpu_matrix_kernels.hadamard_product_2(context.cuda_stream, a.nelems, a.data, b.data, self.data)
@@ -1108,7 +1108,7 @@ class GpuMatrix(object):
         self = a .* b .* c + d .* e + f .* g + h .* i + j .* k
         """
 
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if k is not None:
             GpuMatrix.wait_matrices(context, a, b, c, d, e, f, g, i, j, k)
@@ -1125,7 +1125,7 @@ class GpuMatrix(object):
         self = sum(a .* b, axis=1)
         """
         GpuMatrix.wait_matrices(context, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.hprod_sum(context.cuda_stream, a.nrows, a.ncols, a.data, b.data, self.data)
 
@@ -1134,7 +1134,7 @@ class GpuMatrix(object):
         self += alpha * a ./ sqrt(b + epsilon)
         """
         GpuMatrix.wait_matrices(context, a, b)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         gpu_matrix_kernels.add_scaled_div_sqrt(context.cuda_stream, self.nelems, alpha, a.data, b.data, epsilon, self.data)
 
@@ -1150,7 +1150,7 @@ class GpuMatrix(object):
             GpuMatrix.wait_matrices(context, a, b)
         else:
             GpuMatrix.wait_matrices(context, a, b, self)
-        self.last_modification_context = context
+        self.last_modif_context = context
         context.activate()
         if self.ncols == 1 and matrix_operation_b == 'N':
             cublas.s_gemv(context.cublas_handle, matrix_operation_a, a.nrows, a.ncols, alpha, a.data, a.nrows, b.data, 1, beta, self.data, 1)
@@ -1160,7 +1160,7 @@ class GpuMatrix(object):
 
     def argmax(self, context, out, axis=1):
         GpuMatrix.wait_matrices(context, self)
-        out.last_modification_context = context
+        out.last_modif_context = context
         context.activate()
 
         if axis == 1:

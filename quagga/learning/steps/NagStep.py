@@ -39,7 +39,7 @@ class NagStep(object):
         momentum = ct.c_float(self.momentum_policy.value)
         for p, v, context in izip(self.parameters, self.velocity, self.contexts):
             dL_dp = p.backward_matrix
-            self.blocking_contexts.append(dL_dp.last_modification_context)
+            self.blocking_contexts.append(dL_dp.last_modif_context)
             # v_t+1 = momentum * v_t - learning_rate * dL_dp
             v.scale(context, momentum)
             v.add_scaled(context, learning_rate, dL_dp)

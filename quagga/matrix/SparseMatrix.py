@@ -117,16 +117,16 @@ class SparseMatrix(object):
         """
         last_modif_contexts = []
         for column_indxs, v in self.columns.iteritems():
-            last_modif_contexts.append(column_indxs.last_modification_context)
+            last_modif_contexts.append(column_indxs.last_modif_context)
             for dense_matrix in v:
-                last_modif_contexts.append(dense_matrix.last_modification_context)
+                last_modif_contexts.append(dense_matrix.last_modif_context)
         for row_indxs, v in self.rows.iteritems():
-            last_modif_contexts.append(row_indxs.last_modification_context)
+            last_modif_contexts.append(row_indxs.last_modif_context)
             for dense_matrix in v:
-                last_modif_contexts.append(dense_matrix.last_modification_context)
+                last_modif_contexts.append(dense_matrix.last_modif_context)
         for rows_indxs, v in self.rows_batch.iteritems():
-            last_modif_contexts.append(rows_indxs.last_modification_context)
+            last_modif_contexts.append(rows_indxs.last_modif_context)
             for dense_matrices in v:
                 for dense_matrix in dense_matrices:
-                    last_modif_contexts.append(dense_matrix.last_modification_context)
+                    last_modif_contexts.append(dense_matrix.last_modif_context)
         return last_modif_contexts

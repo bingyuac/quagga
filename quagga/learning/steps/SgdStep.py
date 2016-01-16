@@ -30,5 +30,5 @@ class SgdStep(object):
         learning_rate = ct.c_float(-self.learning_rate_policy.value)
         for param, context in izip(self.parameters, self.contexts):
             dL_dparam = param.backward_matrix
-            self.blocking_contexts.append(dL_dparam.last_modification_context)
+            self.blocking_contexts.append(dL_dparam.last_modif_context)
             param.add_scaled(context, learning_rate, dL_dparam)

@@ -44,7 +44,7 @@ class RmspropNagStep(object):
         momentum = ct.c_float(self.momentum_policy.value)
         for p, v, gsqr, context in izip(self.parameters, self.velocity, self.grad_sqr, self.contexts):
             dL_dp = p.backward_matrix
-            self.blocking_contexts.append(dL_dp.last_modification_context)
+            self.blocking_contexts.append(dL_dp.last_modif_context)
             # grad_sqr[t+1] = ema_decay * grad_sqr[t] + (1 - ema_decay) * dL_dp^2
             gsqr.add_scaled_hprod(context, dL_dp, dL_dp, self.ema_decay, (1.0 - self.ema_decay))
             # v[t+1] = momentum * v[t] - learning_rate * dL_dp / sqrt(grad_sqr[t+1] + epsilon)
