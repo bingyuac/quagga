@@ -67,10 +67,12 @@ class LstmBlock(object):
             self.mask = mask.register_usage(device_id)
         if prev_c.bpropagable:
             self.prev_c, self.dL_dprev_c = prev_c.register_usage(device_id, device_id)
+            self.prev_c_b_context = Context(device_id)
         else:
             self.prev_c = prev_c.register_usage(device_id)
         if prev_h.bpropagable:
             self.prev_h, self.dL_dprev_h = prev_h.register_usage(device_id, device_id)
+            self.prev_h_b_context = Context(device_id)
         else:
             self.prev_h = prev_h.register_usage(device_id)
         self.learning = W.bpropagable or R.bpropagable or x.bpropagable or \
@@ -135,22 +137,24 @@ class LstmBlock(object):
         self.h.fprop()
 
     def bprop(self):
-        if not self.learning:
-            return
         dL_dc = self.c.backward_matrix
         dL_dh = self.h.backward_matrix
         if hasattr(self, 'mask'):
             # dL/ds[t-1] = (1 - mask) .* dL/ds[t]
             # dL/ds[t] = mask .* dL/ds[t]
             if hasattr(self, 'dL_dprev_c'):
-                self.dL_dprev_c.add_hprod_one_minus_mask(self.b_context, self.mask, dL_dc)
-            dL_dc.hprod(self.b_context, self.mask)
+                self.dL_dprev_c.add_hprod_one_minus_mask(self.prev_c_b_context, self.mask, dL_dc)
+            dL_dc.hprod(self.prev_c_b_context, self.mask)
             if hasattr(self, 'dL_dprev_h'):
-                self.dL_dprev_h.add_hprod_one_minus_mask(self.b_context, self.mask, dL_dh)
-            dL_dh.hprod(self.b_context, self.mask)
+                self.dL_dprev_h.add_hprod_one_minus_mask(self.prev_h_b_context, self.mask, dL_dh)
+            dL_dh.hprod(self.prev_h_b_context, self.mask)
         # dL/dc[t] = dL[t+1]/dc[t] + dL/dh[t] .* o[t] .* dtanh(c[t])/dc[t]
         dL_dc.add_hprod(self.b_context, dL_dh, self.o, self.dtanh_c_dc)
 
+        # self.dzifo_dpre_zifo was calculated in self.f_context,
+        # now we have to explicitly wait it in context self.b_context, because
+        # self.dx_dpre_x does not have proper last_modif_context
+        self.b_context.wait(self.f_context)
         # dL/dpre_o[t] = dL/dh[t] .* tanh(c[t]) .* do[t]/dpre_o[t]
         # dL/dpre_f[t] = dL/dc[t] .* c[t-1] .* df[t]/dpre_f[t]
         # dL/dpre_i[t] = dL/dc[t] .* z[t] .* di[t]/dpre_i[t]
@@ -159,11 +163,10 @@ class LstmBlock(object):
         self.dL_dpre_f.assign_hprod(self.b_context, dL_dc, self.prev_c, self.df_dpre_f)
         self.dL_dpre_i.assign_hprod(self.b_context, dL_dc, self.z, self.di_dpre_i)
         self.dL_dpre_z.assign_hprod(self.b_context, dL_dc, self.i, self.dz_dpre_z)
-        self.dL_dpre_zifo.last_modif_context = self.b_context
-
         if self.grad_clipping:
             self.dL_dpre_zifo.clip(self.b_context, -self.grad_clipping, self.grad_clipping)
-
+        else:
+            self.dL_dpre_zifo.last_modif_context = self.b_context
         if hasattr(self, 'dL_dW'):
             # dL_dW += x[t].T * dL/dpre_zifo[t]
             self.dL_dW.add_dot(self.W_b_context, self.x, self.dL_dpre_zifo, 'T')
@@ -178,7 +181,7 @@ class LstmBlock(object):
             self.dL_dx.add_dot(self.x_b_context, self.dL_dpre_zifo, self.W, 'N', 'T')
         if hasattr(self, 'dL_dprev_c'):
             # dL/dc[t-1] = f[t] .* dL/dc[t]
-            self.dL_dprev_c.add_hprod(self.b_context, self.f, dL_dc)
+            self.dL_dprev_c.add_hprod(self.prev_c_b_context, self.f, dL_dc)
         if hasattr(self, 'dL_dprev_h'):
             # dL/dh[t-1] = dL/dpre_zifo[t] * R.T
-            self.dL_dprev_h.add_dot(self.b_context, self.dL_dpre_zifo, self.R, 'N', 'T')
+            self.dL_dprev_h.add_dot(self.prev_h_b_context, self.dL_dpre_zifo, self.R, 'N', 'T')
