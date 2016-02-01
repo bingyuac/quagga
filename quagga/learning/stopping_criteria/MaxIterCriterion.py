@@ -22,6 +22,6 @@ class MaxIterCriterion(object):
         self.iteration = 0
 
     def notify(self):
-        if self.iteration > self.max_iter:
-            self.observer_loop.stop()
         self.iteration += 1
+        if self.iteration >= self.max_iter:
+            self.observer_loop.stop()

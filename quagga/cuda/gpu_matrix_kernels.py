@@ -41,6 +41,19 @@ def fill(stream, nelems, value, out_data):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._maskedFill.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._maskedFill.argtypes = [cudart.ct_cuda_stream,
+                                           ct.c_int,
+                                           ct.c_float,
+                                           ct.POINTER(ct.c_float),
+                                           ct.c_float,
+                                           ct.POINTER(ct.c_float)]
+def masked_fill(stream, nelems, value, mask_data, true_value, out_data):
+    status = gpu_matrix_kernels.\
+        _maskedFill(stream, nelems, value, mask_data, true_value, out_data)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._add_sum.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._add_sum.argtypes = [cudart.ct_cuda_stream,
                                         ct.c_int,

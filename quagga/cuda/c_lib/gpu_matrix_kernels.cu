@@ -410,6 +410,21 @@ __global__ void fill(int nelems,
 }
 
 
+__global__ void maskedFill(int nelems,
+                           float value,
+                           const float* __restrict__ mask,
+                           float true_value,
+                           float* __restrict__ out_data) {
+    const int nthreads = blockDim.x * gridDim.x;
+    const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    for (int i = start_i; i < nelems; i += nthreads) {
+        out_data[i] = (mask[i] == true_value) * value +
+                      (mask[i] != true_value) * out_data[i];
+    }
+}
+
+
 __global__ void matrixVectorRowAddition(int nrows,
                                         int ncols,
                                         const float* __restrict__ matrix,
@@ -1485,6 +1500,16 @@ extern "C" {
         return cudaGetLastError();
     }
 
+    cudaError_t _maskedFill(cudaStream_t stream,
+                            int nelems,
+                            float value,
+                            const float* __restrict__ mask,
+                            float true_value,
+                            float* __restrict__ out_data) {
+        int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nelems - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        maskedFill<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nelems, value, mask, true_value, out_data);
+        return cudaGetLastError();
+    }
 
     cudaError_t _matrixVectorRowAddition(cudaStream_t stream,
                                          int nrows,

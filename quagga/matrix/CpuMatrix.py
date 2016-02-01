@@ -216,8 +216,12 @@ class CpuMatrix(object):
         self.nrows, self.ncols = a.shape
         self.npa = np.copy(a)
 
-    def fill(self, context, value):
-        self.npa = value
+    def fill(self, context, value, mask=None, true_value=1.0):
+        if mask:
+            self.npa = (mask.npa == true_value) * value + \
+                       (mask.npa != true_value) * self.npa
+        else:
+            self.npa = value
 
     def sync_fill(self, value):
         self.npa = value
@@ -489,10 +493,13 @@ class CpuMatrix(object):
         z = np.sum(softmax_matrix.npa, axis=1, keepdims=True)
         softmax_matrix.npa /= z
 
-    def add_softmax_derivative(self, context, softmax_matrix, deriv_matrix):
+    def add_softmax_derivative(self, context, softmax_matrix, deriv_matrix, beta=1.0):
         grad_x = softmax_matrix.npa * deriv_matrix.npa
         grad_x -= softmax_matrix.npa * grad_x.sum(axis=1, keepdims=True)
-        self.npa += grad_x
+        self.npa = grad_x + beta * self.npa
+
+    def assign_softmax_derivative(self, context, softmax_matrix, deriv_matrix):
+        self.add_softmax_derivative(context, softmax_matrix, deriv_matrix, 0.0)
 
     def assign_softmax_ce_derivative(self, context, probs, target_classes):
         self.npa = probs.npa / probs.npa.shape[0]

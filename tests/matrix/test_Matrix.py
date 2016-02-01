@@ -137,13 +137,23 @@ class TestMatrix(TestCase):
         r = []
         for _ in xrange(self.N):
             a = TestMatrix.get_random_array()
+            mask = (TestMatrix.get_random_array(a.shape) > 0.0).astype(np.float32)
+            true_value = self.rng.choice([0.0, 1.0])
             fill_value = self.rng.rand()
+
             a_cpu = CpuMatrix.from_npa(a)
+            mask_cpu = CpuMatrix.from_npa(mask)
             a_gpu = GpuMatrix.from_npa(a)
+            mask_gpu = GpuMatrix.from_npa(mask)
+
+            a_cpu.fill(self.cpu_context, fill_value, mask_cpu, true_value)
+            a_gpu.fill(self.gpu_context, fill_value, mask_gpu, true_value)
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
+
             a_cpu.fill(self.cpu_context, fill_value)
             a_gpu.fill(self.gpu_context, fill_value)
             r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host()))
-        self.assertEqual(sum(r), self.N)
+        self.assertEqual(sum(r), len(r))
 
     def test_sync_fill(self):
         r = []
@@ -917,6 +927,32 @@ class TestMatrix(TestCase):
             a_cpu.softmax(self.cpu_context, b_cpu)
             a_gpu.softmax(self.gpu_context, b_gpu)
             r.append(np.allclose(b_cpu.to_host(), b_gpu.to_host()))
+
+        self.assertEqual(sum(r), self.N)
+
+    def test_add_softmax_derivative(self):
+        r = []
+        for _ in xrange(self.N):
+            # nrows = self.rng.random_integers(10000)
+            # ncols = self.rng.random_integers(1000)
+            nrows = 2
+            ncols = 4
+            dL_da = 4 * self.rng.rand(nrows, ncols).astype(np.float32) - 2
+            a = 4 * self.rng.rand(nrows, ncols).astype(np.float32) - 2
+            beta = 2 * self.rng.rand() - 1
+
+            dL_da_cpu = CpuMatrix.from_npa(dL_da)
+            a_cpu = CpuMatrix.from_npa(a)
+            dL_da_gpu = GpuMatrix.from_npa(dL_da)
+            a_gpu = GpuMatrix.from_npa(a)
+
+            a_gpu.softmax(self.gpu_context, a_gpu)
+            a_gpu.add_softmax_derivative(self.gpu_context, a_gpu, dL_da_gpu, ct.c_float(beta))
+
+            a_cpu.softmax(self.gpu_context, a_cpu)
+            a_cpu.add_softmax_derivative(self.cpu_context, a_cpu, dL_da_cpu, beta)
+
+            r.append(np.allclose(a_cpu.to_host(), a_gpu.to_host(), atol=1e-7))
 
         self.assertEqual(sum(r), self.N)
 

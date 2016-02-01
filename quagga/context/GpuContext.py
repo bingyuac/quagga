@@ -79,7 +79,8 @@ class GpuContext(object):
             cudart.cuda_stream_create(self.cuda_stream)
 
     def __del__(self):
-        cudart.cuda_stream_destroy(self.cuda_stream)
+        with cudart.device(self.device_id):
+            cudart.cuda_stream_destroy(self.cuda_stream)
 
     @property
     def cublas_handle(self):

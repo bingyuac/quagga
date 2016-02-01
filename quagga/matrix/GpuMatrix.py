@@ -242,7 +242,8 @@ class GpuMatrix(object):
             a = a.astype(dtype=np_dtype)
         a_gpu = cls.empty(a.shape[0], a.shape[1], dtype, device_id)
         host_data = a.ctypes.data_as(ct.POINTER(c_dtype))
-        cudart.cuda_memcpy(a_gpu.data, host_data, a_gpu.nbytes, 'default')
+        with cudart.device(device_id):
+            cudart.cuda_memcpy(a_gpu.data, host_data, a_gpu.nbytes, 'default')
         return a_gpu
 
     @classmethod
@@ -364,10 +365,24 @@ class GpuMatrix(object):
         else:
             cudart.cuda_memcpy_async(self.data, host_data, self.nbytes, 'default', context.cuda_stream)
 
-    def fill(self, context, value):
+    def fill(self, context, value, mask=None, true_value=1.0):
+        """
+        self = (mask == true_value) * value + (mask != true_value) .* self
+
+        :param context:
+        :param value:
+        :param mask:
+        :param true_value:
+        """
         self.last_modif_context = context
         context.activate()
-        gpu_matrix_kernels.fill(context.cuda_stream, self.nelems, value, self.data)
+        if mask:
+            gpu_matrix_kernels.\
+                masked_fill(context.cuda_stream, self.nelems, value,
+                            mask.data, true_value, self.data)
+        else:
+            gpu_matrix_kernels.\
+                fill(context.cuda_stream, self.nelems, value, self.data)
 
     def sync_fill(self, value):
         a = np.empty((self.nrows, self.ncols), self.np_dtype, 'F')
@@ -896,7 +911,7 @@ class GpuMatrix(object):
                               softmax_matrix.cudnn_tensor_descriptor,
                               softmax_matrix.data)
 
-    def add_softmax_derivative(self, context, softmax_matrix, deriv_matrix):
+    def add_softmax_derivative(self, context, softmax_matrix, deriv_matrix, beta=ct.c_float(1.0)):
         """
 
         :param context:
@@ -915,15 +930,12 @@ class GpuMatrix(object):
                                softmax_matrix.data,
                                deriv_matrix.cudnn_tensor_descriptor,
                                deriv_matrix.data,
-                               ct.c_float(1.0),
+                               beta,
                                self.cudnn_tensor_descriptor,
                                self.data)
 
-    def assign_softmax_ce_derivative(self, context, probs, target_classes):
-        GpuMatrix.wait_matrices(context, probs, target_classes)
-        self.last_modif_context = context
-        context.activate()
-        gpu_matrix_kernels.softmax_ce_derivative(context.cuda_stream, probs.nrows, probs.ncols, probs.data, target_classes.data, self.data)
+    def assign_softmax_derivative(self, context, softmax_matrix, deriv_matrix):
+        self.add_softmax_derivative(context, softmax_matrix, deriv_matrix, ct.c_float(0.0))
 
     def add_softmax_ce_derivative(self, context, probs, target_classes):
         GpuMatrix.wait_matrices(context, self, probs, target_classes)
@@ -991,7 +1003,7 @@ class GpuMatrix(object):
         """
 
         if isinstance(a, GpuMatrix):
-            GpuMatrix.wait_matrices(context, a, self)
+            GpuMatrix.wait_matrices(context, self, a)
             self.last_modif_context = context
             context.activate()
             if self.nrows != 1 and a.nrows == 1:

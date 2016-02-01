@@ -79,7 +79,7 @@ class Connector(object):
         fwd_matrix = self._f_matrices[self._fo_device_id]
         if self._b_sparse_matrix:
             return fwd_matrix, self._b_sparse_matrix
-        self._b_sparse_matrix = SparseMatrix(self._bu_device_id)
+        self._b_sparse_matrix = SparseMatrix()
         return fwd_matrix, self._b_sparse_matrix
 
     def register_usage(self, fu_device_id, bo_device_id=None):
@@ -117,8 +117,7 @@ class Connector(object):
         if self.bpropagable:
             for bo_device_id, matrix in self._b_matrices.iteritems():
                 if bo_device_id == self._bu_device_id and matrix.last_usage_context:
-                    # one must use last_usage_context because we use this
-                    # matrix in update statement, otherwise we could be
+                    # one must use last_usage_context otherwise we could be
                     # modifying matrix while updating parameters or
                     # propagating derivatives.
                     context = matrix.last_usage_context
