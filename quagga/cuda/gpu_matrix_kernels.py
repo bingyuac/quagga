@@ -394,6 +394,19 @@ def assign_sequential_sum_pooling(stream, nrows, ncols, matrices, n, out):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._assignSequentialWeightedSum.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assignSequentialWeightedSum.argtypes = [cudart.ct_cuda_stream,
+                                                            ct.c_int,
+                                                            ct.c_int,
+                                                            ct.POINTER(ct.POINTER(ct.c_float)),
+                                                            ct.POINTER(ct.c_float),
+                                                            ct.c_int,
+                                                            ct.POINTER(ct.c_float)]
+def assign_sequential_weighted_sum(stream, nrows, ncols, matrices, weights, n, out):
+    status = gpu_matrix_kernels._assignSequentialWeightedSum(stream, nrows, ncols, matrices, weights, n, out)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._sequentiallyTile.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._sequentiallyTile.argtypes = [cudart.ct_cuda_stream,
                                                  ct.c_int,

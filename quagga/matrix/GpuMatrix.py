@@ -677,6 +677,19 @@ class GpuMatrix(object):
         self.fill(context, 0.0)
         gpu_matrix_kernels.assign_sequential_sum_pooling(context.cuda_stream, self.nrows, self.ncols, device_pointer, n, self.data)
 
+    def assign_sequential_weighted_sum(self, context, w, matrices):
+        GpuMatrix.wait_matrices(context, w, *matrices)
+        self.last_modif_context = context
+        context.activate()
+
+        n = len(matrices)
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        device_pointer = _get_temp_memory(context, n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
+        self.fill(context, 0.0)
+        gpu_matrix_kernels.assign_sequential_weighted_sum(context.cuda_stream, self.nrows, self.ncols, device_pointer, w.data, n, self.data)
+
     @staticmethod
     def sequentially_tile(context, a, matrices):
         for matrix in matrices:

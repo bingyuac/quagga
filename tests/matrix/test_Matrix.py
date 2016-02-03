@@ -564,6 +564,26 @@ class TestMatrix(TestCase):
 
         self.assertEqual(sum(r), self.N)
 
+    def test_assign_sequential_weighted_sum(self):
+        r = []
+        for _ in xrange(self.N):
+            a = [self.get_random_array(high=2000)]
+            for _ in xrange(self.rng.random_integers(250)):
+                a.append(self.get_random_array(a[-1].shape))
+            w = self.get_random_array((a[-1].shape[0], len(a)))
+
+            a_cpu = [CpuMatrix.from_npa(each) for each in a]
+            w_cpu = CpuMatrix.from_npa(w)
+            a_gpu = [GpuMatrix.from_npa(each) for each in a]
+            w_gpu = GpuMatrix.from_npa(w)
+
+            a_cpu[0].assign_sequential_weighted_sum(self.cpu_context, w_cpu, a_cpu[1:])
+            a_gpu[0].assign_sequential_weighted_sum(self.gpu_context, w_gpu, a_gpu[1:])
+
+            r.append(np.allclose(a_cpu[0].to_host(), a_gpu[0].to_host(), atol=1e-4))
+
+        self.assertEqual(sum(r), self.N)
+
     def test_sequentially_tile(self):
         r = []
         for _ in xrange(self.N):

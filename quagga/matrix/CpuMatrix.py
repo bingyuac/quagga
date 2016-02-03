@@ -368,6 +368,12 @@ class CpuMatrix(object):
         for i in xrange(matrices[0].nrows):
             self.npa[i] = np.sum([matrix.npa[i] for matrix in matrices], axis=0)
 
+    def assign_sequential_weighted_sum(self, context, w, matrices):
+        for i in xrange(matrices[0].nrows):
+            self.npa[i] = \
+                np.sum([w.npa[i, j] * matrix.npa[i]
+                        for j, matrix in enumerate(matrices)], axis=0)
+
     @staticmethod
     def sequentially_tile(context, a, matrices):
         for m in matrices:
