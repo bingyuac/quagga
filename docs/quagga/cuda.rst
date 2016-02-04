@@ -7,6 +7,7 @@
     :hidden:
 
     cuda/curand
+    cuda/cudart
 
 
 .. rubric:: :doc:`cuda/curand`
@@ -15,3 +16,11 @@
     :nosignatures:
 
     curand
+
+
+.. rubric:: :doc:`cuda/cudart`
+
+.. autosummary::
+    :nosignatures:
+
+    cudart

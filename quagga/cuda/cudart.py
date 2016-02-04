@@ -34,12 +34,14 @@ _libcudart.cudaGetErrorString.restype = ct.c_char_p
 _libcudart.cudaGetErrorString.argtypes = [ct_cuda_error]
 def cuda_get_error_string(e):
     """
-    Retrieve CUDA error string.
-    Return the string associated with the specified CUDA error status code.
+    Retrieves CUDA error string.
+    Returns a string associated with the specified CUDA error status code.
+
     Parameters
     ----------
     e : int
         Error number.
+
     Returns
     -------
     s : str
@@ -50,85 +52,85 @@ def cuda_get_error_string(e):
 
 
 cuda_errors = {
-    1: 'cudaErrorMissingConfiguration',
-    2: 'cudaErrorMemoryAllocation',
-    3: 'cudaErrorInitializationError',
-    4: 'cudaErrorLaunchFailure',
-    5: 'cudaErrorPriorLaunchFailure',
-    6: 'cudaErrorLaunchTimeout',
-    7: 'cudaErrorLaunchOutOfResources',
-    8: 'cudaErrorInvalidDeviceFunction',
-    9: 'cudaErrorInvalidConfiguration',
-    10: 'cudaErrorInvalidDevice',
-    11: 'cudaErrorInvalidValue',
-    12: 'cudaErrorInvalidPitchValue',
-    13: 'cudaErrorInvalidSymbol',
-    14: 'cudaErrorMapBufferObjectFailed',
-    15: 'cudaErrorUnmapBufferObjectFailed',
-    16: 'cudaErrorInvalidHostPointer',
-    17: 'cudaErrorInvalidDevicePointer',
-    18: 'cudaErrorInvalidTexture',
-    19: 'cudaErrorInvalidTextureBinding',
-    20: 'cudaErrorInvalidChannelDescriptor',
+    1: 'CudaErrorMissingConfiguration',
+    2: 'CudaErrorMemoryAllocation',
+    3: 'CudaErrorInitializationError',
+    4: 'CudaErrorLaunchFailure',
+    5: 'CudaErrorPriorLaunchFailure',
+    6: 'CudaErrorLaunchTimeout',
+    7: 'CudaErrorLaunchOutOfResources',
+    8: 'CudaErrorInvalidDeviceFunction',
+    9: 'CudaErrorInvalidConfiguration',
+    10: 'CudaErrorInvalidDevice',
+    11: 'CudaErrorInvalidValue',
+    12: 'CudaErrorInvalidPitchValue',
+    13: 'CudaErrorInvalidSymbol',
+    14: 'CudaErrorMapBufferObjectFailed',
+    15: 'CudaErrorUnmapBufferObjectFailed',
+    16: 'CudaErrorInvalidHostPointer',
+    17: 'CudaErrorInvalidDevicePointer',
+    18: 'CudaErrorInvalidTexture',
+    19: 'CudaErrorInvalidTextureBinding',
+    20: 'CudaErrorInvalidChannelDescriptor',
     21: 'CudaErrorInvalidMemcpyDirection',
     22: 'CudaErrorAddressOfConstant',
-    23: 'cudaErrorTextureFetchFailed',
-    24: 'cudaErrorTextureNotBound',
-    25: 'cudaErrorSynchronizationError',
-    26: 'cudaErrorInvalidFilterSetting',
-    27: 'cudaErrorInvalidNormSetting',
-    28: 'cudaErrorMixedDeviceExecution',
-    29: 'cudaErrorCudartUnloading',
-    30: 'cudaErrorUnknown',
-    31: 'cudaErrorNotYetImplemented',
-    32: 'cudaErrorMemoryValueTooLarge',
-    33: 'cudaErrorInvalidResourceHandle',
-    34: 'cudaErrorNotReady',
-    35: 'cudaErrorInsufficientDriver',
-    36: 'cudaErrorSetOnActiveProcess',
-    37: 'cudaErrorInvalidSurface',
-    38: 'cudaErrorNoDevice',
-    39: 'cudaErrorECCUncorrectable',
-    40: 'cudaErrorSharedObjectSymbolNotFound',
-    41: 'cudaErrorSharedObjectInitFailed',
-    42: 'cudaErrorUnsupportedLimit',
-    43: 'cudaErrorDuplicateVariableName',
-    44: 'cudaErrorDuplicateTextureName',
-    45: 'cudaErrorDuplicateSurfaceName',
-    46: 'cudaErrorDevicesUnavailable',
-    47: 'cudaErrorInvalidKernelImage',
-    48: 'cudaErrorNoKernelImageForDevice',
-    49: 'cudaErrorIncompatibleDriverContext',
-    50: 'cudaErrorPeerAccessAlreadyEnabled',
-    51: 'cudaErrorPeerAccessNotEnabled',
-    54: 'cudaErrorDeviceAlreadyInUse',
-    55: 'cudaErrorProfilerDisabled',
-    56: 'cudaErrorProfilerNotInitialized',
-    57: 'cudaErrorProfilerAlreadyStarted',
-    58: 'cudaErrorProfilerAlreadyStopped',
-    59: 'cudaErrorAssert',
-    60: 'cudaErrorTooManyPeers',
-    61: 'cudaErrorHostMemoryAlreadyRegistered',
-    62: 'cudaErrorHostMemoryNotRegistered',
-    63: 'cudaErrorOperatingSystem',
-    64: 'cudaErrorPeerAccessUnsupported',
-    65: 'cudaErrorLaunchMaxDepthExceeded',
-    66: 'cudaErrorLaunchFileScopedTex',
-    67: 'cudaErrorLaunchFileScopedSurf',
-    68: 'cudaErrorSyncDepthExceeded',
-    69: 'cudaErrorLaunchPendingCountExceeded',
-    70: 'cudaErrorNotPermitted',
-    71: 'cudaErrorNotSupported',
-    72: 'cudaErrorHardwareStackError',
-    73: 'cudaErrorIllegalInstruction',
-    74: 'cudaErrorMisalignedAddress',
-    75: 'cudaErrorInvalidAddressSpace',
-    76: 'cudaErrorInvalidPc',
-    77: 'cudaErrorIllegalAddress',
-    78: 'cudaErrorInvalidPtx',
-    79: 'cudaErrorInvalidGraphicsContext',
-    127: 'cudaErrorStartupFailure',
-    1000: 'cudaErrorApiFailureBase'
+    23: 'CudaErrorTextureFetchFailed',
+    24: 'CudaErrorTextureNotBound',
+    25: 'CudaErrorSynchronizationError',
+    26: 'CudaErrorInvalidFilterSetting',
+    27: 'CudaErrorInvalidNormSetting',
+    28: 'CudaErrorMixedDeviceExecution',
+    29: 'CudaErrorCudartUnloading',
+    30: 'CudaErrorUnknown',
+    31: 'CudaErrorNotYetImplemented',
+    32: 'CudaErrorMemoryValueTooLarge',
+    33: 'CudaErrorInvalidResourceHandle',
+    34: 'CudaErrorNotReady',
+    35: 'CudaErrorInsufficientDriver',
+    36: 'CudaErrorSetOnActiveProcess',
+    37: 'CudaErrorInvalidSurface',
+    38: 'CudaErrorNoDevice',
+    39: 'CudaErrorECCUncorrectable',
+    40: 'CudaErrorSharedObjectSymbolNotFound',
+    41: 'CudaErrorSharedObjectInitFailed',
+    42: 'CudaErrorUnsupportedLimit',
+    43: 'CudaErrorDuplicateVariableName',
+    44: 'CudaErrorDuplicateTextureName',
+    45: 'CudaErrorDuplicateSurfaceName',
+    46: 'CudaErrorDevicesUnavailable',
+    47: 'CudaErrorInvalidKernelImage',
+    48: 'CudaErrorNoKernelImageForDevice',
+    49: 'CudaErrorIncompatibleDriverContext',
+    50: 'CudaErrorPeerAccessAlreadyEnabled',
+    51: 'CudaErrorPeerAccessNotEnabled',
+    54: 'CudaErrorDeviceAlreadyInUse',
+    55: 'CudaErrorProfilerDisabled',
+    56: 'CudaErrorProfilerNotInitialized',
+    57: 'CudaErrorProfilerAlreadyStarted',
+    58: 'CudaErrorProfilerAlreadyStopped',
+    59: 'CudaErrorAssert',
+    60: 'CudaErrorTooManyPeers',
+    61: 'CudaErrorHostMemoryAlreadyRegistered',
+    62: 'CudaErrorHostMemoryNotRegistered',
+    63: 'CudaErrorOperatingSystem',
+    64: 'CudaErrorPeerAccessUnsupported',
+    65: 'CudaErrorLaunchMaxDepthExceeded',
+    66: 'CudaErrorLaunchFileScopedTex',
+    67: 'CudaErrorLaunchFileScopedSurf',
+    68: 'CudaErrorSyncDepthExceeded',
+    69: 'CudaErrorLaunchPendingCountExceeded',
+    70: 'CudaErrorNotPermitted',
+    71: 'CudaErrorNotSupported',
+    72: 'CudaErrorHardwareStackError',
+    73: 'CudaErrorIllegalInstruction',
+    74: 'CudaErrorMisalignedAddress',
+    75: 'CudaErrorInvalidAddressSpace',
+    76: 'CudaErrorInvalidPc',
+    77: 'CudaErrorIllegalAddress',
+    78: 'CudaErrorInvalidPtx',
+    79: 'CudaErrorInvalidGraphicsContext',
+    127: 'CudaErrorStartupFailure',
+    1000: 'CudaErrorApiFailureBase'
 }
 
 
@@ -139,16 +141,16 @@ class CudaError(Exception):
 
 cuda_exceptions = {}
 for cuda_error_code, cuda_error_name in cuda_errors.iteritems():
-    class_name = 'C' + cuda_error_name[1:]
     doc_string = cuda_get_error_string(cuda_error_code)
-    klass = type(class_name, (CudaError, ), {'__doc__': doc_string})
+    klass = type(cuda_error_name, (CudaError, ), {'__doc__': doc_string})
     cuda_exceptions[cuda_error_code] = klass
 
 
 def check_cuda_status(status):
     """
-    Raise CUDA exception.
-    Raise an exception corresponding to the specified CUDA runtime error code.
+    Raises CUDA exception.
+    Raises an exception corresponding to the specified CUDA runtime error code.
+
     Parameters
     ----------
     status : int
@@ -172,13 +174,22 @@ _libcudart.cudaMalloc.restype = ct_cuda_error
 _libcudart.cudaMalloc.argtypes = [ct.POINTER(ct.c_void_p), ct.c_size_t]
 def cuda_malloc(size, ctype=None):
     """
-    Allocate memory on the device associated with the current active context.
+    Allocates memory on the device associated with the current active CUDA
+    context.
 
-    :param size: number of bytes of memory to allocate
-    :param ctype: optional ctypes type to cast returned pointer.
-    :return: pointer to allocated device memory.
+    Parameters
+    ----------
+    size : int
+        Number of bytes of memory to allocate.
+    ctype : ctypes type
+        Optional ctypes type to cast returned pointer.
+
+    Returns
+    -------
+    ptr : ctypes pointer
+        Pointer to the allocated device memory.
+
     """
-
     ptr = ct.c_void_p()
     status = _libcudart.cudaMalloc(ct.byref(ptr), size)
     check_cuda_status(status)
@@ -191,13 +202,13 @@ _libcudart.cudaFree.restype = ct_cuda_error
 _libcudart.cudaFree.argtypes = [ct.c_void_p]
 def cuda_free(ptr):
     """
-    Free device memory.
-    Free allocated memory on the device associated with the current active
-    context.
+    Deallocates device memory.
+    Frees allocated memory on the device.
+
     Parameters
     ----------
     ptr : ctypes pointer
-        Pointer to allocated device memory.
+        Pointer to the allocated device memory.
     """
 
     status = _libcudart.cudaFree(ptr)
@@ -229,18 +240,19 @@ _libcudart.cudaMemcpy.argtypes = [ct.c_void_p, ct.c_void_p,
                                   ct.c_size_t, ct.c_int]
 def cuda_memcpy(dst, src, count, kind):
     """
-    Copies count bytes from the memory area pointed to by src to the memory
-    area pointed to by dst
+    Copies ``count`` bytes from the memory area pointed by ``src`` to the
+    memory area pointed by ``dst``.
+
     Parameters
     ----------
     dst : ctypes pointer
-        Destination memory address
+        Destination memory address.
     src : ctypes pointer
-        Source memory address
+        Source memory address.
     count : int
-        Size in bytes to copy
+        Size in bytes to copy.
     kind: str
-        Type of transfer
+        Type of transfer.
     """
 
     count = ct.c_size_t(count)
@@ -253,19 +265,21 @@ _libcudart.cudaMemcpyAsync.argtypes = [ct.c_void_p, ct.c_void_p,
                                        ct.c_size_t, ct.c_int, ct_cuda_stream]
 def cuda_memcpy_async(dst, src, count, kind, stream):
     """
-    Copies count bytes from the memory area pointed to by src to the memory
-    area pointed to by dst
+    Copies ``count`` bytes from the memory area pointed by ``src`` to the
+    memory area pointed by ``dst`` in the ``stream``.
+
     Parameters
     ----------
     dst : ctypes pointer
-        Destination memory address
+        Destination memory address.
     src : ctypes pointer
-        Source memory address
+        Source memory address.
     count : int
-        Size in bytes to copy
+        Size in bytes to copy.
     kind: str
-        Type of transfer
+        Type of transfer.
     stream: ct_cuda_stream
+        Stream in which the data is being copied.
     """
 
     status = _libcudart.cudaMemcpyAsync(dst, src, count, cuda_memcpy_kinds[kind], stream)
@@ -316,7 +330,8 @@ _libcudart.cudaMemGetInfo.argtypes = [ct.POINTER(ct.c_size_t),
                                       ct.POINTER(ct.c_size_t)]
 def cuda_mem_get_info():
     """
-    Return the amount of free and total device memory.
+    Returns the amount of free and total device memory.
+
     Returns
     -------
     free : long
@@ -337,7 +352,9 @@ _libcudart.cudaGetDeviceCount.argtypes = [ct.POINTER(ct.c_int)]
 def cuda_get_device_count():
     """
     Returns the number of compute-capable devices.
-    :return:
+
+    Returns
+    -------
     count : int
         Number of compute-capable devices.
     """
@@ -351,8 +368,9 @@ _libcudart.cudaSetDevice.restype = ct_cuda_error
 _libcudart.cudaSetDevice.argtypes = [ct.c_int]
 def cuda_set_device(device):
     """
-    Set current CUDA device.
-    Select a device to use for subsequent CUDA operations.
+    Sets current CUDA device.
+    Selects a device for all subsequent CUDA operations to run on.
+
     Parameters
     ----------
     device : int
@@ -367,10 +385,12 @@ _libcudart.cudaGetDevice.restype = ct_cuda_error
 _libcudart.cudaGetDevice.argtypes = [ct.POINTER(ct.c_int)]
 def cuda_get_device():
     """
-    Get current CUDA device.
-    Return the identifying number of the device currently used to
-    process CUDA operations.
-    :return:
+    Gets current CUDA device.
+    Returns the id number of the device currently used for processing CUDA
+    operations.
+
+    Returns
+    -------
     device : int
         Device number.
     """
@@ -388,6 +408,7 @@ def cuda_driver_get_version():
     Get installed CUDA driver version.
     Return the version of the installed CUDA driver as an integer. If
     no driver is detected, 0 is returned.
+
     Returns
     -------
     version : int
@@ -423,18 +444,20 @@ def cuda_pointer_get_attributes(ptr):
     """
     Get memory pointer attributes.
     Returns attributes of the specified pointer.
+
     Parameters
     ----------
     ptr : ctypes pointer
         Memory pointer to examine.
+
     Returns
     -------
     memory_type : str
-        Memory type
+        Memory type.
     device : int
         Number of device associated with pointer.
     is_managed : bool
-        Indicates if the pointer ptr points to managed memory or not.
+        Indicates if the pointer ``ptr`` points to managed memory or not.
     """
 
     attributes = CudaPointerAttributes()
