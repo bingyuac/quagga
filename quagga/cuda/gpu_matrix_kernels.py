@@ -418,6 +418,48 @@ def sequentially_tile(stream, nelems, a, matrices, n):
     cudart.check_cuda_status(status)
 
 
+gpu_matrix_kernels._assignDLDprea.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._assignDLDprea.argtypes = [cudart.ct_cuda_stream,
+                                              ct.c_int,
+                                              ct.c_int,
+                                              ct.POINTER(ct.POINTER(ct.c_float)),
+                                              ct.POINTER(ct.c_float),
+                                              ct.POINTER(ct.c_float),
+                                              ct.c_int,
+                                              ct.POINTER(ct.c_float)]
+def assign_dL_dpre_a(stream, nrows, ncols, matrices, derivative, weights, n, out):
+    status = gpu_matrix_kernels._assignDLDprea(stream, nrows, ncols, matrices, derivative, weights, n, out)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addAttentionDerivative.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addAttentionDerivative.argtypes = [cudart.ct_cuda_stream,
+                                                       ct.c_int,
+                                                       ct.c_int,
+                                                       ct.POINTER(ct.POINTER(ct.c_float)),
+                                                       ct.POINTER(ct.c_float),
+                                                       ct.c_int,
+                                                       ct.POINTER(ct.c_float)]
+def add_attention_derivative(stream, nrows, ncols, matrices, derivative, n, out):
+    status = gpu_matrix_kernels._addAttentionDerivative(stream, nrows, ncols, matrices, derivative, n, out)
+    cudart.check_cuda_status(status)
+
+
+gpu_matrix_kernels._addAttentionTile.restype = cudart.ct_cuda_error
+gpu_matrix_kernels._addAttentionTile.argtypes = [cudart.ct_cuda_stream,
+                                                 ct.c_int,
+                                                 ct.c_int,
+                                                 ct.POINTER(ct.c_float),
+                                                 ct.POINTER(ct.c_float),
+                                                 ct.POINTER(ct.c_float),
+                                                 ct.POINTER(ct.c_float),
+                                                 ct.c_int,
+                                                 ct.POINTER(ct.POINTER(ct.c_float))]
+def add_attention_tile(stream, nrows, ncols, derivative, a, dL_dpre_a, u, n, matrices_derivs):
+    status = gpu_matrix_kernels._addAttentionTile(stream, nrows, ncols, derivative, a, dL_dpre_a, u, n, matrices_derivs)
+    cudart.check_cuda_status(status)
+
+
 gpu_matrix_kernels._sliceRowsBatch.restype = cudart.ct_cuda_error
 gpu_matrix_kernels._sliceRowsBatch.argtypes = [cudart.ct_cuda_stream,
                                                ct.POINTER(ct.c_int),

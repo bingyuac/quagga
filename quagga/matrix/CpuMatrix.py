@@ -365,19 +365,38 @@ class CpuMatrix(object):
             self.npa[i] = np.mean([matrix.npa[i] for matrix in matrices], axis=0)
 
     def assign_sequential_sum_pooling(self, context, matrices):
-        for i in xrange(matrices[0].nrows):
-            self.npa[i] = np.sum([matrix.npa[i] for matrix in matrices], axis=0)
+        self.npa = np.sum(m.npa for m in matrices)
 
     def assign_sequential_weighted_sum(self, context, w, matrices):
-        for i in xrange(matrices[0].nrows):
-            self.npa[i] = \
-                np.sum([w.npa[i, j] * matrix.npa[i]
-                        for j, matrix in enumerate(matrices)], axis=0)
+        self.npa = np.sum(w.npa[:, i, np.newaxis] * m.npa
+                          for i, m in enumerate(matrices))
 
     @staticmethod
     def sequentially_tile(context, a, matrices):
         for m in matrices:
             m.npa = a.npa
+
+    def assign_dL_dpre_a(self, context, derivative, a, matrices):
+        self.fill(context, 0.0)
+        for i in xrange(len(matrices)):
+            for j, m_j in enumerate(matrices):
+                if i == j:
+                    _a = (1.0 - a.npa[:, i, np.newaxis]) * \
+                         a.npa[:, i, np.newaxis]
+                else:
+                    _a = - a.npa[:, i, np.newaxis] * a.npa[:, j, np.newaxis]
+                self.npa[:, i] += np.sum(_a * m_j.npa * derivative.npa, axis=1)
+
+    def add_attention_derivative(self, context, dL_dpre_a, matrices):
+        for i in xrange(len(matrices)):
+            _a = dL_dpre_a.npa[:, i, np.newaxis]
+            self.npa += np.sum(_a * matrices[i].npa, axis=0, keepdims=True).T
+
+    @staticmethod
+    def add_attention_tile(context, derivative, a, dL_dpre_a, u, matrices_derivs):
+        for i, m_d in enumerate(matrices_derivs):
+            m_d.npa += a.npa[:, i, np.newaxis] * derivative.npa + \
+                       dL_dpre_a.npa[:, i, np.newaxis] * u.npa.T
 
     def tile(self, context, axis, a):
         n = int(self.nrows if axis == 0 else self.ncols)

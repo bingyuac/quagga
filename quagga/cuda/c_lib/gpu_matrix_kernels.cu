@@ -589,6 +589,72 @@ __global__ void sequentiallyTile(int nelems,
 }
 
 
+__global__ void assignDLDprea(int nrows,
+                              int ncols,
+                              const float* matrices[],
+                              const float* __restrict__ derivative,
+                              const float* __restrict__ weights,
+                              int n,
+                              float* __restrict__ out) {
+    const int nthreads = blockDim.x * gridDim.x;
+    const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int nelems = nrows * ncols;
+    const unsigned long long total_nelems = (unsigned long long) nelems * n * n;
+
+    int ii, jj;
+    for (unsigned long long i = start_i; i < total_nelems; i += nthreads) {
+        jj = i / nelems % n;
+        ii = i / nelems / n;
+        atomicAdd(out + ii * nrows + i % nrows,
+                  matrices[jj][i % nelems] * derivative[i % nelems] *
+                  ((ii == jj) - weights[ii * nrows + i % nrows]) *
+                                weights[jj * nrows + i % nrows]);
+    }
+}
+
+
+__global__ void addAttentionDerivative(int nrows,
+                                       int ncols,
+                                       const float* matrices[],
+                                       const float* __restrict__ derivative,
+                                       int n,
+                                       float* __restrict__ out) {
+    const int nthreads = blockDim.x * gridDim.x;
+    const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int nelems = nrows * ncols;
+    const int total_nelems = nelems * n;
+
+    int ii;
+    for (int i = start_i; i < total_nelems; i += nthreads) {
+        ii = i / nelems % n;
+        atomicAdd(out + i % nelems / nrows, matrices[ii][i % nelems] * derivative[ii * nrows + i % nrows]);
+    }
+}
+
+
+__global__ void addAttentionTile(int nrows,
+                                 int ncols,
+                                 const float* __restrict__ derivative,
+                                 const float* __restrict__ a,
+                                 const float* __restrict__ dL_dpre_a,
+                                 const float* __restrict__ u,
+                                 int n,
+                                 float* matrices_derivs[]) {
+    const int nthreads = blockDim.x * gridDim.x;
+    const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int nelems = nrows * ncols;
+    const int total_nelems = nelems * n;
+
+    int ii;
+    for (int i = start_i; i < total_nelems; i += nthreads) {
+        ii = i / nelems % n;
+        matrices_derivs[ii][i % nelems] +=
+                    a[ii * nrows + i % nrows] * derivative[i % nelems] +
+                    dL_dpre_a[ii * nrows + i % nrows] * u[i % nelems / nrows];
+    }
+}
+
+
 __global__ void dropout(int nelems,
                         float dropout_prob,
                         const float* __restrict__ data,
@@ -1567,12 +1633,12 @@ extern "C" {
     }
 
     cudaError_t _assignSequentialWeightedSum(cudaStream_t stream,
-                                            int nrows,
-                                            int ncols,
-                                            const float* matrices[],
-                                            const float* __restrict__ weights,
-                                            int n,
-                                            float* __restrict__ out) {
+                                             int nrows,
+                                             int ncols,
+                                             const float* matrices[],
+                                             const float* __restrict__ weights,
+                                             int n,
+                                             float* __restrict__ out) {
         int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
         assignSequentialWeightedSum<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrices, weights, n, out);
         return cudaGetLastError();
@@ -1588,6 +1654,44 @@ extern "C" {
         return cudaGetLastError();
     }
 
+    cudaError_t _assignDLDprea(cudaStream_t stream,
+                               int nrows,
+                               int ncols,
+                               const float* matrices[],
+                               const float* __restrict__ derivative,
+                               const float* __restrict__ weights,
+                               int n,
+                               float* __restrict__ out) {
+        int num_blocks = std::min((long long)MAX_NUM_BLOCKS_PER_KERNEL, ((long long)nrows * ncols * n * n - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        assignDLDprea<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrices, derivative, weights, n, out);
+        return cudaGetLastError();
+    }
+
+    cudaError_t _addAttentionDerivative(cudaStream_t stream,
+                                        int nrows,
+                                        int ncols,
+                                        const float* matrices[],
+                                        const float* __restrict__ derivative,
+                                        int n,
+                                        float* __restrict__ out) {
+        int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols * n - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addAttentionDerivative<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, matrices, derivative, n, out);
+        return cudaGetLastError();
+    }
+
+    cudaError_t _addAttentionTile(cudaStream_t stream,
+                                  int nrows,
+                                  int ncols,
+                                  const float* __restrict__ derivative,
+                                  const float* __restrict__ a,
+                                  const float* __restrict__ dL_dpre_a,
+                                  const float* __restrict__ u,
+                                  int n,
+                                  float* matrices_derivs[]) {
+        int num_blocks = std::min(MAX_NUM_BLOCKS_PER_KERNEL, (nrows * ncols * n - 1) / MAX_NUM_THREADS_PER_BLOCK + 1);
+        addAttentionTile<<<num_blocks, MAX_NUM_THREADS_PER_BLOCK, 0, stream>>>(nrows, ncols, derivative, a, dL_dpre_a, u, n, matrices_derivs);
+        return cudaGetLastError();
+    }
 
     cudaError_t _assignScaledAddition(cudaStream_t stream,
                                       int nelems,

@@ -709,6 +709,46 @@ class GpuMatrix(object):
         cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
         gpu_matrix_kernels.sequentially_tile(context.cuda_stream, a.nelems, a.data, device_pointer, n)
 
+    def assign_dL_dpre_a(self, context, derivative, a, matrices):
+        GpuMatrix.wait_matrices(context, derivative, a, *matrices)
+        self.last_modif_context = context
+        context.activate()
+
+        n = len(matrices)
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        device_pointer = _get_temp_memory(context, n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
+        self.fill(context, 0.0)
+        gpu_matrix_kernels.assign_dL_dpre_a(context.cuda_stream, derivative.nrows, derivative.ncols, device_pointer, derivative.data, a.data, n, self.data)
+
+    def add_attention_derivative(self, context, dL_dpre_a, matrices):
+        GpuMatrix.wait_matrices(context, dL_dpre_a, *matrices)
+        self.last_modif_context = context
+        context.activate()
+
+        nrows, ncols = matrices[0].nrows, matrices[0].ncols
+        n = len(matrices)
+        matrices = (ct.POINTER(self.c_dtype) * n)(*(m.data for m in matrices))
+        device_pointer = _get_temp_memory(context, n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
+        gpu_matrix_kernels.add_attention_derivative(context.cuda_stream, nrows, ncols, device_pointer, dL_dpre_a.data, n, self.data)
+
+    @staticmethod
+    def add_attention_tile(context, derivative, a, dL_dpre_a, u, matrices_derivs):
+        GpuMatrix.wait_matrices(context, derivative, a, dL_dpre_a, u)
+        for matrix in matrices_derivs:
+            matrix.last_modif_context = context
+        context.activate()
+
+        n = len(matrices_derivs)
+        matrices = (ct.POINTER(derivative.c_dtype) * n)(*(m.data for m in matrices_derivs))
+        device_pointer = _get_temp_memory(context, n)
+        elem_size = ct.sizeof(ct.POINTER(ct.c_float))
+        cudart.cuda_memcpy_async(device_pointer, matrices, n * elem_size, 'default', context.cuda_stream)
+        gpu_matrix_kernels.add_attention_tile(context.cuda_stream, derivative.nrows, derivative.ncols, derivative.data, a.data, dL_dpre_a.data, u.data, n, device_pointer)
+
     def tile(self, context, axis, a):
         GpuMatrix.wait_matrices(context, a)
         self.last_modif_context = context
