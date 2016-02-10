@@ -115,10 +115,10 @@ class TestSigmoidCeBlock(TestCase):
         quagga.processor_type = 'gpu'
         r = []
         for i in xrange(self.N):
-            batch_size = self.rng.random_integers(2000)
-            true_labels = self.rng.randint(2, size=(batch_size, 1)).astype(dtype=np.float32)
+            batch_size, dim = self.rng.random_integers(2000, size=2)
+            true_labels = self.rng.randint(2, size=(batch_size, dim)).astype(dtype=np.float32)
             mask = (self.rng.rand(batch_size, 1) < 0.8).astype(np.float32)
-            x = self.rng.randn(batch_size, 1).astype(dtype=np.float32)
+            x = self.rng.randn(batch_size, dim).astype(dtype=np.float32)
             device_id = 0
 
             for with_mask in [False, True]:
@@ -127,10 +127,13 @@ class TestSigmoidCeBlock(TestCase):
                 th_mask = T.fmatrix()
                 th_true_labels = T.fmatrix()
                 if with_mask:
-                    probs = T.nnet.sigmoid(th_mask * th_x)
+                    probs = T.nnet.sigmoid(theano.compile.ops.Rebroadcast((0, False), (1, True))(th_mask) * th_x)
                 else:
                     probs = T.nnet.sigmoid(th_x)
-                loss = T.mean(T.nnet.binary_crossentropy(probs, th_true_labels))
+                loss = - th_true_labels * T.log(probs) - \
+                       (1.0 - th_true_labels) * T.log(1.0 - probs)
+                loss = T.sum(loss, axis=1).mean()
+
                 if with_mask:
                     get_theano_grads = theano.function([th_x, th_true_labels, th_mask], T.grad(loss, wrt=th_x))
                     th_dL_dx = get_theano_grads(x, true_labels, mask)
