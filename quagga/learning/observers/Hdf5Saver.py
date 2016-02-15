@@ -56,4 +56,5 @@ class Hdf5Saver(object):
             h5_file[param_name] = self.npa_params[param_name]
             self.logger.info(param_name)
         h5_file.close()
+        self.npa_params.clear()
         self.logger.info('saved')
