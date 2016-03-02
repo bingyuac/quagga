@@ -43,7 +43,9 @@ class SigmoidCeBlock(object):
 
     def bprop(self):
         # error = (probs - true_labels) / M
-        self.dL_dx.add_scaled_subtraction(self.context, 1. / self.probs.nrows, self.probs, self.true_labels)
+        self.dL_dx.add_scaled_subtraction(self.context,
+                                          1. / float(self.probs.nrows),
+                                          self.probs, self.true_labels)
         if hasattr(self, 'mask'):
             self.dL_dx.hprod(self.context, self.mask)
 
@@ -52,15 +54,17 @@ class SigmoidCeBlock(object):
         probs_np = self.probs.to_host(context)
         if hasattr(self, 'mask'):
             mask = self.mask.to_host(context)
-            context.add_callback(self._calculate_ce_loss, true_labels_np, probs_np, mask)
+            context.add_callback(self._calculate_ce_loss,
+                                 true_labels_np, probs_np, mask)
         else:
-            context.add_callback(self._calculate_ce_loss, true_labels_np, probs_np)
+            context.add_callback(self._calculate_ce_loss,
+                                 true_labels_np, probs_np)
 
     def _calculate_ce_loss(self, true_labels_np, probs_np, mask=None):
         logs = true_labels_np * np.log(probs_np + 1e-20) + \
                (1.0 - true_labels_np) * np.log(1. - probs_np + 1e-20)
         if mask is not None:
             logs *= mask
-            self.loss = - np.sum(logs) / np.sum(mask)
+            self.loss = - np.sum(logs) / (np.sum(mask) * logs.shape[1])
         else:
             self.loss = - np.mean(logs)
