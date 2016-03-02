@@ -21,12 +21,12 @@ from quagga.matrix import ShapeElement
 
 
 class CpuMatrix(object):
-    def __init__(self, data, nrows, ncols, dtype):
+    def __init__(self, data, nrows, ncols, dtype, device_id):
         self.data = data
         self._nrows = nrows if isinstance(nrows, ShapeElement) else ShapeElement(nrows)
         self._ncols = ncols if isinstance(ncols, ShapeElement) else ShapeElement(ncols)
         self.dtype = dtype
-        self.device_id = 0
+        self.device_id = device_id
         self.last_modif_context = None
         self.last_usage_context = None
 
@@ -75,7 +75,7 @@ class CpuMatrix(object):
         self_proxy = weakref.proxy(self)
         if isinstance(key, int):
             data = self.npa[key, np.newaxis]
-            a = CpuMatrix(data, 1, self.ncols, self.dtype)
+            a = CpuMatrix(data, 1, self.ncols, self.dtype, self.device_id)
             a_proxy = weakref.proxy(a)
             if isinstance(self.ncols, ShapeElement):
                 modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.data[key, np.newaxis])
@@ -83,7 +83,7 @@ class CpuMatrix(object):
             return a
         if isinstance(key, ShapeElement):
             data = self.npa[key.value, np.newaxis]
-            a = CpuMatrix(data, 1, self.ncols, self.dtype)
+            a = CpuMatrix(data, 1, self.ncols, self.dtype, self.device_id)
             a_proxy = weakref.proxy(a)
             modif_handler = lambda: setattr(a, 'data', self_proxy.data[key.value, np.newaxis])
             key.add_modification_handler(modif_handler)
@@ -100,7 +100,7 @@ class CpuMatrix(object):
             nrows = stop - start
             if isinstance(start, int) and isinstance(key[1], int):
                 data = self.npa[start:, key[1], np.newaxis]
-                a = CpuMatrix(data, nrows, 1, self.dtype)
+                a = CpuMatrix(data, nrows, 1, self.dtype, self.device_id)
                 if isinstance(nrows, ShapeElement):
                     a_proxy = weakref.proxy(a)
                     modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.data[start:, key[1], np.newaxis])
@@ -108,21 +108,21 @@ class CpuMatrix(object):
                 return a
             elif isinstance(start, int) and isinstance(key[1], ShapeElement):
                 data = self.npa[start:, key[1].value, np.newaxis]
-                a = CpuMatrix(data, nrows, 1, self.dtype)
+                a = CpuMatrix(data, nrows, 1, self.dtype, self.device_id)
                 a_proxy = weakref.proxy(a)
                 modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.data[start:, key[1].value, np.newaxis])
                 key[1].add_modification_handler(modif_handler)
                 return a
             elif isinstance(start, ShapeElement) and isinstance(key[1], int):
                 data = self.npa[start.value:, key[1], np.newaxis]
-                a = CpuMatrix(data, nrows, 1, self.dtype)
+                a = CpuMatrix(data, nrows, 1, self.dtype, self.device_id)
                 a_proxy = weakref.proxy(a)
                 modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.data[start.value:, key[1], np.newaxis])
                 start.add_modification_handler(modif_handler)
                 return a
             elif isinstance(start, ShapeElement) and isinstance(key[1], ShapeElement):
                 data = self.npa[start.value:, key[1].value, np.newaxis]
-                a = CpuMatrix(data, nrows, 1, self.dtype)
+                a = CpuMatrix(data, nrows, 1, self.dtype, self.device_id)
                 a_proxy = weakref.proxy(a)
                 modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.data[start.value:, key[1].value, np.newaxis])
                 key[1].add_modification_handler(modif_handler)
@@ -135,7 +135,7 @@ class CpuMatrix(object):
             ncols = stop - start
             if isinstance(start, int):
                 data = self.npa[:, start:]
-                a = CpuMatrix(data, self.nrows, ncols, self.dtype)
+                a = CpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id)
                 a_proxy = weakref.proxy(a)
                 if isinstance(self.nrows, ShapeElement):
                     modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.data[:, start:])
@@ -143,7 +143,7 @@ class CpuMatrix(object):
                 return a
             elif isinstance(start, ShapeElement):
                 data = self.npa[:, start.value:]
-                a = CpuMatrix(data, self.nrows, ncols, self.dtype)
+                a = CpuMatrix(data, self.nrows, ncols, self.dtype, self.device_id)
                 a_proxy = weakref.proxy(a)
                 modif_handler = lambda: setattr(a_proxy, 'data', self_proxy.data[:, start.value:])
                 start.add_modification_handler(modif_handler)
@@ -182,13 +182,13 @@ class CpuMatrix(object):
             dtype, np_dtype = cls.array_to_dtypes(a)
         if a.dtype != np_dtype:
             a = a.astype(dtype=np_dtype)
-        return cls(np.copy(a), a.shape[0], a.shape[1], dtype)
+        return cls(np.copy(a), a.shape[0], a.shape[1], dtype, device_id)
 
     @classmethod
     def empty(cls, nrows, ncols, dtype=None, device_id=None):
         dtype = dtype if dtype else quagga.dtype
         np_dtype = cls.str_to_dtype(dtype)
-        a = cls(None, nrows, ncols, dtype)
+        a = cls(None, nrows, ncols, dtype, device_id)
         nrows = nrows.value if isinstance(nrows, ShapeElement) else nrows
         ncols = ncols.value if isinstance(ncols, ShapeElement) else ncols
         a.data = np.nan_to_num(np.empty((nrows, ncols), dtype=np_dtype))
@@ -196,7 +196,7 @@ class CpuMatrix(object):
 
     @classmethod
     def empty_like(cls, other, device_id=None):
-        return cls.empty(other.nrows, other.ncols, other.dtype)
+        return cls.empty(other.nrows, other.ncols, other.dtype, device_id)
 
     def to_host(self, context=None):
         return np.copy(self.npa)
